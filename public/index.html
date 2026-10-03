@@ -1395,7 +1395,7 @@ const EXAMPLE = {
 
 /* ---------- The Agent maître (generation prompt) ---------- */
 const GENRE_RULES = {
-  conte:"Conte qui enseigne : la leçon se montre par les actes et se dit seulement à la fin ; un moment de doute avant la victoire ; dernier plan large et calme.",
+  conte:"Conte qui enseigne : la leçon se montre par les actes ; si elle se dit, c'est à la fin, par une phrase concrète liée à l'histoire, jamais une maxime générique ; un moment de doute avant la victoire ; dernier plan large et calme.",
   thriller:"Thriller : le spectateur en sait plus (ou moins) que le personnage ; compte à rebours visible ; gros plans sur des détails qui deviennent des indices ; palette froide et désaturée (teal green, cold grey), néons fluorescents, ombres dures ; caméra à l'épaule légère dans la tension ; angle penché quand tout bascule ; montage qui s'accélère ; fin en cliffhanger.",
   epopee:"Épopée héroïque africaine : tradition et grandeur (tissus, parures, architecture), couleurs symboliques par personnage ou groupe, contre-plongées pour les héros, plans très larges pour les lieux et les foules, plan-séquence pour les moments clés, musique de percussions qui monte.",
   drame:"Drame : émotions retenues, gros plans sur les regards, silences, lumière naturelle, une décision difficile au centre de l'histoire.",
@@ -1497,7 +1497,11 @@ const DIRECTOR_BRAIN = `CERVEAU DE RÉALISATEUR (applique-le dans cet ordre, en 
 13. Rythme variable : rapide pour l'urgence et l'escalade, plus long pour l'émotion, le suspense, le gag et la révélation ; viral ne veut pas dire couper à chaque seconde.
 14. Afrique authentique : jamais « Afrique = village poussiéreux et pauvreté » par défaut. Précise le contexte réel (pays, ville, quartier : Dakar ≠ Saint-Louis ≠ Casamance ≠ Fouta ; Sénégal ≠ Mali ≠ Nigeria) : architecture, vêtements, nourriture, véhicules, langue, climat et comportements cohérents ; l'Afrique moderne autant que traditionnelle.
 15. Images mémorables : plusieurs moments qui, figés, racontent déjà quelque chose (test de la miniature) ; sujet lisible, silhouettes distinctes, profondeur (premier plan, sujet et arrière-plan peuvent raconter chacun une information).
-16. Critique interne avant de répondre : note de 1 à 10 la narration, l'accroche, l'émotion, la clarté, l'originalité, la cinématographie, la continuité, le son, le rythme, l'authenticité et la faisabilité par l'IA. Corrige tout ce qui est sous 8 AVANT de répondre ; écris les notes finales et les corrections faites dans "critique".`;
+16. Retournement mérité : le moment qui fait changer le personnage doit être assez fort pour justifier ce changement, et le spectateur doit le RESSENTIR en même temps que lui (une révélation, une image, une phrase qui frappe), jamais un changement d'attitude soudain sans cause visible. Plante tôt la phrase, l'objet ou le geste clé, puis fais-le revenir au moment décisif avec un sens nouveau.
+17. Flashback : il montre les personnages concernés À L'ÉPOQUE (ensemble si le souvenir les concerne tous les deux), avec un signe visuel d'époque (âge, coiffure, vêtements, lumière, saison), et il contient l'élément planté qui reviendra (souvent la phrase clé).
+18. Fin concrète : jamais une maxime générique (« le temps appartient à ceux qui s'aiment ») ; la dernière phrase et la dernière image s'appuient sur un élément précis de l'histoire, souvent l'objet du début qui change de sens (la montre de l'urgence devient la montre abandonnée).
+19. Cohérence : la logline, la structure et les plans racontent exactement la même histoire (mêmes personnages, même souvenir, même fin).
+20. Critique interne avant de répondre : note de 1 à 10 la narration, l'accroche, l'émotion, la force du retournement, la cohérence, la clarté, l'originalité, la cinématographie, la continuité, le son, le rythme, l'authenticité et la faisabilité par l'IA. Corrige tout ce qui est sous 8 AVANT de répondre ; écris les notes finales et les corrections faites dans "critique".`;
 const NICHE_GUIDES = {
   comedie:"HUMOUR ET SKETCH : mise en place → attente → fausse piste → chute. Outils : répétition, escalade, contraste, malentendu, ironie, pince-sans-rire, rappel d'un gag précédent, réaction, silence, absurde, règle de trois. Caméra souvent posée ; ne coupe pas trop tôt après la chute (une demi-seconde de regard fait rire) ; une grimace seule n'est pas de l'humour ; jamais de moquerie blessante.",
   drame:"DRAME : normalité → anomalie → compréhension → émotion → conséquence ; ne commence pas par des cris ou des larmes. L'émotion passe par l'action (« elle commence à répondre, s'arrête, baisse les yeux, serre l'objet contre elle et ne finit pas sa phrase ») ; silences ; laisse respirer les plans d'émotion.",
@@ -1533,7 +1537,7 @@ function nicheGuides(idee, p){
   const out = [...k].slice(0,4).map(n=>NICHE_GUIDES[n]).filter(Boolean);
   return out.length ? "MANUELS DE LA NICHE (choisis ta technique selon le projet ; toutes les vidéos ne doivent pas devenir « cinématiques ») :\n- "+out.join("\n- ") : "";
 }
-const CRIT_KEYS = [["narration","Narration"],["accroche","Accroche"],["emotion","Émotion"],["clarte","Clarté"],["originalite","Originalité"],["cinematographie","Image"],["continuite","Continuité"],["son","Son"],["rythme","Rythme"],["authenticite","Authenticité"],["faisabilite_ia","Faisabilité IA"]];
+const CRIT_KEYS = [["narration","Narration"],["accroche","Accroche"],["emotion","Émotion"],["retournement","Retournement"],["coherence","Cohérence"],["clarte","Clarté"],["originalite","Originalité"],["cinematographie","Image"],["continuite","Continuité"],["son","Son"],["rythme","Rythme"],["authenticite","Authenticité"],["faisabilite_ia","Faisabilité IA"]];
 function decorOf(r, p){ const L = (r.lieux||[]).find(l=>l.id===p.lieu); return [L&&L.description_en, p.decor_en].map(x=>String(x||"").trim().replace(/[\s.;,]+$/,"")).filter(Boolean).join(", "); }
 function agentPrompt(idee, p){
   const n = p.timeline ? p.timeline.length : nPlans(p.duree, p.outil);
@@ -1551,7 +1555,7 @@ RÉGLAGES :
 ${TYPE_RULES[p.vtype||"histoire"]}
 - Genre : ${label("genre",p.genre)}. ${(p.vtype||"histoire")==="histoire"?(GENRE_RULES[p.genre]||""):"(applique-le seulement s'il sert ce type de vidéo)"}
 - Style visuel : ${label("style",p.style)} (le bloc de style est ajouté par l'application, ne l'écris pas toi-même).${STYLE_RULES[p.style]?"\n"+STYLE_RULES[p.style]:""}
-- Format : ${p.format}. ${p.timeline?timelineRule(p)+"\n- ":""}Durée totale : ${secs} secondes, découpée en exactement ${n} plans ${p.timeline?"aux durées imposées ci-dessus":`d'environ ${ps} secondes chacun`} (${p.outil==="wan"?"Wan génère des clips fiables de 5 secondes : une action très simple par plan":"Veo génère des clips de 8 secondes"}), timecodes continus de 0:00 à la fin, au format m:ss.${(p.persos&&p.persos.length)?`
+- Format : ${p.format}. ${p.timeline?timelineRule(p)+"\n- ":""}${p.timeline ? `Durée totale : ${secs} secondes, découpée en exactement ${n} plans aux durées imposées ci-dessus` : `Durée totale : ${secs} secondes AU MAXIMUM. Une vidéo trop longue pour son histoire perd le public : si l'histoire est plus forte en plus court, fais-la plus courte. Entre ${Math.max(3, Math.round(n*0.6))} et ${n} plans de durées VARIABLES (3 à ${ps} secondes ; le clip est coupé au montage) : courts pour l'action, l'humour et la tension, plus longs seulement pour le moment d'émotion ; jamais tous les plans de la même durée`} (${p.outil==="wan"?"Wan génère des clips fiables de 5 secondes : une action très simple par plan":"Veo génère des clips de 8 secondes"}), timecodes continus de 0:00 à la fin, au format m:ss.${(p.persos&&p.persos.length)?`
 - PERSONNAGES IMPOSÉS (bibliothèque de l'utilisateur) : utilise exactement ces personnages, avec le même id, le même nom et les mêmes fiche_en, rappel_en et fiche_fr, recopiées caractère par caractère : ${JSON.stringify(p.persos.map(c=>({id:c.id,nom:c.nom,fiche_en:c.fiche_en,rappel_en:c.rappel_en,fiche_fr:c.fiche_fr})))}. N'ajoute un autre personnage que si l'histoire l'exige.`:""}
 - Langue de la voix off et des dialogues : ${LANG_NAME[p.langue]}. ${p.timeline?"La voix off est celle de l'audio existant (texte imposé).":`Environ ${words} mots de voix off au total, répartis sur les plans.`}
 - Émotion : ${label("ton",p.ton||"equilibre")}. ${EMO_RULES[p.ton]||EMO_RULES.equilibre}
@@ -1601,7 +1605,7 @@ MONTAGE : 6 à 9 consignes en français, chacune avec son timecode (transitions,
 YOUTUBE : 3 titres accrocheurs dans la langue du public ; miniature_personnage = id du personnage principal ou "" ; miniature_scene_en = scène de miniature avec émotion forte et espace vide pour un texte ; texte_miniature = 1 à 3 mots ; description avec 3 à 5 hashtags.
 
 RÉPONDS UNIQUEMENT avec un objet JSON valide, exactement de cette forme :
-{"titre":"","logline":"","lecon":"","public":"","genre_note":"","palette_en":"","structure":"","personnages":[{"id":"","nom":"","fiche_en":"","rappel_en":"","fiche_fr":""}],"lieux":[{"id":"","nom":"","description_en":""}],"plans":[{"n":1,"debut":"0:00","fin":"0:08","intention":"","voix_off":"","voix_off_fr":"","personnages":[],"cadrage_en":"","action_en":"","decor_en":"","camera_en":"","lumiere_en":"","ambiance_en":"","son_en":"","beats_en":["","",""],"voix_ton_en":"","repliques":[{"locuteur":"","texte":"","ton_en":""}],"lieu":"","depart_en":"","fin_en":"","locuteur":"","montage":"","texte_ecran":"","detail_type":"","risque":"","note":9}],"special":${SPECIAL_SCHEMA[p.vtype||"histoire"]},"retention":{"accroche_visuelle":"","accroche_phrase":"","boucle_ouverte":"","relances":[{"temps":"0:10","technique":""}],"pic_emotionnel":{"temps":"","description":""},"derniere_image":""},"audio":{"voix":"","musique_en":"","mixage":""},"montage":[""],"youtube":{"titres":["","",""],"miniature_personnage":"","miniature_scene_en":"","texte_miniature":"","description":""},"critique":{"narration":9,"accroche":9,"emotion":9,"clarte":9,"originalite":9,"cinematographie":9,"continuite":9,"son":9,"rythme":9,"authenticite":9,"faisabilite_ia":9,"corrections":[""]},"langue_alertes":[]}
+{"titre":"","logline":"","lecon":"","public":"","genre_note":"","palette_en":"","structure":"","personnages":[{"id":"","nom":"","fiche_en":"","rappel_en":"","fiche_fr":""}],"lieux":[{"id":"","nom":"","description_en":""}],"plans":[{"n":1,"debut":"0:00","fin":"0:08","intention":"","voix_off":"","voix_off_fr":"","personnages":[],"cadrage_en":"","action_en":"","decor_en":"","camera_en":"","lumiere_en":"","ambiance_en":"","son_en":"","beats_en":["","",""],"voix_ton_en":"","repliques":[{"locuteur":"","texte":"","ton_en":""}],"lieu":"","depart_en":"","fin_en":"","locuteur":"","montage":"","texte_ecran":"","detail_type":"","risque":"","note":9}],"special":${SPECIAL_SCHEMA[p.vtype||"histoire"]},"retention":{"accroche_visuelle":"","accroche_phrase":"","boucle_ouverte":"","relances":[{"temps":"0:10","technique":""}],"pic_emotionnel":{"temps":"","description":""},"derniere_image":""},"audio":{"voix":"","musique_en":"","mixage":""},"montage":[""],"youtube":{"titres":["","",""],"miniature_personnage":"","miniature_scene_en":"","texte_miniature":"","description":""},"critique":{"narration":9,"accroche":9,"emotion":9,"retournement":9,"coherence":9,"clarte":9,"originalite":9,"cinematographie":9,"continuite":9,"son":9,"rythme":9,"authenticite":9,"faisabilite_ia":9,"corrections":[""]},"langue_alertes":[]}
 Les champs en français (titre, logline, lecon, public, genre_note, intention, montage des plans, texte_ecran, detail_type, risque, fiche_fr, retention, special, audio.voix, audio.mixage, montage) sont en français, sauf les champs qui finissent par _en. texte_ecran = "" si aucun texte n'est ajouté au montage sur ce plan. La musique, l'étalonnage et le rythme suivent l'émotion choisie. palette_en = la palette de couleurs en quelques mots anglais, utilisée pour tout le projet. Avant de répondre, vérifie chaque plan : une action, fiches cohérentes, caméra nommée, lumière précise, risques réduits ; réécris tout plan que tu noterais sous 8.`;
 }
 
@@ -2073,6 +2077,9 @@ function renderProject(){
     <div class="field"><label for="v-style">Style</label><div class="sel"><select id="v-style"></select></div></div>
     <div class="field"><label for="v-vmode">Prompts vidéo</label><div class="sel"><select id="v-vmode"></select></div></div></div>
     <div class="actions"><button type="button" class="btn small" id="copy-all">Tout copier</button><button type="button" class="btn small" id="dl-txt" ${downloads?"":"hidden"}>Télécharger .txt</button></div>
+    <details class="fix" ${sample?"":"hidden"}><summary>Améliorer ce projet (colle une critique, par exemple celle de ChatGPT)</summary><div class="fix-body">
+      <label class="hint" for="improve-txt">Ce qu'il faut améliorer : histoire, révélation, fin, rythme, durée, dialogues… L'agent garde ce qui marche et réécrit tout le reste. L'ancienne version reste dans Projets.</label>
+      <textarea id="improve-txt"></textarea><div class="actions"><button type="button" class="btn small primary" id="improve-go">Créer la version améliorée</button><span class="hint" id="improve-msg"></span></div></div></details>
     ${v.outil==="wan"?`<div class="block"><h4>WanGP · tous les plans d'un coup</h4><p class="hint">Colle dans la case des prompts de WanGP (modèle Text2video) : chaque paragraphe donne une vidéo, donc tous tes plans se génèrent à la suite. Colle le prompt négatif dans « Mode avancé ».</p>
       <div class="actions"><button type="button" class="btn small primary" data-copy="wan-batch">Copier les ${plans.length} prompts texte → vidéo</button><button type="button" class="btn small" data-copy="wan-neg">Copier le prompt négatif</button></div></div>`:""}</div>`;
   copyMap.set("wan-batch", plans.map(p=>t2vPrompt(r,p,v)).join("\n\n"));
@@ -2261,6 +2268,31 @@ $("desk").addEventListener("submit", async e=>{
 });
 $("stop").addEventListener("click",()=>{ if(ctl) ctl.abort(); });
 
+/* Version améliorée d'un projet : l'agent reçoit le projet actuel et la critique, puis réécrit le projet complet */
+async function improveProject(){
+  if(!sample || !current) return;
+  const crit = $("improve-txt").value.trim(), msg = $("improve-msg"), btn = $("improve-go");
+  if(crit.length < 10){ msg.textContent = "Écris ou colle d'abord ce qu'il faut améliorer."; $("improve-txt").focus(); return; }
+  const r0 = current.result, params = Object.assign({}, current.params);
+  const prev = {titre:r0.titre, logline:r0.logline, structure:r0.structure||"", personnages:(r0.personnages||[]).map(c=>({id:c.id, nom:c.nom, fiche_fr:c.fiche_fr})),
+    plans:(r0.plans||[]).map(p=>({n:p.n, debut:p.debut, fin:p.fin, intention:p.intention, voix_off:p.voix_off, action_en:p.action_en}))};
+  const idee = `${current.idee||r0.titre}
+
+RÉÉCRIS CE PROJET EN VERSION AMÉLIORÉE.
+Version précédente (à améliorer, pas à recopier) : ${JSON.stringify(prev)}
+Critique à appliquer point par point : """${crit}"""
+Garde ce qui marche, corrige tout ce que la critique signale (histoire, retournement, fin, rythme, durée, dialogues), puis livre le projet complet.`;
+  btn.disabled = true; msg.textContent = "L'Agent maître réécrit le projet (jusqu'à 2 minutes)…";
+  try{
+    const r = await sample.json(agentPrompt(idee, params), {modelTier:"complex", engine:"best", cache:false});
+    if(!validResult(r)) throw {code:"invalid_json"};
+    const res = normalize(r);
+    if(params.audio==="voice" && params.outil!=="wan" && res.plans.some(p=>p.voix_off && nWords(p.voix_off) > maxWords(p))) await shortenLines(res, params);
+    const proj = {id:null, isExample:false, idee:current.idee||r0.titre, params, result:res, createdAt:Date.now(), updatedAt:Date.now()};
+    openProject(proj); await saveProject(proj);
+    toast("Version améliorée créée. L'ancienne reste dans Projets.");
+  }catch(err){ msg.textContent = errText(err); btn.disabled = false; }
+}
 async function fixShot(i){
   if(!sample||!current) return;
   const ta=$("fix-"+i), msg=$("fixmsg-"+i), btn=document.querySelector(`[data-fix="${i}"]`);
@@ -3948,6 +3980,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.saveseries && lastSeries && db && uid){ t.disabled=true; try{ await db.collection("data/users/"+uid).doc().set({kind:"series", titre:(lastSeries.r.noms||[])[0]||"Ma chaîne", set:{f:lastSeries.f, r:lastSeries.r}, createdAt:Date.now(), updatedAt:Date.now()}); t.textContent="Enregistrée"; toast("Chaîne enregistrée dans Projets."); }catch(err){ t.disabled=false; toast("La chaîne n'a pas pu être enregistrée."); } return; }
   if(t.dataset.openseries){ const d=docs.find(x=>x.id===t.dataset.openseries); if(d&&d.data.set){ lastSeries={f:d.data.set.f, r:d.data.set.r, savedId:d.id}; setView("chaine"); renderSeries(lastSeries); requestAnimationFrame(()=>$("ch-res").scrollIntoView({block:"start"})); } return; }
   if(t.dataset.srt){ const proj=sndSource($("snd-src").value); if(proj&&downloads){ try{ await downloads.save({filename:"sous-titres-"+slug(proj.result.titre)+(t.dataset.srt==="fr"?"-fr":"")+".txt", data:buildSrt(proj, t.dataset.srt==="fr")}); toast("Fichier enregistré : renomme-le en .srt."); }catch(err){ if(!err||err.code!=="declined") toast("Le téléchargement n'est pas disponible ici."); } } return; }
+  if(t.id==="improve-go" && current){ improveProject(); return; }
   if(t.id==="copy-all" && current){ const txt=fullText(current,view); try{ await navigator.clipboard.writeText(txt); toast("Tout le projet est copié."); }catch(err){ toast("Copie impossible ici : utilise « Télécharger .txt »."); } return; }
   if(t.id==="dl-txt" && current && downloads){ try{ await downloads.save({filename:slug(current.result.titre)+".txt", data:fullText(current,view)}); toast("Fichier enregistré."); }catch(err){ if(!err||err.code!=="declined") toast("Le téléchargement n'est pas disponible ici."); } return; }
 });
