@@ -1,0 +1,33 @@
+# Publie l'interface (dossier public/) sur GitHub Pages à chaque envoi sur la branche main.
+# GitHub Pages n'a pas de serveur : l'interface s'affiche, mais les agents ne marchent qu'avec server.js
+# (sur ton ordinateur, ou chez un hébergeur avec serveur et un mot de passe APP_PASSWORD).
+name: Publier l'interface sur GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v4

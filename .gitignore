@@ -1,0 +1,16 @@
+# Clés API : ne jamais publier
+.env
+.env.*
+!.env.example
+
+node_modules/
+*.log
+
+# Vidéos et captures de références (lourdes, et souvent les vidéos d'autres créateurs)
+references/videos/
+references/images/
+references/*-echec.png
+
+# Outils de l'éditeur
+.kilocode/
+.vscode/

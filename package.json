@@ -1,0 +1,13 @@
+{
+  "name": "studio-prompt",
+  "version": "1.0.0",
+  "description": "Studio Prompt : agents IA pour créer des vidéos virales (prompts Veo, Wan, Nano Banana, montage, niches, monétisation).",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
