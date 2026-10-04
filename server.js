@@ -34,8 +34,8 @@ const openaiModel = best => best ? (process.env.OPENAI_MODEL_BEST || "gpt-6.1-so
 const openaiEffort = best => best ? (process.env.OPENAI_EFFORT_BEST || "max") : (process.env.OPENAI_EFFORT || "medium");
 /* Sans crédits pour Sol, le relais OpenAI est Luna (recherche web comprise) ; on revérifie Sol toutes les 30 minutes */
 const OPENAI_FALLBACK = process.env.OPENAI_MODEL_FALLBACK || "gpt-6-luna";
-let openaiSolBlockedUntil = 0;
-const CREDIT_RE = /insufficient_quota|credit_balance|no credits/i;
+let openaiSolBlockedUntil = 0, openaiAllBlockedUntil = 0;   // Sol sans crédits ; plus aucun crédit OpenAI
+const CREDIT_RE = /insufficient_quota|credit_balance|no credits|exceeded your current quota|billing/i;
 async function probeOpenAI(){
   if(!OPENAI_KEY) return;
   try{
@@ -43,8 +43,8 @@ async function probeOpenAI(){
       body:JSON.stringify({model:openaiModel(true), input:"OK", max_output_tokens:16, reasoning:{effort:"low"}})});
     const j = await r.json().catch(() => ({}));
     const e = j.error ? `${j.error.code || ""} ${j.error.type || ""} ${j.error.message || ""}` : "";
-    if(e && CREDIT_RE.test(e)){ openaiSolBlockedUntil = Date.now() + 30 * 60 * 1000; console.log(`OpenAI ${openaiModel(true)} : pas de crédits pour le moment, relais par ${OPENAI_FALLBACK}.`); }
-    else if(!e){ if(openaiSolBlockedUntil) console.log(`OpenAI ${openaiModel(true)} : crédits disponibles.`); openaiSolBlockedUntil = 0; }
+    if(e && CREDIT_RE.test(e)){ openaiSolBlockedUntil = openaiAllBlockedUntil = Date.now() + 30 * 60 * 1000; console.log("OpenAI : compte API sans crédits, relais direct par Gemini ou Anthropic pendant 30 minutes."); }
+    else if(!e){ if(openaiSolBlockedUntil || openaiAllBlockedUntil) console.log(`OpenAI ${openaiModel(true)} : crédits disponibles.`); openaiSolBlockedUntil = 0; openaiAllBlockedUntil = 0; }
   }catch(err){}
 }
 const MAX_OUT = Number(process.env.MAX_OUTPUT_TOKENS) || 32000;
@@ -115,8 +115,9 @@ async function handleSample(req, res){
   const ctl = new AbortController(); res.on("close", () => { if(!res.writableEnded) ctl.abort(); });
   /* Moteur : « best » = OpenAI Sol (réflexion maximale, recherche web fiable) s'il est disponible, sinon le moteur par défaut.
      Si un moteur échoue (quota, crédits, clé), l'autre prend le relais. */
-  const best = input.engine === "best" || input.tier === "complex";
-  const engines = [best && OPENAI_KEY ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", OPENAI_KEY ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i);
+  const best = input.engine === "best" || (input.engine !== "default" && input.tier === "complex");
+  const oaOk = OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) && !(openaiSolBlockedUntil > Date.now());   // sans crédits pour Sol : Gemini directement (Luna sans crédits coupe ses réponses)
+  const engines = [best && oaOk ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", ANTHROPIC_KEY ? "anthropic" : "", oaOk ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i && !(x === "openai" && !oaOk));
   let upstream = null, prov = engines[0];
   const callGemini = async () => {
     const m = await geminiModels(), model = input.tier === "complex" ? m.complex : m.default;
@@ -174,10 +175,23 @@ async function handleSample(req, res){
         messages:[{role:"user", content:[...images.map(i => ({type:"image", source:{type:"base64", media_type:i.mime, data:i.data}})), {type:"text", text:prompt + (json ? "\n\nRéponds uniquement avec le JSON, sans texte autour." : "")}]}]})
     });
   };
+  /* Coupure réseau passagère : on réessaie une fois le même moteur, puis on passe au suivant */
+  const netErrs = [];
   try{
-    for(let k = 0; k < engines.length; k++){
+    for(let k = 0, retried = false; k < engines.length; k++){
       prov = engines[k]; searchUsed = search;
-      upstream = prov === "gemini" ? await callGemini() : prov === "openai" ? await callOpenAI() : await callAnthropic();
+      try{
+        upstream = prov === "gemini" ? await callGemini() : prov === "openai" ? await callOpenAI() : await callAnthropic();
+      }catch(e){
+        if(ctl.signal.aborted) return;
+        const why = (e && e.cause && (e.cause.code || e.cause.message)) || (e && e.message) || "erreur réseau";
+        netErrs.push(`${prov} : ${why}`); upstream = null;
+        if(!retried){ retried = true; console.log(`${prov} injoignable (${why}), nouvel essai dans 3 s.`); await new Promise(r => setTimeout(r, 3000)); k--; continue; }
+        retried = false;
+        if(k < engines.length - 1){ console.log(`${prov} injoignable (${why}), passage à ${engines[k + 1]}.`); continue; }
+        throw e;
+      }
+      retried = false;
       if(upstream && upstream.ok) break;
       if(k < engines.length - 1 && (!upstream || [401, 402, 403, 404, 429, 500, 502, 503, 529].includes(upstream.status))){
         let msg = ""; try{ const j = upstream ? await upstream.clone().json() : {}; msg = (j.error && j.error.message) || ""; }catch(e){}
@@ -188,7 +202,8 @@ async function handleSample(req, res){
     }
   }catch(e){
     if(ctl.signal.aborted) return;
-    return sendJson(res, 502, {code:"network", message:"Le serveur n'arrive pas à joindre l'API : vérifie ta connexion Internet."});
+    console.log("API injoignable :", netErrs.join(" ; ") || (e && e.message));
+    return sendJson(res, 502, {code:"network", message:"Le serveur n'arrive pas à joindre l'API : vérifie ta connexion Internet puis réessaie."});
   }
   if(!upstream) return sendJson(res, 500, {code:"no_model", message:"Aucun modèle disponible : vérifie tes clés dans .env."});
   if(!upstream.ok){
@@ -218,7 +233,10 @@ async function handleSample(req, res){
         const fail = ev.type === "error" ? (ev.message || (ev.error && ev.error.message))
           : ev.type === "response.failed" ? ((ev.response && ev.response.error && ev.response.error.message) || "La génération a échoué.")
           : ev.type === "response.incomplete" ? `Réponse incomplète (${(ev.response && ev.response.incomplete_details && ev.response.incomplete_details.reason) || "limite atteinte"}) : réessaie.` : "";
-        if(fail && CREDIT_RE.test(fail) && oaModel !== OPENAI_FALLBACK){ openaiSolBlockedUntil = Date.now() + 30 * 60 * 1000; console.log(`OpenAI ${oaModel} : plus de crédits, relais par ${OPENAI_FALLBACK} pour les prochaines demandes.`); }
+        if(fail && CREDIT_RE.test(fail)){
+          openaiSolBlockedUntil = openaiAllBlockedUntil = Date.now() + 30 * 60 * 1000;
+          console.log("OpenAI : compte API sans crédits, Gemini ou Anthropic prend le relais pendant 30 minutes.");
+        }
         if(fail){ res.write(JSON.stringify({error:true, code:NO_CREDIT.test(fail) ? "no_credit" : "server_error", message:frMessage(fail, prov)}) + "\n"); break; }
       } else {
         if(ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") delta = ev.delta.text;
@@ -253,7 +271,7 @@ async function handleStatus(res){
   if(PROVIDER === "gemini") model = (await geminiModels()).default;
   else if(PROVIDER === "openai") model = openaiModel(false);
   else if(PROVIDER === "anthropic") model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
-  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, best: OPENAI_KEY ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : ""});
+  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, best: OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : (ANTHROPIC_KEY ? "Anthropic" : GEMINI_KEY ? "Gemini" : "")});
 }
 
 /* En ligne (Render…) : HOST=0.0.0.0 et APP_PASSWORD obligatoire, sinon n'importe qui utiliserait tes clés et tes crédits */
