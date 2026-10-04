@@ -53,6 +53,9 @@ const PUBLIC = path.join(__dirname, "public");
 /* Modèles de secours quand le quota du jour d'un modèle est atteint (chaque modèle a son propre quota) */
 const GEMINI_FALLBACKS = (process.env.GEMINI_FALLBACKS || "gemini-3-flash-preview,gemini-2.5-flash,gemini-3.1-flash-lite-preview").split(",").map(x => x.trim()).filter(Boolean);
 const geminiBlocked = new Map();   // modèle → heure (ms) où son quota revient
+const geminiBusy = new Map();      // modèle surchargé chez Google → heure (ms) où on le réessaie
+const BUSY_RE = /high demand|overloaded|UNAVAILABLE|try again later/i;
+const BUSY_MSG = "Gemini est surchargé en ce moment (trop de demandes chez Google) : réessaie dans une minute.";
 /* Heure où le premier modèle Gemini bloqué retrouve son quota (sans compter la recherche web) */
 function geminiResetText(){
   const now = Date.now(), t = [...geminiBlocked.entries()].filter(([k, v]) => !k.endsWith("|recherche") && v > now).map(([, v]) => v);
@@ -117,13 +120,16 @@ async function handleSample(req, res){
   if(!PROVIDER) return sendJson(res, 500, {code:"no_key", message:"Aucune clé API : copie .env.example en .env et mets ta clé GEMINI_API_KEY (ou OPENAI_API_KEY, ou ANTHROPIC_API_KEY)."});
   const prompt = String(input.prompt || ""), images = Array.isArray(input.images) ? input.images.slice(0, 8) : [], json = !!input.json, search = !!input.search;
   let searchUsed = search;
+  /* Un fichier audio (transcription) : seul Gemini sait l'écouter ici */
+  const hasAudio = images.some(i => /^audio\//.test(String(i && i.mime)));
+  if(hasAudio && !GEMINI_KEY) return sendJson(res, 400, {code:"no_key", message:"La transcription automatique a besoin d'une clé Gemini (GEMINI_API_KEY dans .env) : OpenAI et Claude ne peuvent pas écouter l'audio ici."});
   const ctl = new AbortController(); res.on("close", () => { if(!res.writableEnded) ctl.abort(); });
   /* Moteur : « best » = OpenAI Sol (réflexion maximale, recherche web fiable) s'il est disponible, sinon le moteur par défaut.
      Si un moteur échoue (quota, crédits, clé), l'autre prend le relais. */
   const best = input.engine === "best" || (input.engine !== "default" && input.tier === "complex");
   const oaOk = OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) && !(openaiSolBlockedUntil > Date.now());   // sans crédits pour Sol : Gemini directement (Luna sans crédits coupe ses réponses)
-  const engines = [best && oaOk ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", ANTHROPIC_KEY ? "anthropic" : "", oaOk ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i && !(x === "openai" && !oaOk));
-  let upstream = null, prov = engines[0];
+  const engines = hasAudio ? ["gemini"] : [best && oaOk ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", ANTHROPIC_KEY ? "anthropic" : "", oaOk ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i && !(x === "openai" && !oaOk));
+  let upstream = null, prov = engines[0], geminiUsed = "";
   const callGemini = async () => {
     const m = await geminiModels(), model = input.tier === "complex" ? m.complex : m.default;
     if(!model) return null;
@@ -141,11 +147,18 @@ async function handleSample(req, res){
     const chain = [model, m.default, ...GEMINI_FALLBACKS].filter((x, i, a) => x && a.indexOf(x) === i);
     const tryChain = async withSearch => {
       const key = x => x + (withSearch ? "|recherche" : "");
-      const ready = chain.filter(x => !(geminiBlocked.get(key(x)) > Date.now()));
+      const ready = chain.filter(x => !(geminiBlocked.get(key(x)) > Date.now()) && !(geminiBusy.get(x) > Date.now()));
       const order = ready.length ? ready : (withSearch ? [] : chain);
       for(let i = 0; i < order.length; i++){
         const up = await geminiCall(order[i], withSearch);
-        if(up.status !== 429) return up;
+        /* Modèle surchargé chez Google (503…) : on passe tout de suite au modèle suivant et on le laisse reposer 90 s */
+        if([500, 502, 503, 504].includes(up.status)){
+          geminiBusy.set(order[i], Date.now() + 90 * 1000);
+          console.log(`Gemini : « ${order[i]} » surchargé (${up.status})${order[i + 1] ? `, passage à « ${order[i + 1]} »` : ""}.`);
+          if(i === order.length - 1) return up;
+          continue;
+        }
+        if(up.status !== 429){ geminiUsed = order[i]; return up; }
         let wait = 60;
         try{ const j = await up.clone().json(); ((j.error && j.error.details) || []).forEach(d => { if(d.retryDelay) wait = parseInt(d.retryDelay, 10) || wait; }); }catch(e){}
         geminiBlocked.set(key(order[i]), Date.now() + wait * 1000);
@@ -213,6 +226,7 @@ async function handleSample(req, res){
   if(!upstream) return sendJson(res, 500, {code:"no_model", message:"Aucun modèle disponible : vérifie tes clés dans .env."});
   if(!upstream.ok){
     let msg = ""; try{ const j = await upstream.json(); msg = (j.error && (j.error.message || j.error.type)) || ""; }catch(e){}
+    if(BUSY_RE.test(msg) || upstream.status === 503) return sendJson(res, 503, {code:"overloaded", message:BUSY_MSG});
     return sendJson(res, upstream.status, NO_CREDIT.test(msg) ? {code:"no_credit", message:frMessage(msg, prov)} : {code:codeFor(upstream.status), message:`Erreur de l'API (${upstream.status}) ${msg}`.trim()});
   }
   res.writeHead(200, {"Content-Type":"application/x-ndjson; charset=utf-8", "Cache-Control":"no-cache"});
@@ -230,7 +244,11 @@ async function handleSample(req, res){
         }
         const parts = (cand.content || {}).parts || [];
         delta = parts.filter(p => p.text && !p.thought).map(p => p.text).join("");
-        if(ev.error){ res.write(JSON.stringify({error:true, code:"server_error", message:ev.error.message || "Erreur du modèle."}) + "\n"); break; }
+        if(ev.error){
+          const em = String(ev.error.message || ev.error.status || ""), busy = BUSY_RE.test(em) || ev.error.code === 503;
+          if(busy && geminiUsed){ geminiBusy.set(geminiUsed, Date.now() + 90 * 1000); console.log(`Gemini : « ${geminiUsed} » surchargé pendant la réponse, le prochain essai passera par un autre modèle.`); }
+          res.write(JSON.stringify(busy ? {error:true, code:"overloaded", message:BUSY_MSG} : {error:true, code:"server_error", message:em || "Erreur du modèle."}) + "\n"); break;
+        }
       } else if(prov === "openai"){
         if(ev.type === "response.output_text.delta") delta = ev.delta || "";
         if(ev.type === "response.output_text.annotation.added" && ev.annotation && ev.annotation.type === "url_citation") addSource(ev.annotation.title, ev.annotation.url);

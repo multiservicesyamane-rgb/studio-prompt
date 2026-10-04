@@ -57,7 +57,7 @@
       }
     }catch(e){
       if(e && (e.name === "AbortError" || (opts.signal && opts.signal.aborted))) throw fail("cancelled", "Annulé.", text);
-      throw e;
+      throw fail("network", "La connexion avec le serveur a été coupée pendant la génération (fenêtre du serveur fermée ou relancée). Relance « Lancer Studio Prompt », puis réessaie.", text);
     }
     if(late){
       /* Erreur arrivée APRÈS une réponse JSON complète et valide (ex. facturation OpenAI à la fin) : on garde la réponse */
@@ -79,9 +79,14 @@
 
   /* opts.search = true : recherche web en direct ; les sources arrivent dans .meta (texte) ou ._meta (JSON) */
   /* opts.engine = "best" : le meilleur moteur (OpenAI Sol) ; s'il n'a plus de crédits, on relance avec le moteur par défaut */
+  /* Gemini surchargé : le serveur a déjà écarté le modèle saturé, on relance une fois (un autre modèle répond) */
   async function callBest(input, opts, json){
     try{ return await call(input, opts, json); }
-    catch(e){ if(e && e.code === "no_credit" && opts && opts.engine === "best") return await call(input, Object.assign({}, opts, {engine:"default"}), json); throw e; }
+    catch(e){
+      if(e && e.code === "no_credit" && opts && opts.engine === "best") return await call(input, Object.assign({}, opts, {engine:"default"}), json);
+      if(e && e.code === "overloaded" && !(opts && opts.signal && opts.signal.aborted)){ await new Promise(r => setTimeout(r, 1500)); return await call(input, opts, json); }
+      throw e;
+    }
   }
   const sample = async (input, opts) => { const r = await callBest(input, opts, false); return {text:r.text, truncated:false, meta:r.meta}; };
   sample.json = async (input, opts) => {
