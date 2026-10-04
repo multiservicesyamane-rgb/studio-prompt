@@ -53,6 +53,11 @@ const PUBLIC = path.join(__dirname, "public");
 /* Modèles de secours quand le quota du jour d'un modèle est atteint (chaque modèle a son propre quota) */
 const GEMINI_FALLBACKS = (process.env.GEMINI_FALLBACKS || "gemini-3-flash-preview,gemini-2.5-flash,gemini-3.1-flash-lite-preview").split(",").map(x => x.trim()).filter(Boolean);
 const geminiBlocked = new Map();   // modèle → heure (ms) où son quota revient
+/* Heure où le premier modèle Gemini bloqué retrouve son quota (sans compter la recherche web) */
+function geminiResetText(){
+  const now = Date.now(), t = [...geminiBlocked.entries()].filter(([k, v]) => !k.endsWith("|recherche") && v > now).map(([, v]) => v);
+  return t.length ? new Date(Math.min(...t)).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}) : "";
+}
 
 /* ---------- choix automatique du modèle Gemini le plus récent ---------- */
 const models = {default: process.env.GEMINI_MODEL || "", complex: process.env.GEMINI_MODEL_PRO || ""};
@@ -89,7 +94,7 @@ function codeFor(status){ return status === 429 ? "rate_limited" : status === 40
 const NO_CREDIT = /no credits|insufficient_quota|exceeded your current quota|billing/i;
 const frMessage = (msg, pv = PROVIDER) => !NO_CREDIT.test(String(msg)) ? msg
   : pv === "openai" ? "Plus de crédits API sur ton compte OpenAI : ajoute des crédits sur platform.openai.com › Settings › Billing (l'abonnement ChatGPT ne compte pas pour l'API)."
-  : pv === "gemini" ? "Limite de ta clé Gemini gratuite atteinte : réessaie dans quelques minutes, ou demain (la limite se remet à zéro chaque jour)."
+  : pv === "gemini" ? `Limite de ta clé Gemini gratuite atteinte (environ 20 demandes par jour et par modèle ; une vidéo en utilise 6 à 10)${geminiResetText() ? " : elle revient vers " + geminiResetText() : " : réessaie plus tard"}. Pour ne plus être bloqué : active la facturation de ta clé sur aistudio.google.com, ou ajoute des crédits OpenAI.`
   : "Quota de l'API épuisé : réessaie plus tard ou ajoute des crédits chez le fournisseur.";
 async function* sseEvents(body){
   const dec = new TextDecoder(); let buf = "";
@@ -271,7 +276,9 @@ async function handleStatus(res){
   if(PROVIDER === "gemini") model = (await geminiModels()).default;
   else if(PROVIDER === "openai") model = openaiModel(false);
   else if(PROVIDER === "anthropic") model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
-  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, best: OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : (ANTHROPIC_KEY ? "Anthropic" : GEMINI_KEY ? "Gemini" : "")});
+  let quota = {};
+  if(PROVIDER === "gemini"){ const m = await geminiModels(), chain = [m.default, m.complex, ...GEMINI_FALLBACKS].filter((x, i, a) => x && a.indexOf(x) === i), blocked = chain.filter(x => geminiBlocked.get(x) > Date.now()); quota = {blocked:blocked.length, total:chain.length, all:!!chain.length && blocked.length === chain.length, reset:geminiResetText()}; }
+  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, quota, best: OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : (ANTHROPIC_KEY ? "Anthropic" : GEMINI_KEY ? "Gemini" : "")});
 }
 
 /* En ligne (Render…) : HOST=0.0.0.0 et APP_PASSWORD obligatoire, sinon n'importe qui utiliserait tes clés et tes crédits */

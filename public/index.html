@@ -2006,7 +2006,7 @@ function executionPlanPrompt(idee,p,creative,scenePlan,previous){
 DEMANDE : """${idee}"""
 CREATIVE PROFILE : ${JSON.stringify({video_type:profile.label,goal:profile.goal,duration:`${p.duree}s`,pace:profile.pace,interaction_need:profile.interactionNeed,visual_priority:profile.visualPriority,sound_priority:profile.soundPriority,realism:profile.realism})}
 SCENE PLAN VERROUILLÉ : ${JSON.stringify(scenePlan.scenes)}
-${sourceAudio.length&&p.audioKind!=="remake"?`TEXTE AUDIO SOURCE VERROUILLÉ : ${JSON.stringify(sourceAudio)}. Pour chaque source_n, recopie le texte caractère par caractère dans sound.voice_over ou sound.dialogue selon son rôle. Si tu divises une source en plusieurs shots, répartis ses mots dans l'ordre, sans modification ni duplication : leur concaténation doit redonner exactement le texte source. Ce son existe déjà : place-le en post_audio et ne le réécris jamais.`:""}
+${audioLockedOf(p)?`AUDIO IMPORTÉ : l'audio existe déjà et ses ${p.timeline.length} unités sont découpées au dixième de seconde. Crée EXACTEMENT un shot par unité, dans l'ordre, avec source_n = n de l'unité : ne divise et ne fusionne aucune unité ; si une unité est trop chargée, simplifie son action au lieu de la diviser.${sourceAudio.length?` Ce qui est dit pendant chaque unité : ${JSON.stringify(sourceAudio)}. L'image montre ce que dit ce texte à ce moment. Laisse sound.voice_over et sound.dialogue vides : l'application y place elle-même le texte exact ; ce son existe déjà (post_audio).`:""}`:""}
 ${previous?`MASTER REFUSÉ : ${JSON.stringify(previous)}. "refus" liste les raisons exactes du refus ; "version_precedente" est le master refusé. Repars de cette version : garde ce qui fonctionne, corrige chaque raison de refus, divise tout plan trop complexe, et renvoie le master complet corrigé.`:""}
 ${nicheGuides(idee,p)}
 
@@ -2038,9 +2038,40 @@ function assignMasterTimes(shots,p){
   let cursor=0; shots.forEach(s=>{ if(s.time){ cursor=Math.max(cursor,s.time.end); return; } const d=Math.max(2,Math.min(12,Number(s.shot_design&&s.shot_design.duration)||5)); s.shot_design.duration=d; s.time={start:cursor,end:cursor+d,debut:fmtT(cursor),fin:fmtT(cursor+d)}; cursor+=d; });
   return shots.reduce((m,s)=>Math.max(m,Number(s.time&&s.time.end)||0),0);
 }
+/* Audio importé : un plan par unité de l'audio, dans l'ordre ; le texte de l'audio est placé par l'application, jamais recopié par le modèle */
+const audioLockedOf = p => !!(p && p.audioKind && p.audioKind!=="remake" && Array.isArray(p.timeline) && p.timeline.length);
+const unitKey = (u,i) => String(u && u.n!=null ? u.n : i+1);
+function setUnitText(s,u){
+  const t=String(u&&u.texte||"").trim(); s.sound=s.sound&&typeof s.sound==="object"?s.sound:{};
+  if(!t) return;
+  if(String(s.sound.dialogue||"").trim() && !String(s.sound.voice_over||"").trim()) s.sound.dialogue=t; else { s.sound.voice_over=t; s.sound.dialogue=""; }
+  s.sound.post_audio = s.sound.post_audio || "audio importé";
+}
+function lockShotsToAudio(shots,units){
+  const keys=units.map(unitKey), byKey=new Map(), loose=[];
+  shots.forEach(s=>{ const k=String(s.source_n); if(keys.includes(k)&&!byKey.has(k)) byKey.set(k,s); else loose.push(s); });
+  keys.forEach(k=>{ if(!byKey.has(k) && loose.length) byKey.set(k,loose.shift()); });
+  const out=[]; units.forEach((u,i)=>{ const s=byKey.get(keys[i]); if(!s) return; s.source_n=u.n!=null?u.n:i+1; setUnitText(s,u); out.push(s); });
+  return out;
+}
+/* Unités de la source restées sans plan après les réécritures : on prolonge le plan voisin plutôt que de tout perdre */
+function fillMissingUnits(d,p){
+  const units=Array.isArray(p.timeline)?p.timeline:[], filled=[];
+  units.forEach((u,i)=>{
+    const k=unitKey(u,i); if(d.shots.some(s=>String(s.source_n)===k)) return;
+    const before=units.slice(0,i).map(unitKey).reverse(), after=units.slice(i+1).map(unitKey);
+    const nearKey=[...before, ...after].find(x=>d.shots.some(s=>String(s.source_n)===x)); if(!nearKey) return;
+    const near=d.shots.filter(s=>String(s.source_n)===nearKey).slice(-1)[0], c=JSON.parse(JSON.stringify(near));
+    c.shot_id=`${near.shot_id}-${k}`; c.source_n=u.n!=null?u.n:i+1; c.event=`Suite du plan ${near.shot_id} : ${near.event}`; delete c.time; delete c.model_route;
+    c.sound=Object.assign({},c.sound,{voice_over:"",dialogue:""}); if(audioLockedOf(p)) setUnitText(c,u);
+    const at=d.shots.indexOf(near); d.shots.splice(before.includes(nearKey)?at+1:at,0,c); filled.push(k);
+  });
+  return filled;
+}
 function normalizeMasterPlan(x,scenePlan,p){
   x=x&&typeof x==="object"?x:{}; x.version=x.version||"master-video-plan-1"; x.shots=Array.isArray(x.shots)?x.shots.filter(s=>s&&s.event&&s.shot_design):[]; x.scene_plan=scenePlan; x.director_critic=x.director_critic&&typeof x.director_critic==="object"?x.director_critic:{};
   x.shots.forEach((s,i)=>{ s.shot_id=s.shot_id||`SH${String(i+1).padStart(2,"0")}`; s.performance=Array.isArray(s.performance)?s.performance.filter(v=>v&&(v.character||v.observable_behavior)):[]; s.objects=Array.isArray(s.objects)?s.objects.filter(v=>v&&(v.id||v.interaction||v.effect)):[]; s.causal_beats=Array.isArray(s.causal_beats)?s.causal_beats.filter(Boolean):[]; s.complexity=s.complexity&&typeof s.complexity==="object"?s.complexity:{}; const keys=["characters","important_actions","physical_interactions","object_interactions","camera_movement","environment_movement","dialogue","special_effects","continuity_requirements","model_difficulty"]; const total=keys.reduce((sum,k)=>sum+Math.max(0,Math.min(3,Number(s.complexity[k])||0)),0); s.complexity.total=total; if(total>MAX_SHOT_COMPLEXITY) s.complexity.decision="SPLIT"; });
+  if(audioLockedOf(p)) x.shots=lockShotsToAudio(x.shots,p.timeline);
   x.duration=assignMasterTimes(x.shots,p); x.continuity_map=Array.isArray(x.continuity_map)?x.continuity_map:[];
   const normState=v=>String(v||"").trim().replace(/\s+/g," ");
   x.shots.slice(0,-1).forEach((s,i)=>{ const n=x.shots[i+1]; if(s.scene_id!==n.scene_id) return; const actual=normState(s.continuity&&s.continuity.state_out); let required=normState(n.continuity&&n.continuity.state_in), auto=false; if(actual&&actual!==required){ n.continuity=n.continuity&&typeof n.continuity==="object"?n.continuity:{}; n.continuity.state_in=actual; required=actual; auto=true; } const match=!!actual&&actual===required; let m=x.continuity_map.find(v=>v&&v.from_shot===s.shot_id&&v.to_shot===n.shot_id); if(!m){ m={from_shot:s.shot_id,to_shot:n.shot_id}; x.continuity_map.push(m); } Object.assign(m,{state_out:actual,required_state_in:required,match,correction:match?(auto?"STATE IN recopié automatiquement depuis STATE OUT.":""):"Recopier exactement STATE OUT dans STATE IN."}); if(!match){ const defects=Array.isArray(x.director_critic.defects)?x.director_critic.defects:(x.director_critic.defects=[]); defects.push({shot_id:n.shot_id,layer:"CONTINUITY",problem:"STATE IN ne correspond pas exactement au STATE OUT précédent.",correction:"Recopier le même état sans reformulation.",expected_effect:"Raccord spatial, humain et matériel vérifiable."}); } });
@@ -2056,13 +2087,13 @@ function masterPlanFailures(x,p){
   const continuityOk=shots.slice(0,-1).every((s,i)=>{ const n=shots[i+1]; if(s.scene_id!==n.scene_id) return true; const m=(x.continuity_map||[]).find(v=>v&&v.from_shot===s.shot_id&&v.to_shot===n.shot_id); return !!(m&&m.match!==false); });
   const out=[], add=(hard,problem)=>out.push({hard,problem});
   if(!shots.length) add(true,"aucun plan exécutable");
-  if(!sourcesOk) add(true,"des unités de la source n'ont aucun plan");
+  if(!sourcesOk) add(false,`unités de la source sans plan : ${imposed.map(unitKey).filter(k=>!shots.some(s=>String(s.source_n)===k)).join(", ")}`);
   if(!sourceAudioOk) add(true,"le texte audio source n'est pas recopié mot pour mot");
   if(!continuityOk) add(false,"raccords STATE OUT → STATE IN incomplets");
   const incomplete=shots.filter(s=>!(s.event&&s.change&&s.blocking&&s.shot_design&&s.shot_design.must_notice&&s.shot_design.camera_reason&&s.continuity&&s.continuity.state_in&&s.continuity.state_out&&s.sound));
   if(incomplete.length) add(false,`plans incomplets : ${incomplete.map(s=>s.shot_id).join(", ")}`);
   const complex=shots.filter(s=>s.complexity&&(s.complexity.decision==="SPLIT"||Number(s.complexity.total)>MAX_SHOT_COMPLEXITY));
-  if(complex.length) add(false,`plans trop complexes, à diviser : ${complex.map(s=>s.shot_id).join(", ")}`);
+  if(complex.length) add(false,`plans trop complexes, à ${audioLockedOf(p)?"simplifier (l'audio impose un plan par unité)":"diviser"} : ${complex.map(s=>s.shot_id).join(", ")}`);
   const low=required.filter(k=>!(Number(scores[k])>=8));
   if(low.length) add(false,`notes sous 8 : ${low.map(k=>`${k} ${Number(scores[k])||0}`).join(", ")}`);
   if(!/^APPROVED/.test(String(x.director_critic.decision||""))) add(false,`décision du critic : ${x.director_critic.decision||"absente"}`);
@@ -2085,6 +2116,8 @@ async function directExecution(idee,p,creative,scenePlan,prefix,signal){
     const next=normalizeMasterPlan(await sample.json(executionPlanPrompt(idee,p,creative,scenePlan,prev),opts),scenePlan,p);
     if(next.shots.length){ d=next; cd=codeDefects(d,p); fl=masterPlanFailures(d,p); }
   }
+  const filled=fillMissingUnits(d,p);
+  if(filled.length){ d=normalizeMasterPlan(d,scenePlan,p); cd=codeDefects(d,p); fl=masterPlanFailures(d,p); fl.push({hard:false,problem:`unités ${filled.join(", ")} couvertes en prolongeant le plan voisin`}); }
   const hard=fl.filter(x=>x.hard), reserves=[...fl.map(x=>x.problem), ...cd.map(x=>x.problem)];
   if(hard.length){ pipeStep("MASTER_PLAN + DIRECTOR_CRITIC","FAIL",t0,hard.map(x=>x.problem).join(" / ")); throw {code:"weak_story",message:`Le Master Video Plan reste inutilisable : ${hard.map(x=>x.problem).join(" ; ")}.`}; }
   d.code_warnings = cd; d.reserves = reserves;
@@ -2321,6 +2354,8 @@ initEssentialMode();
 fetch("/api/status").then(r=>r.ok?r.json():null).then(st=>{
   if(!st) return;
   const name = st.provider==="anthropic" ? "Claude" : st.provider==="gemini" ? "Gemini" : st.provider==="openai" ? "OpenAI" : "";
+  const q = st.quota||{};
+  if(st.ready && q.all){ $("engine-dot").className = "dot ko"; $("engine-txt").textContent = `Quota ${name} du jour atteint${q.reset?" · retour vers "+q.reset:""}`; $("engine").title = "Clé gratuite : environ 20 demandes par jour et par modèle ; une vidéo en utilise 6 à 10. Active la facturation de ta clé ou ajoute des crédits OpenAI pour ne plus être bloqué."; return; }
   $("engine-dot").className = "dot "+(st.ready?"ok":"ko");
   $("engine-txt").textContent = st.ready ? `${name} prêt${st.model?" · "+st.model:""}${st.best&&st.provider!=="openai"?" + "+st.best.split(" ")[0]:""}` : "Clé API manquante";
   $("engine").title = st.ready ? `Moteur des agents : ${name}${st.model?" ("+st.model+")":""}` : "Ajoute ta clé dans le fichier .env puis relance le serveur.";
