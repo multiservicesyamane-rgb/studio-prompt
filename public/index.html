@@ -313,6 +313,13 @@ dl.kv dd{margin:0;font-size:15px}
 .shot.done .shot-n{color:var(--good)}
 .desk-only{display:none}
 @media (min-width:960px){ .desk-only{display:inline} }
+.learn{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border:1px dashed var(--line-strong);border-radius:var(--r-sm);background:var(--sunken)}
+.learn-q{font-size:14px;font-weight:600}
+.learn-btns{display:flex;gap:8px}
+.learn-form{flex-basis:100%;display:flex;flex-direction:column;gap:8px}
+.learn-ok{color:var(--good)}
+.lesson.off .t{text-decoration:line-through;opacity:.6}
+#view-memoire .sub-h{margin:18px 0 8px}
 .scene-h{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px 14px;padding:14px 16px;border-radius:var(--r);background:var(--side);color:#F4F1EC;margin-top:6px}
 .scene-h:first-child{margin-top:0}
 .scene-n{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#F09A6E;white-space:nowrap}
@@ -504,6 +511,7 @@ input[type=text].plain-in{background:var(--surface)}
   <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3v.2A3 3 0 0 0 4 10a3 3 0 0 0 1 2.2A3 3 0 0 0 6 17a3 3 0 0 0 3 3 3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zM15 4a3 3 0 0 1 3 3v.2A3 3 0 0 1 20 10a3 3 0 0 1-1 2.2A3 3 0 0 1 18 17a3 3 0 0 1-3 3 3 3 0 0 1-3-3"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
@@ -534,6 +542,7 @@ input[type=text].plain-in{background:var(--surface)}
       <button type="button" class="side-link" data-go="projets" id="side-projets"><svg class="ico"><use href="#i-folder"/></svg><span class="side-lbl">Projets</span><span class="side-count" id="side-count" hidden></span></button>
       <button type="button" class="side-link" data-go="persos"><svg class="ico"><use href="#i-user"/></svg><span class="side-lbl">Personnages</span></button>
       <button type="button" class="side-link" data-go="images"><svg class="ico"><use href="#i-image"/></svg><span class="side-lbl">Images</span></button>
+      <button type="button" class="side-link" data-go="memoire" id="side-memoire"><svg class="ico"><use href="#i-brain"/></svg><span class="side-lbl">Mémoire de l'agent</span><span class="side-count" id="side-mem-count" hidden></span></button>
       <span class="side-group">Stratégie</span>
       <button type="button" class="side-link" data-go="strategie"><svg class="ico"><use href="#ic-globe"/></svg><span class="side-lbl">Niches, pays et chaîne</span></button>
     </nav>
@@ -980,6 +989,27 @@ input[type=text].plain-in{background:var(--surface)}
       </section>
 
       <!-- ============ PROJETS ============ -->
+      <!-- ============ MÉMOIRE DE L'AGENT ============ -->
+      <section id="view-memoire" data-view="memoire" hidden>
+        <div class="content" style="max-width:none">
+          <div class="page-head">
+            <span class="kicker">Mes contenus · mémoire de l'agent</span>
+            <h1>Ce que tes clips ont appris à l'agent.</h1>
+            <p>Chaque fois que tu notes un clip « Réussi » ou « Raté », l'agent en tire une règle générale et l'applique à tous tes prochains prompts.</p>
+          </div>
+          <p class="hint" id="mem-stats"></p>
+          <div id="mem-list" aria-live="polite"></div>
+          <div class="panel">
+            <div class="field"><label for="mem-new">Ajouter une règle toi-même</label><textarea id="mem-new" rows="2" placeholder="Exemple : ne montre jamais les mains en gros plan quand un personnage tient un objet."></textarea></div>
+            <div class="opts">
+              <div class="field"><label for="mem-type">Type</label><div class="sel"><select id="mem-type"><option value="eviter">À éviter</option><option value="faire">À faire</option></select></div></div>
+              <div class="field"><label for="mem-outil">Pour</label><div class="sel"><select id="mem-outil"><option value="tous">Tous les outils</option><option value="veo">Veo 3.1</option><option value="runway">Runway</option><option value="wan">Wan</option></select></div></div>
+            </div>
+            <div class="actions"><button type="button" class="btn" id="mem-add">Ajouter la règle</button></div>
+          </div>
+        </div>
+      </section>
+
       <section id="view-projets" data-view="projets" hidden>
         <div class="content" style="max-width:none">
           <div class="page-head">
@@ -2087,7 +2117,7 @@ SCENE PLAN VERROUILLÉ : ${JSON.stringify(scenePlan.scenes)}
 ${audioLockedOf(p)?`AUDIO IMPORTÉ : l'audio existe déjà et ses ${p.timeline.length} unités sont découpées au dixième de seconde. Crée EXACTEMENT un shot par unité, dans l'ordre, avec source_n = n de l'unité : ne divise et ne fusionne aucune unité ; si une unité est trop chargée, simplifie son action au lieu de la diviser.${sourceAudio.length?` Ce qui est dit pendant chaque unité : ${JSON.stringify(sourceAudio)}. L'image montre ce que dit ce texte à ce moment. Laisse sound.voice_over et sound.dialogue vides : l'application y place elle-même le texte exact ; ce son existe déjà (post_audio).`:""}`:""}
 ${previous?`MASTER REFUSÉ : ${JSON.stringify(previous)}. "refus" liste les raisons exactes du refus ; "version_precedente" est le master refusé. Repars de cette version : garde ce qui fonctionne, corrige chaque raison de refus, divise tout plan trop complexe, et renvoie le master complet corrigé.`:""}
 ${nicheGuides(idee,p)}
-
+${learningBlock(p)}
 ${BLOCKING_PERFORMANCE_DIRECTOR}
 ${SHOT_DIRECTOR}
 VISUAL INFORMATION CONTROL : utilise premier/arrière-plan, hors-champ, révélation partielle, réaction avant reveal, POV, rack focus, occlusion, entrée/sortie et object reveal seulement si cela distribue mieux l'information.
@@ -2299,6 +2329,7 @@ CRITIQUE FINALE : les dimensions prioritaires de ce format sont ${profile.gates.
 
 GATE DE COMPILATION — POUR CHAQUE PLAN : vérifie que l'événement, le changement, la réaction ou l'effet, l'information nouvelle et la raison de continuer du master sont tous présents sans altération. Si une incompatibilité technique apparaît, ne réécris pas l'événement : conserve le master, explique précisément l'incompatibilité dans risque et baisse note.
 
+${learningBlock(p)}
 RÉPONDS UNIQUEMENT avec un objet JSON valide, exactement de cette forme :
 {"titre":"","logline":"","lecon":"","public":"","genre_note":"","palette_en":"","structure":"","personnages":[],"lieux":[{"id":"","nom":"","description_en":""}],"plans":[{"n":1,"debut":"0:00","fin":"0:08","intention":"","voix_off":"","voix_off_fr":"","personnages":[],"cadrage_en":"","action_en":"","decor_en":"","camera_en":"","lumiere_en":"","ambiance_en":"","son_en":"","beats_en":["","",""],"voix_ton_en":"","repliques":[{"locuteur":"","texte":"","ton_en":""}],"lieu":"","depart_en":"","fin_en":"","locuteur":"","montage":"","texte_ecran":"","detail_type":"","risque":"","note":9}],"special":${TYPE_SPECIAL_SCHEMA[profile.id]||SPECIAL_SCHEMA[vt]||'{}'},"retention":{"accroche_visuelle":"","accroche_phrase":"","boucle_ouverte":"","relances":[{"temps":"0:10","technique":""}],"pic_emotionnel":{"temps":"","description":""},"derniere_image":""},"audio":{"voix":"","musique_en":"","mixage":""},"montage":[""],"youtube":{"titres":["","",""],"miniature_personnage":"","miniature_scene_en":"","texte_miniature":"","description":""},"critique":{"narration":0,"accroche":0,"emotion":0,"retournement":0,"coherence":0,"clarte":0,"originalite":0,"cinematographie":0,"continuite":0,"son":0,"rythme":0,"authenticite":0,"faisabilite_ia":0,"corrections":[""]},"langue_alertes":[]}
 Les champs en français (titre, logline, lecon, public, genre_note, intention, montage des plans, texte_ecran, detail_type, risque, fiche_fr, retention, special, audio.voix, audio.mixage, montage) sont en français, sauf les champs qui finissent par _en. texte_ecran = "" si aucun texte n'est ajouté au montage sur ce plan. La musique, l'étalonnage et le rythme suivent l'émotion choisie. palette_en = la palette de couleurs en quelques mots anglais, utilisée pour tout le projet. Avant de répondre, vérifie chaque plan : une action, fiches cohérentes, caméra nommée, lumière précise, risques réduits ; réécris tout plan que tu noterais sous 8.`;
@@ -2383,7 +2414,7 @@ const LOCAL_ERR = new Set(["no_credit","no_key","no_model","bad_key","network","
 const errText = e => { if(e && !ERR[e.code] && !LOCAL_ERR.has(e.code)) console.error(e); return ERR[e&&e.code] || (e && LOCAL_ERR.has(e.code) && e.message) || `La demande a échoué${e&&e.message?` (${String(e.message).slice(0,160)})`:""}. Réessaie.`; };
 
 /* =================== ROUTER =================== */
-const VIEWS = {accueil:"Accueil", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
+const VIEWS = {accueil:"Accueil", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
 /* Page affichée → bouton surligné : barre du bas (TAB_OF) et menu latéral (NAV_OF) */
 const TAB_OF = {audio:"studio", reel:"studio", tendances:"idees", son:"projets"};   /* les autres pages s'ouvrent par « Menu » */
 const NAV_OF = {niches:"strategie", pays:"strategie", chaine:"strategie", qualite:"images", son:"projets"};
@@ -2404,6 +2435,114 @@ function setView(name, opts){
 }
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.go)));
 window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VIEWS[h]||h==="strategie"||h==="experts") setView(h); });
+
+/* =================== MÉMOIRE D'APPRENTISSAGE : ce que les vrais clips de l'utilisateur ont appris à l'agent =================== */
+/* Raisons proposées, avec la règle générale utilisée quand l'IA n'est pas disponible pour tirer la leçon */
+const LESSON_BAD = [
+  ["visage","Visage qui change","Joins la photo de référence de chaque personnage et répète ses traits fixes (visage, coiffure, tenue) mot pour mot dans chaque prompt."],
+  ["mains","Mains ou corps déformés","Évite les gros plans de mains et les gestes compliqués : mains occupées par un objet simple ou hors du cadre, une seule action par plan."],
+  ["mouvement","Mouvement bizarre","Une seule action principale et un seul mouvement de caméra, lents et simples, par plan ; décris le geste du début à la fin."],
+  ["realisme","Trop « IA », pas réaliste","Décris un vrai tournage : lumière naturelle motivée, peau texturée, petits défauts, légère caméra à l'épaule, aucune perfection brillante."],
+  ["son","Son ou voix raté","Écris chaque réplique entre guillemets avec qui parle et sur quel ton, une seule personne à la fois, plus l'ambiance sonore du lieu."],
+  ["dialogue","Pas assez de dialogue","Fais se répondre les personnages avec des répliques courtes qui provoquent une réaction, bouche visible de celui qui parle."],
+  ["texte","Texte ou logo à l'image","Termine chaque prompt vidéo en interdisant clairement texte, sous-titres, logos et filigranes à l'image."],
+  ["cadrage","Mauvais cadrage","Précise la valeur de plan, l'angle et ce qui doit être au centre de l'image, avec un seul sujet principal par plan."],
+  ["rythme","Trop lent, sans vie","Commence chaque plan en pleine action, avec des gestes et des réactions dès la première seconde."],
+  ["continuite","Raccord raté","Reprends exactement l'état de fin du plan précédent (position, tenue, lumière, objets) au début du plan suivant."]
+];
+const LESSON_GOOD = [["visage","Visages fidèles"],["mouvement","Mouvement naturel"],["realisme","Vraiment réaliste"],["son","Bon son, bonnes voix"],["dialogue","Dialogue vivant"],["camera","Belle caméra"],["rythme","Bon rythme"]];
+const LESSON_DOMAIN = {visage:"Visage",mains:"Mains et corps",corps:"Mains et corps",mouvement:"Mouvement",camera:"Caméra",cadrage:"Cadrage",realisme:"Réalisme",lumiere:"Lumière",son:"Son",dialogue:"Dialogue",texte:"Texte à l'image",rythme:"Rythme",continuite:"Continuité",autre:"Général"};
+const lessonOf = d => Object.assign({id:d.id, at:d.data.updatedAt||0}, d.data.lesson);
+function activeLessons(p){
+  const outil = p && p.outil;
+  return savedLessons().map(lessonOf).filter(l=>l.actif!==false && (!l.portee || l.portee==="tous" || l.portee===outil))
+    .sort((a,b)=>(Number(b.count)||1)-(Number(a.count)||1) || b.at-a.at).slice(0,12);
+}
+/* Bloc injecté dans les prompts de réalisation et de compilation */
+function learningBlock(p){
+  const L = activeLessons(p); if(!L.length) return "";
+  const faire = L.filter(l=>l.type==="faire"), eviter = L.filter(l=>l.type!=="faire"), ex = L.filter(l=>l.type==="faire" && l.exemple).slice(0,2);
+  return `MÉMOIRE D'APPRENTISSAGE (leçons tirées des vrais clips que l'utilisateur a générés et notés ; elles priment sur les habitudes génériques : applique-les à chaque plan concerné, sans changer l'histoire) :
+${faire.length?"À FAIRE :\n"+faire.map(l=>"- "+l.regle).join("\n")+"\n":""}${eviter.length?"À ÉVITER OU CORRIGER :\n"+eviter.map(l=>"- "+l.regle).join("\n")+"\n":""}${ex.length?"PROMPTS QUI ONT DONNÉ DE BONS CLIPS (modèle de précision et d'écriture, jamais d'histoire ni de personnages) :\n"+ex.map(l=>'"""'+clip(l.exemple,600)+'"""').join("\n")+"\n":""}`;
+}
+function lessonPrompt(o){
+  return `Tu es le responsable qualité d'un studio de vidéos IA qui doivent avoir l'air réelles. L'utilisateur vient de générer un clip avec ${o.outilNom}.
+VERDICT DE L'UTILISATEUR : ${o.verdict==="ok"?"RÉUSSI":"RATÉ"}
+${o.raisons.length?`CE QU'IL A REMARQUÉ : ${o.raisons.join(", ")}\n`:""}${o.pistes&&o.pistes.length?`BONNES PRATIQUES ÉPROUVÉES POUR CES DÉFAUTS (appuie-toi dessus et ne propose jamais leur contraire) : ${o.pistes.join(" / ")}\n`:""}${o.note?`SON COMMENTAIRE : ${JSON.stringify(o.note)}\n`:""}${o.critic?`DIAGNOSTIC DU VIDEO CRITIC : ${JSON.stringify(o.critic)}\n`:""}PROMPT UTILISÉ POUR CE CLIP : """${clip(o.prompt,2500)}"""
+LEÇONS DÉJÀ APPRISES : ${JSON.stringify(o.existing)}
+
+Tire de ce retour 1 à 3 leçons GÉNÉRALES, valables pour toutes les prochaines vidéos et pas seulement pour celle-ci. Chaque leçon est une consigne concrète pour écrire un prompt vidéo (quoi écrire, quoi éviter), à l'impératif, 30 mots au plus, en français, sans nom de personnage, sans lieu, sans histoire et sans détail propre à ce clip. ${o.verdict==="ok"?"Le clip est réussi : identifie ce qui, dans la façon d'écrire le prompt, l'a rendu bon (type faire).":"Le clip est raté : trouve la cause probable dans le prompt et la consigne qui l'évitera la prochaine fois."} portee = "${o.outil}" si la leçon dépend de cet outil, sinon "tous". Si une leçon existante dit déjà la même chose, mets son id dans same_as au lieu d'en écrire une autre.
+RÉPONDS UNIQUEMENT avec ce JSON : {"lecons":[{"regle":"","type":"faire|eviter","domaine":"visage|mains|mouvement|camera|cadrage|realisme|lumiere|son|dialogue|texte|rythme|continuite|autre","portee":"${o.outil}|tous","same_as":""}]}`;
+}
+const normRule = x => String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+/* Enregistre une leçon : nouvelle, ou confirmation d'une leçon déjà connue (compteur) */
+async function storeLesson(l, extra){
+  const col = db.collection("data/users/"+uid), known = savedLessons();
+  const same = known.find(d=>d.id===l.same_as) || known.find(d=>normRule(d.data.lesson.regle)===normRule(l.regle));
+  if(same){ const cur=same.data.lesson; await col.doc(same.id).update({lesson:Object.assign({},cur,{count:(Number(cur.count)||1)+1, actif:true, exemple:cur.exemple||extra.exemple||""}), updatedAt:Date.now()}); return {regle:cur.regle, nouveau:false}; }
+  const lesson = {regle:String(l.regle).trim().slice(0,240), type:l.type==="faire"?"faire":"eviter", domaine:LESSON_DOMAIN[l.domaine]?l.domaine:"autre", portee:["veo","runway","wan","tous"].includes(l.portee)?l.portee:"tous", source:extra.source, count:1, actif:true, exemple:extra.exemple||"", raisons:extra.raisons||[], origine:extra.origine||""};
+  await col.doc().set({kind:"lesson", titre:lesson.regle.slice(0,60), lesson, createdAt:Date.now(), updatedAt:Date.now()});
+  return {regle:lesson.regle, nouveau:true};
+}
+async function learnFromClip(i, verdict, raisons, note, withCritic){
+  if(!db||!uid||!current) throw {code:"bad_request", message:"Ouvre un projet enregistré pour noter ses clips."};
+  const r=current.result, p=(r.plans||[])[i], v=view; if(!p) throw {code:"bad_request", message:"Plan introuvable."};
+  const test = withCritic ? vcLatest(p) : null, cs = charsOf(r,p.personnages), vm = vmodeOf(v);
+  const prompt = vm==="ingr"&&cs.length ? ingrPrompt(r,p,v) : vm==="t2v" ? t2vPrompt(r,p,v) : i2vPrompt(r,p,v);
+  const names = (r.personnages||[]).map(c=>normRule(c.nom)).filter(n=>n.length>2);
+  const generic = x => x && x.regle && !names.some(n=>normRule(x.regle).includes(n));   /* une leçon ne cite jamais un personnage */
+  const raisonsTxt = raisons.map(k=>((verdict==="ok"?LESSON_GOOD:LESSON_BAD).find(x=>x[0]===k)||[k,k])[1]);
+  let lecons = [];
+  if(sample && (note || test || raisons.length || verdict==="ok")){
+    try{
+      const x = await sample.json(lessonPrompt({verdict, raisons:raisonsTxt, pistes:verdict==="ok"?[]:LESSON_BAD.filter(b=>raisons.includes(b[0])).map(b=>b[2]), note, critic:test?{cause:test.root_cause,diagnostic:test.diagnostic,correction:test.correction}:null, prompt, outil:v.outil, outilNom:label("outil",v.outil), existing:savedLessons().slice(0,40).map(d=>({id:d.id, regle:d.data.lesson.regle}))}), {modelTier:"default", engine:"default", cache:false});
+      lecons = (Array.isArray(x&&x.lecons)?x.lecons:[]).filter(generic).slice(0,3);
+    }catch(e){}
+  }
+  if(!lecons.length){   /* sans IA : les règles types des raisons cochées */
+    if(verdict==="ok") lecons=[{regle:"Écris les prompts vidéo avec la même précision que ce clip réussi : action complète, caméra, lumière et son décrits sans ambiguïté.", type:"faire", domaine:raisons[0]||"autre", portee:v.outil}];
+    else lecons = LESSON_BAD.filter(x=>raisons.includes(x[0])).map(x=>({regle:x[2], type:"eviter", domaine:x[0], portee:"tous"}));
+    if(!lecons.length && note) lecons=[{regle:note.slice(0,240), type:"eviter", domaine:"autre", portee:v.outil}];
+  }
+  if(!lecons.length) throw {code:"bad_request", message:"Coche au moins une raison ou écris ce que tu as remarqué."};
+  const out = [];
+  for(const l of lecons) out.push(await storeLesson(l, {source:test?"critic":"retour", exemple:verdict==="ok"&&l.type==="faire"?prompt.slice(0,900):"", raisons, origine:`${r.titre||""} · plan ${p.n}`}));
+  p.learned = {verdict, at:Date.now(), regles:out.map(x=>x.regle)}; current.updatedAt = Date.now(); await saveProject(current);
+  return out;
+}
+function learnHtml(p,i,proj){
+  if(proj.isExample || !db || !uid) return "";
+  const done = p.learned;
+  return `<div class="learn" id="learn-${i}"><span class="learn-q">${done?`<b>Leçon retenue</b> (clip ${done.verdict==="ok"?"réussi":"raté"}) · `:""}Ton clip pour ce plan ?</span><span class="learn-btns"><button type="button" class="btn small" data-learn="${i}" data-verdict="ok">Réussi</button><button type="button" class="btn small" data-learn="${i}" data-verdict="ko">Raté</button></span><div class="learn-form" id="learnf-${i}" hidden></div></div>`;
+}
+function openLearnForm(i, verdict){
+  const f=$("learnf-"+i); if(!f||!current) return;
+  const p=current.result.plans[i], test=vcLatest(p), list=verdict==="ok"?LESSON_GOOD:LESSON_BAD;
+  f.innerHTML = `<span class="hint">${verdict==="ok"?"Qu'est-ce qui est réussi ?":"Qu'est-ce qui ne va pas ?"} Plusieurs choix possibles.</span>
+    <div class="pick">${list.map(([k,l])=>`<label><input type="checkbox" value="${k}"> ${esc(l)}</label>`).join("")}</div>
+    <textarea id="learnn-${i}" rows="2" placeholder="${verdict==="ok"?"Facultatif : ce qui t'a plu":"Facultatif : décris le problème (exemple : le visage change au milieu du clip)"}"></textarea>
+    ${test&&verdict==="ko"?`<label class="check"><input type="checkbox" id="learnc-${i}" checked><span>Utiliser aussi le diagnostic du Video Critic</span></label>`:""}
+    <div class="actions"><button type="button" class="btn small primary" data-learnsave="${i}" data-verdict="${verdict}">Enregistrer la leçon</button><span class="hint" id="learnmsg-${i}"></span></div>`;
+  f.hidden = false;
+}
+function renderLessons(){
+  const host=$("mem-list"); if(!host) return;
+  const L = savedLessons().slice().sort((a,b)=>(Number(b.data.lesson.count)||1)-(Number(a.data.lesson.count)||1) || (b.data.updatedAt||0)-(a.data.updatedAt||0));
+  const on = L.filter(d=>d.data.lesson.actif!==false).length, sc=$("side-mem-count");
+  if(sc){ sc.textContent=on; sc.hidden=!on; }
+  $("mem-stats").textContent = L.length ? `${L.length} leçon${L.length>1?"s":""} · ${on} appliquée${on>1?"s":""} à tes prochains prompts (les 12 plus confirmées par outil).` : "";
+  if(!db||!uid){ host.innerHTML=`<p class="empty">La mémoire s'enregistre quand l'application est ouverte avec son serveur.</p>`; return; }
+  if(!L.length){ host.innerHTML=`<div class="empty"><span>Aucune leçon pour l'instant. Après avoir généré un clip, ouvre son plan dans ton projet et touche « Réussi » ou « Raté » : l'agent en tirera une règle pour toutes tes prochaines vidéos.</span><button type="button" class="btn small" data-go-inline="projets">Ouvrir mes projets</button></div>`; return; }
+  const row = d => { const l=d.data.lesson; return `<div class="row lesson${l.actif===false?" off":""}" data-lesson-row="${esc(d.id)}"><div><span class="t">${esc(l.regle)}</span><span class="m">${esc(LESSON_DOMAIN[l.domaine]||"Général")} · ${esc(!l.portee||l.portee==="tous"?"tous les outils":label("outil",l.portee))} · ${Number(l.count)>1?`confirmée ${esc(l.count)} fois`:"vue 1 fois"} · ${esc(l.source==="critic"?"Video Critic":l.source==="manuel"?"ajoutée par toi":"ton retour")} · ${esc(fmtDate(d.data.updatedAt))}${l.actif===false?" · désactivée":""}</span></div>
+    <div class="acts"><button type="button" class="btn small quiet" data-lesson-toggle="${esc(d.id)}">${l.actif===false?"Réactiver":"Désactiver"}</button><button type="button" class="btn small quiet" data-lesson-edit="${esc(d.id)}">Modifier</button><button type="button" class="btn small quiet" data-del="${esc(d.id)}">Supprimer</button></div></div>`; };
+  const ev=L.filter(d=>d.data.lesson.type!=="faire"), fa=L.filter(d=>d.data.lesson.type==="faire");
+  host.innerHTML = (ev.length?`<h2 class="sub-h">À éviter</h2><div class="list">${ev.map(row).join("")}</div>`:"") + (fa.length?`<h2 class="sub-h">À faire</h2><div class="list">${fa.map(row).join("")}</div>`:"");
+}
+$("mem-add").addEventListener("click", async ()=>{
+  const t=$("mem-new").value.trim(); if(t.length<8){ toast("Écris la règle en une phrase."); $("mem-new").focus(); return; }
+  if(!db||!uid) return;
+  try{ await storeLesson({regle:t, type:$("mem-type").value, domaine:"autre", portee:$("mem-outil").value}, {source:"manuel"}); $("mem-new").value=""; toast("Règle ajoutée : elle s'applique à tes prochains prompts."); }catch(e){ toast("La règle n'a pas pu être enregistrée."); }
+});
 
 /* =================== ZONES DE DÉPÔT : chaque champ fichier devient une zone où l'on glisse ou clique =================== */
 function enhanceFileInputs(root){
@@ -3027,6 +3166,7 @@ function renderProject(){
       ${p.risque?`<p class="risk"><b>Vigilance :</b> ${esc(p.risque)}</p>`:""}
       ${lintHtml(r,p,v)}
       ${videoCriticHtml(p,i,!!sample&&!proj.isExample)}
+      ${learnHtml(p,i,proj)}
       <details class="fix" ${sample&&!proj.isExample?"":"hidden"}><summary>Régénération ciblée</summary>
         <div class="fix-body"><label class="hint" for="fix-${i}">${vcLatest(p)?"Le dernier diagnostic du Video Critic sera appliqué à sa couche responsable. Ajoute une précision seulement si nécessaire.":"Décris ce qui ne va pas, ou analyse d'abord le clip généré ci-dessus."}</label>
         <textarea id="fix-${i}" placeholder="${vcLatest(p)?"Précision facultative":"Exemple : visage différent, main déformée, mouvement bizarre"}"></textarea><div class="actions"><button type="button" class="btn small" data-fix="${i}">${vcLatest(p)?"Préparer la régénération ciblée":"Corriger ce plan"}</button><span class="hint" id="fixmsg-${i}"></span></div></div></details>
@@ -3325,7 +3465,7 @@ PRÉCISION FACULTATIVE DE L'UTILISATEUR : ${JSON.stringify(manual)}
 MASTER SHOT : ${JSON.stringify(master||{absent:true})}
 PLAN COMPILÉ ACTUEL : ${JSON.stringify(cleanPlan)}
 PERSONNAGES FIXES : ${JSON.stringify((r.personnages||[]).map(c=>({id:c.id,nom:c.nom,fiche_en:c.fiche_en})))}
-
+${learningBlock(view)}
 Corrige uniquement ${cause}. Champs de plan autorisés : ${allowed.join(", ")}. Les identités, l'intention, l'événement, les timecodes, les personnages fixes et toutes les couches non responsables restent inchangés. ${VC_MASTER_LAYER[cause]?`master_patch modifie uniquement « ${VC_MASTER_LAYER[cause]} » et plan_patch traduit cette correction dans les champs autorisés.`:"master_patch doit rester vide."}
 ${isVeo(view)?VEO_GUIDE:isRunway(view)?RUNWAY_GUIDE:WAN_GUIDE}
 ${STYLE_RULES[view.style]||""}
@@ -3886,6 +4026,7 @@ function onViewShown(name){
   if(name==="studio"||name==="chaine") renderPickers();
   if(name==="niches") renderNicheList();
   if(name==="tendances") renderVeille();
+  if(name==="memoire") renderLessons();
   if(name==="audio" && AU.dur) requestAnimationFrame(drawWave);
 }
 
@@ -4829,6 +4970,8 @@ async function generateProject(idee, params, prefix, signal){
   pipeStart(); const tIn=pipeNow(), route=routeInput(idee, params);
   params = Object.assign({}, params, {inputType:route.type});
   pipeStep("INPUT_ROUTER","DONE",tIn,`${route.type} · ${route.detail}`);
+  const nLes = activeLessons(params).length;
+  pipeStep("LEARNING_MEMORY","DONE",pipeNow(), nLes ? `${nLes} leçon${nLes>1?"s":""} tirée${nLes>1?"s":""} de tes clips appliquée${nLes>1?"s":""}` : "aucune leçon pour l'instant (note tes clips : Réussi / Raté)");
   const tier = params.qualite==="complex" ? "complex" : "default";
   const prep = await prepareProduction(idee, Object.assign({},params,{qualite:tier}), prefix, signal);
   const compileParams=prep.compileParams, tl=compileParams.timeline||[], total=tl.length;
@@ -5224,6 +5367,17 @@ document.addEventListener("click", async e=>{
   if(t.dataset.planStep){ showPlan(pv.idx + Number(t.dataset.planStep)); return; }
   if(t.id==="pg-all"){ pv.all=!pv.all; applyProjView(); const pg=$("pager"); if(pg && pg.getBoundingClientRect().top<0) pg.scrollIntoView({block:"start"}); return; }
   if(t.dataset.goInline){ setView(t.dataset.goInline); return; }
+  if(t.dataset.learn!=null){ openLearnForm(Number(t.dataset.learn), t.dataset.verdict); return; }
+  if(t.dataset.learnsave!=null){
+    const i=Number(t.dataset.learnsave), f=$("learnf-"+i), msg=$("learnmsg-"+i), raisons=[...f.querySelectorAll('.pick input:checked')].map(x=>x.value), note=($("learnn-"+i)||{}).value||"", crit=$("learnc-"+i);
+    t.disabled=true; msg.textContent="L'agent tire la leçon de ce clip…";
+    try{ const out=await learnFromClip(i, t.dataset.verdict, raisons, note.trim(), !!(crit&&crit.checked)); f.innerHTML=`<p class="learn-ok"><b>${out.some(x=>x.nouveau)?"Nouvelle leçon retenue":"Leçon déjà connue, confirmée"} :</b> ${out.map(x=>esc(x.regle)).join(" · ")}</p><p class="hint">Elle s'applique à tes prochains prompts. Tu la retrouves dans Mémoire de l'agent.</p>`; }
+    catch(err){ msg.textContent=errText(err); t.disabled=false; }
+    return; }
+  if(t.dataset.lessonToggle){ const d=savedLessons().find(x=>x.id===t.dataset.lessonToggle); if(d&&db&&uid){ const l=d.data.lesson; await db.collection("data/users/"+uid).doc(d.id).update({lesson:Object.assign({},l,{actif:l.actif===false}), updatedAt:Date.now()}); } return; }
+  if(t.dataset.lessonEdit){ const row=t.closest("[data-lesson-row]"), d=savedLessons().find(x=>x.id===t.dataset.lessonEdit); if(row&&d){ row.innerHTML=`<div style="flex:1"><textarea rows="2" id="lesson-ta">${esc(d.data.lesson.regle)}</textarea></div><div class="acts"><button type="button" class="btn small primary" data-lesson-save="${esc(d.id)}">Enregistrer</button><button type="button" class="btn small quiet" data-lesson-cancel="1">Annuler</button></div>`; $("lesson-ta").focus(); } return; }
+  if(t.dataset.lessonSave){ const d=savedLessons().find(x=>x.id===t.dataset.lessonSave), v=($("lesson-ta")||{}).value||""; if(d&&db&&uid&&v.trim().length>=8){ await db.collection("data/users/"+uid).doc(d.id).update({lesson:Object.assign({},d.data.lesson,{regle:v.trim().slice(0,240)}), titre:v.trim().slice(0,60), updatedAt:Date.now()}); toast("Règle modifiée."); } else renderLessons(); return; }
+  if(t.dataset.lessonCancel){ renderLessons(); return; }
   if(t.dataset.sndOpen){ setView("son"); const sel=$("snd-src"), v=current&&!current.isExample?"current":"example"; if([...sel.options].some(o=>o.value===v)){ sel.value=v; sel.dispatchEvent(new Event("change")); } return; }
   if(t.dataset.make){ const x=findIdeaByKey(t.dataset.make); if(x) sendToStudio(x); return; }
   if(t.dataset.saveidea!=null){ const x=lastIdeas[Number(t.dataset.saveidea)]; if(x){ await saveIdea(x); t.textContent="Enregistrée"; t.disabled=true; } return; }
@@ -5269,12 +5423,14 @@ function askDelete(btn, id){
 }
 
 /* =================== STORAGE (private per person) =================== */
-const savedProjects = ()=>docs.filter(d=>!["idea","image","character","series","niche","veille"].includes(d.data.kind));
+const savedProjects = ()=>docs.filter(d=>!["idea","image","character","series","niche","veille","lesson"].includes(d.data.kind));
+const savedLessons = ()=>docs.filter(d=>d.data.kind==="lesson" && d.data.lesson && d.data.lesson.regle);
 const savedSeries = ()=>docs.filter(d=>d.data.kind==="series");
 const savedImages = ()=>docs.filter(d=>d.data.kind==="image");
 const savedIdeas = ()=>docs.filter(d=>d.data.kind==="idea");
 function fmtDate(t){ try{ return new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
 function renderLists(){
+  try{ renderLessons(); }catch(e){}
   const lp=$("list-projects"), li=$("list-ideas"), lim=$("list-images");
   if(!db||!uid){
     const msg = `<p class="empty">Tes projets et tes idées s'enregistrent ici quand tu ouvres cette page dans Claude, connecté à ton compte.</p>`;
