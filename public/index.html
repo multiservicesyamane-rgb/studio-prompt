@@ -397,6 +397,7 @@ input[type=text].plain-in{background:var(--surface)}
 .au-num{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px}
 .au-num.done{background:var(--good-soft);color:var(--good)}
 .au-tr-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.au-tr-sel{width:auto;min-width:230px;flex:0 1 auto}
 .au-transcript{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
 .au-seg{display:grid;grid-template-columns:64px 30px minmax(0,1fr);gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline}
 .au-seg:last-child{border-bottom:0}
@@ -687,7 +688,7 @@ input[type=text].plain-in{background:var(--surface)}
               <div class="field" style="max-width:220px"><label for="au-dur">Durée <span class="hint">(corrige si besoin)</span></label><input type="text" id="au-dur" inputmode="numeric"></div>
             </div></div>
             <div class="au-step"><div class="au-step-h"><span class="au-num" id="au-n2">2</span><div><b>Ce qui est dit</b><span class="hint">Transcription automatique : texte exact, minutage au dixième de seconde, voix et langue.</span></div></div>
-            <div class="au-tr-bar"><button type="button" class="btn small" id="au-transcribe" title="L'audio est envoyé à Gemini par ton serveur, seulement pour la transcription.">Transcrire l'audio automatiquement</button><button type="button" class="btn small" id="au-srt-dl" hidden>Télécharger les sous-titres .srt</button><span class="hint" id="au-tr-meta"></span></div>
+            <div class="au-tr-bar"><button type="button" class="btn small" id="au-transcribe" title="Gemini : l'audio est envoyé par ton serveur, seulement pour la transcription. Gratuit : tout se passe sur ton ordinateur.">Transcrire l'audio automatiquement</button><div class="sel au-tr-sel"><select id="au-tr-engine" aria-label="Moteur de transcription"><option value="auto">Auto : Gemini, sinon gratuit</option><option value="gemini">Gemini (voix et langues)</option><option value="local">Gratuit sur cet ordinateur · rapide</option><option value="local-small">Gratuit sur cet ordinateur · précis (250 Mo)</option></select></div><button type="button" class="btn small" id="au-srt-dl" hidden>Télécharger les sous-titres .srt</button><span class="hint" id="au-tr-meta"></span></div>
             <div class="au-transcript" id="au-transcript" hidden></div>
             <div class="field"><label for="au-text">Texte ou sous-titres <span class="hint">(rempli par la transcription ; tu peux corriger un mot ici)</span></label><textarea id="au-text" rows="4" placeholder="Laisse vide : l'application transcrit ton audio automatiquement. Tu peux aussi coller ton texte ou des sous-titres .srt (CapCut, ElevenLabs)."></textarea>
               <label class="hint" for="au-srt">Ou charge ton fichier de sous-titres :</label><input type="file" id="au-srt" accept=".srt,.vtt,.txt"></div>
@@ -4336,10 +4337,9 @@ function needsTranscript(kind){
   const words=String(AU.plain||"").split(/\s+/).filter(Boolean).length;
   return words < AU.dur*(kind==="histoire"?0.6:0.25);   /* pas de texte, ou une consigne au lieu du texte de l'audio */
 }
-async function transcribeAudio(signal){
-  if(!sample) throw {code:"no_key", message:"Le serveur local n'est pas lancé : ouvre « Lancer Studio Prompt »."};
-  if(!AU.file || !AU.dur) throw {code:"bad_request", message:"Charge d'abord ton fichier audio."};
-  if(AU.dur>TR_MAX) throw {code:"bad_request", message:`Audio trop long pour la transcription automatique (${TR_MAX/60} min au maximum) : charge ses sous-titres .srt.`};
+/* Gemini écoute l'audio : texte exact, voix et langue (utilise le quota de la clé) */
+async function transcribeGemini(signal){
+  if(!sample) throw {code:"network", message:"Le serveur local n'est pas lancé : ouvre « Lancer Studio Prompt »."};
   showStatus("au-","Préparation de l'audio pour la transcription…",false,6);
   const chunks=await audioChunks(), segs=[], langs=new Set(), spk=new Map(); let langue="", genre="";
   for(let i=0;i<chunks.length;i++){
@@ -4357,6 +4357,92 @@ async function transcribeAudio(signal){
       segs.push({t0, t1, texte, locuteur:String(x.locuteur||"A")});
     });
   }
+  return {segs, langue, langs, genre, spk, engine:"Gemini"};
+}
+/* ---------- Transcription gratuite sur cet ordinateur : Whisper (open source) tourne dans le navigateur, sans clé ni quota ---------- */
+const WHISPER_LIB = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0";
+const WHISPER_MODELS = {local:"onnx-community/whisper-base", "local-small":"onnx-community/whisper-small"};   /* rapide ≈ 80 Mo, précis ≈ 250 Mo, téléchargés une seule fois */
+const WHISPER_LANG = {fr:"french", en:"english"};   /* wolof et pulaar : Whisper les connaît mal, détection automatique */
+const WHISPER_JUNK = /amara\.org|sous-titr(es|age) (réalisés?|par)|merci d'avoir regardé|abonnez-vous|(une )?(autre|prochaine) vidéo|n'oubliez pas de|à bientôt (pour|dans)|thanks for watching|see you next|^\W*$/i;   /* phrases inventées par Whisper sur les silences */
+const WHISPER_WORKER = `import {pipeline} from "${WHISPER_LIB}";
+const pipes={};
+self.onmessage=async e=>{
+  const m=e.data;
+  try{
+    let pipe=pipes[m.model];
+    if(!pipe){
+      const files={};
+      /* graphOptimizationLevel "basic" : l'optimisation complète d'onnxruntime-web refuse les modèles Whisper q8 */
+      pipe=pipes[m.model]=await pipeline("automatic-speech-recognition", m.model, {dtype:"q8", device:"wasm", session_options:{graphOptimizationLevel:"basic"}, progress_callback:p=>{
+        if(!p||p.status!=="progress"||!p.file) return;
+        files[p.file]=[p.loaded||0,p.total||0]; let a=0,b=0; for(const k in files){ a+=files[k][0]; b+=files[k][1]; }
+        self.postMessage({type:"load", loaded:a, total:b});
+      }});
+      self.postMessage({type:"ready"});
+    }
+    const out=await pipe(m.audio, Object.assign({return_timestamps:true}, m.language?{language:m.language, task:"transcribe"}:{}));
+    self.postMessage({type:"done", id:m.id, out:{text:out.text||"", chunks:out.chunks||[]}});
+  }catch(err){ self.postMessage({type:"error", id:m.id, message:String(err&&err.message||err)}); }
+};`;
+let whisperW = null;
+function whisperRun(audio, language, model, onLoad, signal){
+  return new Promise((res,rej)=>{
+    if(!whisperW){ try{ whisperW=new Worker(URL.createObjectURL(new Blob([WHISPER_WORKER],{type:"text/javascript"})),{type:"module"}); }catch(e){ return rej({code:"bad_request", message:"Ce navigateur ne peut pas lancer la transcription gratuite : utilise Chrome ou Edge à jour."}); } }
+    const w=whisperW, id=Math.random().toString(36).slice(2);
+    const done=()=>{ w.removeEventListener("message",onMsg); w.removeEventListener("error",onErr); if(signal) signal.removeEventListener("abort",onAbort); };
+    const kill=()=>{ try{ w.terminate(); }catch(e){} if(whisperW===w) whisperW=null; };
+    const onAbort=()=>{ done(); kill(); rej({code:"cancelled", message:"Annulé."}); };
+    const onErr=()=>{ done(); kill(); rej({code:"bad_request", message:"Le moteur gratuit n'a pas pu démarrer : il faut Internet la première fois, pour télécharger le modèle (environ 80 Mo, une seule fois)."}); };
+    const onMsg=e=>{ const d=e.data||{}; if(d.type==="load"||d.type==="ready"){ if(onLoad) onLoad(d); return; } if(d.id!==id) return; done(); if(d.type==="done") res(d.out); else rej({code:"bad_request", message:`Transcription gratuite impossible : ${String(d.message||"erreur").slice(0,160)}`}); };
+    w.addEventListener("message",onMsg); w.addEventListener("error",onErr); if(signal) signal.addEventListener("abort",onAbort,{once:true});
+    w.postMessage({id, audio, language, model}, [audio.buffer]);
+  });
+}
+async function pcm16k(a,b){
+  const src=AU.buf || (AU.buf=await decodeAudio(await AU.file.arrayBuffer())), C=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  const ctx=new C(1, Math.max(1,Math.ceil((b-a)*16000)), 16000), node=ctx.createBufferSource(); node.buffer=src; node.connect(ctx.destination); node.start(0,a,b-a);
+  return new Float32Array((await ctx.startRendering()).getChannelData(0));
+}
+async function transcribeLocal(signal, level){
+  if(!window.Worker || !(window.OfflineAudioContext||window.webkitOfflineAudioContext)) throw {code:"bad_request", message:"Ce navigateur ne peut pas lancer la transcription gratuite : utilise Chrome ou Edge à jour."};
+  const W=28, cuts=[0];   /* fenêtres de 28 s au plus, coupées dans les pauses de la voix : Whisper écoute par tranches de 30 s */
+  for(let t=0; AU.dur-t>W; ){ let c=t+W; const p=AU.an&&AU.an.pauses.filter(x=>x.mid>t+8&&x.mid<t+W).pop(); if(p) c=p.mid; cuts.push(c); t=c; }
+  cuts.push(AU.dur);
+  const lc=$("au-langue").value, language=WHISPER_LANG[lc]||null, model=WHISPER_MODELS[level]||WHISPER_MODELS.local, segs=[];
+  for(let i=0;i<cuts.length-1;i++){
+    const a=cuts[i], b=cuts[i+1];
+    showStatus("au-", i===0&&!whisperW ? "Démarrage du moteur de transcription gratuit…" : `Transcription gratuite sur ton ordinateur : partie ${i+1} sur ${cuts.length-1}…`, false, 8+86*i/(cuts.length-1));
+    const part=`Transcription gratuite sur ton ordinateur : partie ${i+1} sur ${cuts.length-1}…`;
+    const out=await whisperRun(await pcm16k(a,b), language, model, d=>{
+      if(d.type==="ready") showStatus("au-",part,false,8+86*i/(cuts.length-1));
+      else if(d.total>2e6) showStatus("au-",`Téléchargement du moteur de transcription gratuit (une seule fois) : ${Math.round(d.loaded/1e6)} / ${Math.round(d.total/1e6)} Mo…`,false,Math.max(2,Math.min(95,100*d.loaded/d.total)));
+    }, signal);
+    (out.chunks||[]).forEach(c=>{
+      const texte=String(c&&c.text||"").replace(/\s+/g," ").trim(); if(!texte||WHISPER_JUNK.test(texte)) return;
+      const ts=Array.isArray(c.timestamp)?c.timestamp:[], t0=a+Math.max(0,Number(ts[0])||0); let t1=ts[1]==null?b:a+Number(ts[1]);
+      if(!(t1>t0)) t1=t0+Math.max(1,texte.split(" ").length/2.5);
+      if(texte.split(" ").length/Math.max(0.1,t1-t0) > 6) return;   /* plus de 6 mots par seconde : impossible à dire, phrase inventée */
+      segs.push({t0:Math.min(t0,b), t1:Math.min(t1,b), texte, locuteur:""});
+    });
+  }
+  return {segs, langue:language?lc:"", langs:new Set(language?[lc]:[]), genre:"", spk:new Map(), engine:"gratuit"};
+}
+/* Auto : Gemini d'abord (voix, langues mêlées) ; s'il n'a plus de quota, est surchargé ou injoignable, le moteur gratuit prend le relais */
+const FREE_FALLBACK = new Set(["no_credit","rate_limited","overloaded","network","no_key","server_error"]);
+async function transcribeAudio(signal){
+  if(!AU.file || !AU.dur) throw {code:"bad_request", message:"Charge d'abord ton fichier audio."};
+  if(AU.dur>TR_MAX) throw {code:"bad_request", message:`Audio trop long pour la transcription automatique (${TR_MAX/60} min au maximum) : charge ses sous-titres .srt.`};
+  const mode=$("au-tr-engine").value||"auto"; let r;
+  if(mode==="local"||mode==="local-small") r=await transcribeLocal(signal, mode);
+  else{
+    try{ r=await transcribeGemini(signal); }
+    catch(err){
+      if(mode!=="auto" || !err || !FREE_FALLBACK.has(err.code)) throw err;
+      toast("Gemini indisponible (quota, surcharge ou connexion) : transcription gratuite sur ton ordinateur.");
+      r=await transcribeLocal(signal, "local");
+    }
+  }
+  const {segs, langs, spk, genre}=r, langue=r.langue;
   if(!segs.length) throw {code:"bad_request", message:"Aucune parole n'a été entendue dans cet audio : pour une musique sans paroles, choisis « Musique » dans Type d'audio."};
   segs.sort((a,b)=>a.t0-b.t0);
   for(let i=1;i<segs.length;i++){
@@ -4366,14 +4452,14 @@ async function transcribeAudio(signal){
     if(best && best.mid>a.t0+0.4 && best.mid<b.t1-0.3){ a.t1=Math.min(a.t1,best.mid); b.t0=Math.max(b.t0,best.mid); }
     if(a.t1<a.t0+0.3) a.t1=a.t0+0.3;
   }
-  AU.spk=segs.map(x=>({start:x.t0, end:x.t1, spk:x.locuteur}));
-  AU.transcript={langue, langues:[...langs], genre, locuteurs:[...spk].map(([id,description])=>({id,description}))};
+  AU.spk=segs.some(x=>x.locuteur) ? segs.map(x=>({start:x.t0, end:x.t1, spk:x.locuteur})) : null;
+  AU.transcript={langue, langues:[...langs], genre, locuteurs:[...spk].map(([id,description])=>({id,description})), engine:r.engine};
   AU.trText=toSrt(segs); $("au-text").value=AU.trText;
   const code = langs.has("wo") && langs.has("fr") ? "wofr" : langue;
   if(code && $("au-langue").querySelector(`option[value="${code}"]`)) $("au-langue").value=code;
   readText();
   const voices=AU.transcript.locuteurs.length;
-  $("au-tr-meta").textContent=`${segs.length} phrases · ${[...langs].map(x=>LANG_FR[x]||x).join(" + ")||"langue ?"}${voices?` · ${voices} voix`:""}`;
+  $("au-tr-meta").textContent=`${segs.length} phrases · ${[...langs].map(x=>LANG_FR[x]||x).join(" + ")||"langue détectée automatiquement"}${voices?` · ${voices} voix`:""} · ${r.engine==="gratuit"?"transcrit gratuitement sur ton ordinateur":"transcrit par Gemini"}`;
   if(genre==="chanson" && $("au-type").value==="histoire") toast("C'est une chanson : choisis « Chanson » dans Type d'audio si besoin.");
   return segs;
 }
@@ -4390,6 +4476,8 @@ function audioVoicesLine(){
   const t=AU.transcript; if(!t) return "";
   return `Transcription automatique de l'audio : langue ${(t.langues.length?t.langues:[t.langue]).map(x=>LANG_FR[x]||x).join(" + ")}${t.genre?`, genre ${t.genre}`:""}. Voix : ${t.locuteurs.map(l=>`${l.id} = ${l.description||"voix"}`).join(" ; ")||"une seule voix"}. Dans chaque unité, « voix » indique qui parle : montre cette personne à ce moment (le son existe déjà, pas de doublage).`;
 }
+try{ const v=localStorage.getItem("sp-tr-engine"); if(v && $("au-tr-engine").querySelector(`option[value="${v}"]`)) $("au-tr-engine").value=v; }catch(e){}
+$("au-tr-engine").addEventListener("change",()=>{ try{ localStorage.setItem("sp-tr-engine",$("au-tr-engine").value); }catch(e){} });
 let trctl=null;
 $("au-transcribe").addEventListener("click", async ()=>{
   if(trctl) return;
