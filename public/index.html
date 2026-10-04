@@ -313,6 +313,19 @@ dl.kv dd{margin:0;font-size:15px}
 .shot.done .shot-n{color:var(--good)}
 .desk-only{display:none}
 @media (min-width:960px){ .desk-only{display:inline} }
+.scene-h{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px 14px;padding:14px 16px;border-radius:var(--r);background:var(--side);color:#F4F1EC;margin-top:6px}
+.scene-h:first-child{margin-top:0}
+.scene-n{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#F09A6E;white-space:nowrap}
+.scene-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.scene-t b{font-size:15px;letter-spacing:.02em;text-transform:uppercase}
+.scene-title{font-weight:600;color:#fff}
+.scene-obj{font-size:13px;color:#C9CCD9}
+.scene-meta{font-size:12.5px;color:#C9CCD9;white-space:nowrap}
+.shot-sc{display:block;font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.02em}
+.pg-scene{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:2px 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-sc{flex:none;align-self:center;font-size:11px;font-weight:700;color:var(--accent);padding:0 2px 0 6px;border-left:2px solid var(--line-strong)}
+.pg-sc:first-child{border-left:0;padding-left:0}
+@media (max-width:560px){ .scene-h{grid-template-columns:1fr} .scene-meta{white-space:normal} }
 .shots{display:flex;flex-direction:column;gap:14px}
 .shot{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
 .shot-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
@@ -1666,9 +1679,12 @@ function fullText(proj, v){
   if((r.lieux||[]).length){ L.push("== BIBLE DES LIEUX =="); r.lieux.forEach(l=>{ L.push(`-- ${l.nom}`); L.push(l.description_en); }); L.push(""); }
   L.push("== ÉTAPE 1 · PHOTOS DE RÉFÉRENCE ==");
   (r.personnages||[]).forEach(c=>{ L.push(`-- ${c.nom}`); L.push(refPrompt(r,c,v)); L.push(""); });
-  L.push("== ÉTAPE 2 · LES PLANS ==");
+  const scs = scenesOf(r);
+  L.push(scs ? "== ÉTAPE 2 · LES SCÈNES ET LEURS PLANS ==" : "== ÉTAPE 2 · LES PLANS ==");
   (r.plans||[]).forEach(p=>{
-    L.push(`-- PLAN ${p.n} (${p.debut} – ${p.fin}) · ${p.intention||""}`);
+    const k = scs ? scs.findIndex(sc=>sc.plans.includes(p.n)) : -1, sc = k>=0 ? scs[k] : null;
+    if(sc && sc.plans[0]===p.n){ L.push(`######## SCÈNE ${k+1} · ${sceneSlug(sc)||sc.titre||""}${sc.titre&&sceneSlug(sc)?" · "+sc.titre:""} (${sc.plans.length} plan${sc.plans.length>1?"s":""})`); if(sc.objectif) L.push("Enjeu : "+sc.objectif); L.push(""); }
+    L.push(`-- PLAN ${p.n}${sc?` (scène ${k+1}, plan ${sc.plans.indexOf(p.n)+1}/${sc.plans.length})`:""} (${p.debut} – ${p.fin}) · ${p.intention||""}`);
     if(p.voix_off) L.push(`Voix off : ${p.voix_off}`);
     if(p.voix_off_fr) L.push(`Traduction : ${p.voix_off_fr}`);
     L.push("Image de départ :"); L.push(keyframePrompt(r,p,v));
@@ -1718,6 +1734,14 @@ const EXAMPLE = {
       {n:9,debut:"1:05",fin:"1:13",intention:"L'eau jaillit",voix_off:"Au quarantième jour, la terre devint fraîche… puis humide… puis l'eau jaillit !",voix_off_fr:"",personnages:[],cadrage_en:"Extreme close-up",action_en:"At the bottom of a deep hole dug in orange earth, the dark earth turns wet, then clear water seeps and bubbles up, slowly filling the bottom and reflecting the bright sky above",decor_en:"inside a deep hole under a huge baobab tree",camera_en:"low angle, slow push in, macro lens",lumiere_en:"a shaft of warm sunlight falls from the opening above and sparkles on the water",ambiance_en:"wonder and relief",son_en:"trickling water",depart_en:"",risque:"Physique de l'eau : garde la version la plus naturelle.",note:9},
       {n:10,debut:"1:13",fin:"1:21",intention:"Le puits d'Awa",voix_off:"Le village eut enfin son puits. On l'appela le puits d'Awa.",voix_off_fr:"",personnages:["awa"],cadrage_en:"Wide shot",action_en:"Villagers fill clay jars with water from a new well with a round stone rim, two children splash and laugh, and Awa stands proudly at the edge, smiling",decor_en:"the center of a small Sahel village at golden hour",camera_en:"slow orbit around the well, 35mm lens",lumiere_en:"warm golden hour light, sparkling water droplets, rich dark skin tones beautifully lit",ambiance_en:"joyful celebration",son_en:"laughter, splashing water and soft drums",depart_en:"Awa stands proudly at the edge of a new well with a round stone rim under the huge baobab, around the well eight villagers hold clay jars",risque:"Foule : génère 5 versions et garde la plus propre.",note:7},
       {n:11,debut:"1:21",fin:"1:30",intention:"La leçon",voix_off:"Les grandes choses ne se font pas en un jour. Elles se font un peu, chaque jour.",voix_off_fr:"",personnages:[],cadrage_en:"Extreme wide shot",action_en:"Two backlit silhouettes, a small girl with hair in two puffs and a thin old man with a walking stick, sit side by side under a huge baobab tree next to a round stone well as the sun sets",decor_en:"a small Sahel village of round mud huts at sunset",camera_en:"slow pull back and crane up, anamorphic lens",lumiere_en:"backlit silhouettes against an orange and pink sky",ambiance_en:"peaceful and wise mood",son_en:"a gentle wind",depart_en:"",risque:"Silhouettes : très fiable.",note:9}
+    ],
+    scenes:[
+      {scene_id:"S01",titre:"La sécheresse",int_ext:"EXT",lieu:"Le village",moment:"midi",objectif:"Montrer que l'eau manque et ce que cela coûte aux femmes du village.",plans:[1,2]},
+      {scene_id:"S02",titre:"L'idée d'Awa",int_ext:"EXT",lieu:"Le village, au pied du vieux baobab",moment:"fin d'après-midi",objectif:"Awa a une idée folle ; le grand-père lui donne le courage d'essayer.",plans:[3,4]},
+      {scene_id:"S03",titre:"Creuser",int_ext:"EXT",lieu:"Sous le vieux baobab",moment:"plusieurs jours",objectif:"Awa creuse seule, jour après jour, malgré les moqueries.",plans:[5,6]},
+      {scene_id:"S04",titre:"Le doute",int_ext:"EXT",lieu:"Sous le vieux baobab",moment:"crépuscule",objectif:"Épuisée, Awa veut abandonner ; Moussa la relève.",plans:[7]},
+      {scene_id:"S05",titre:"L'eau",int_ext:"EXT",lieu:"Sous le vieux baobab",moment:"matin",objectif:"Le village rejoint Awa et l'eau jaillit.",plans:[8,9]},
+      {scene_id:"S06",titre:"Le puits d'Awa",int_ext:"EXT",lieu:"Le nouveau puits",moment:"soir",objectif:"Le village fête le puits et la leçon se dit.",plans:[10,11]}
     ],
     audio:{voix:"Voix masculine grave et chaleureuse, environ 55 ans, ton de conteur, débit lent. Une voix plus âgée pour les phrases de Moussa (plans 4 et 7).",musique_en:"Gentle West African folk instrumental for a storytelling film, kora and soft hand percussion, slow tempo around 70 BPM, warm and hopeful. Quiet and sparse for the first 30 seconds, a little sad around 50 seconds, then builds to a joyful climax with calabash percussion and soft choir humming at 65 seconds, and ends calm and peaceful. No vocals, no lyrics, 95 seconds.",mixage:"Voix devant, musique baissée sous la voix et remontée au plan 9. Volume final autour de -14 LUFS."},
     montage:["Coupes franches, fondu enchaîné entre les plans 5 et 6, fondu au noir après le plan 11.","Coupe au plan 9 sur le temps fort de la musique.","Même étalonnage chaud sur tous les plans.","Sous-titres blancs avec contour noir, 2 lignes maximum.","Carton de fin : « Et toi, quel puits vas-tu creuser ? Dis-le en commentaire. »","Export MP4, H.264, 1920 x 1080, 24 images par seconde, BT.709, son AAC 48 kHz, -14 LUFS."],
@@ -1940,10 +1964,12 @@ function normalizeCreative(d){
 }
 const creativePasses = (d,p) => { const profile=videoProfile(p.vtype,p), s=d&&d.selection&&d.selection.scores; return !!(d&&d.selection&&profile.gates.every(k=>Number(s&&s[k])>=8)&&Number(d.selection.comprehension_mode_muet)>=profile.silent&&/^APPROVED/.test(String(d.selection.decision||""))); };
 /* PIPELINE EXECUTION REPORT : chaque étape réellement exécutée, avec son statut, sa durée et son résultat */
-let PIPE = null;
+let PIPE = null, lastModel = "";
+const AI_STEP = /ENGINE|MASTER|COMPILER/;
+const weakModel = m => /lite|luna/i.test(String(m||""));   /* modèles de secours : plus rapides, nettement moins bons */
 const pipeNow = () => (typeof performance!=="undefined" && performance.now) ? performance.now() : Date.now();
-function pipeStart(){ PIPE = []; return PIPE; }
-function pipeStep(etape, statut, t0, resume){ if(PIPE) PIPE.push({etape, statut, s:Math.round((pipeNow()-t0)/100)/10, resume:String(resume||"").slice(0,260)}); }
+function pipeStart(){ PIPE = []; lastModel = ""; return PIPE; }
+function pipeStep(etape, statut, t0, resume){ if(PIPE) PIPE.push({etape, statut, s:Math.round((pipeNow()-t0)/100)/10, resume:String(resume||"").slice(0,260), model:AI_STEP.test(etape)?lastModel:""}); }
 /* INPUT ROUTER : reconnaît idée, texte, scénario, audio ou vidéo (aucune règle propre à une langue ou à une histoire) */
 function routeInput(idee, p){
   if(p && p.audioKind==="remake") return {type:"VIDEO", detail:"vidéo réelle analysée"};
@@ -1961,6 +1987,11 @@ function codeDefects(x, p){
   const add = (problem, correction) => out.push({shot_id:"", layer:"CODE", problem, correction, expected_effect:"Vérifié par l'application, pas seulement noté par le modèle."});
   if(!imposed && target && Number(x.duration) < target*0.65) add(`Durée ${Math.round(Number(x.duration)||0)} s pour ${target} s demandées (minimum ${Math.round(target*0.65)} s).`, "Développe l'histoire avec de vraies unités utiles (obstacle, réaction, conséquence, escalade, reaction shot, insert) jusqu'à couvrir au moins 65 % de la durée, sans remplissage.");
   const durs = shots.map(s=>Math.round(Number(s.shot_design&&s.shot_design.duration)||0));
+  if(!imposed){
+    const bySc=new Map(); shots.forEach(s=>{ const k=String(s.scene_id||""); bySc.set(k,(bySc.get(k)||[]).concat([s])); });
+    const thin=[...bySc].filter(([,g])=>{ const T=g.reduce((a,s)=>a+(Number(s.shot_design&&s.shot_design.duration)||0),0); return T>=12 && g.length < Math.round(T/6); });
+    if(thin.length) add(`Scène${thin.length>1?"s":""} ${thin.map(([k,g])=>`${k||"?"} (${Math.round(g.reduce((a,s)=>a+(Number(s.shot_design&&s.shot_design.duration)||0),0))} s en ${g.length} plan${g.length>1?"s":""})`).join(", ")} : trop peu de plans pour sa durée.`, "Découpe chaque scène longue en plans plus courts : un plan qui situe, l'action, les réactions des personnages, les inserts sur les objets importants.");
+  }
   if(shots.length >= 4 && new Set(durs).size === 1) add("Tous les plans ont la même durée : rythme mécanique.", "Varie les durées selon la fonction du plan : courts pour l'action, les réactions et les inserts, plus longs seulement pour l'émotion.");
   if(FICTION_CATS.includes(profile.category) && p.audio === "voice"){   /* voix jouées dans le clip ; « voix off au montage » peut être une narration voulue (story time) */
     const vo = shots.filter(s=>String(s.sound&&s.sound.voice_over||"").trim()).length;
@@ -2009,6 +2040,7 @@ ${nicheContext(nicheById(p.niche))}
 ${imposed.length?`UNITÉS TEMPORELLES IMPOSÉES PAR LE MÉDIA SOURCE : ${JSON.stringify(imposed)}. Crée exactement ${imposed.length} unités avec les mêmes n, debut et fin.`:`Durée cible : ${p.duree} s. Couvre entre ${Math.round((Number(p.duree)||60)*0.65)} et ${p.duree} s avec des unités réellement utiles : si l'idée paraît trop courte, enrichis-la (obstacle supplémentaire, réaction, conséquence, escalade, retournement) plutôt que de livrer une vidéo trop courte ; jamais de remplissage ni de plan d'attente. Une vidéo de fiction alterne action, réaction et conséquence ; les personnages se parlent plutôt qu'un narrateur ne raconte.`}
 ${previous?`VERSION REFUSÉE : ${JSON.stringify(previous)}. Corrige les gates sous 8 sans ajouter d'esthétique.`:""}
 
+SCÈNES PUIS PLANS : une scène est une unité de LIEU et de TEMPS continue (même lieu, même moment) portée par un enjeu ; au découpage, elle contiendra plusieurs plans (plan qui situe, action, réactions, inserts). Ne crée jamais une scène par plan : change de scène seulement quand le lieu, le moment ou l'enjeu change. Pour chaque scène donne un titre court en français, int_ext (INT ou EXT), le lieu précis, le moment (heure et lumière du jour) et duree_s, sa durée estimée en secondes${imposed.length?"":` ; la somme des duree_s de toutes les scènes fait entre ${Math.round((Number(p.duree)||60)*0.65)} et ${Number(p.duree)||60} s`}.${imposed.length?" Ici les unités imposées sont des PLANS, dans l'ordre : chaque unité garde son source_n, et les unités consécutives qui se passent dans le même lieu et le même moment partagent le même scene_id, le même titre, le même lieu et le même moment.":""}
 EVENT BEFORE AESTHETICS : chaque unité contient un événement, une information, une démonstration, une interaction ou une transformation correspondant à son objectif. Une belle image ne remplace rien.
 INTENTION → BEHAVIOR : toute intention humaine devient un comportement visible. Sans personne, décris l'effet matériel, visuel ou informatif observable.
 ACTION → PERCEPTION → REACTION → COUNTER-ACTION → CONSEQUENCE lorsqu'il y a plusieurs personnages. Une réaction importante influence la suite.
@@ -2018,7 +2050,7 @@ SILENT TEST : au moins ${profile.silent} % de compréhension sans voix, musique 
 NO OVERENGINEERING : utilise seulement les mécanismes utiles au type ${profile.label}.
 
 RÉPONDS UNIQUEMENT avec ce JSON :
-{"scenes":[{"scene_id":"S01","source_n":1,"debut":"","fin":"","purpose":"","change":"","characters":[""],"wants":[{"character":"","wants":""}],"obstacle":"","event":"","objects":[{"id":"","owner":"","wants":"","interaction":"","state_in":"","state_out":"","effect":""}],"causal_beats":[{"beat":1,"what_happens":"","caused_by":"","who_reacts":"","reaction":"","change":"","why_next":""}],"silent_readability":${profile.silent},"voice_over_dependency":"LOW|MEDIUM|HIGH","next_open_loop":""}],"scene_critic":{"decision":"APPROVED","scores":{"event":0,"causality":0,"observable_behavior":0,"object_function":0,"visual_readability":0,"type_fit":0},"blocking_defects":[{"scene_id":"","problem":"","correction":""}]}}`;
+{"scenes":[{"scene_id":"S01","source_n":1,"titre":"","int_ext":"INT|EXT","lieu":"","moment":"","duree_s":0,"debut":"","fin":"","purpose":"","change":"","characters":[""],"wants":[{"character":"","wants":""}],"obstacle":"","event":"","objects":[{"id":"","owner":"","wants":"","interaction":"","state_in":"","state_out":"","effect":""}],"causal_beats":[{"beat":1,"what_happens":"","caused_by":"","who_reacts":"","reaction":"","change":"","why_next":""}],"silent_readability":${profile.silent},"voice_over_dependency":"LOW|MEDIUM|HIGH","next_open_loop":""}],"scene_critic":{"decision":"APPROVED","scores":{"event":0,"causality":0,"observable_behavior":0,"object_function":0,"visual_readability":0,"type_fit":0},"blocking_defects":[{"scene_id":"","problem":"","correction":""}]}}`;
 }
 function normalizeScenePlan(x){
   x=x&&typeof x==="object"?x:{}; x.scenes=Array.isArray(x.scenes)?x.scenes.filter(s=>s&&s.event&&s.change):[]; x.scene_critic=x.scene_critic&&typeof x.scene_critic==="object"?x.scene_critic:{}; return x;
@@ -2028,17 +2060,22 @@ async function developScenes(idee,p,creative,prefix,signal){
   showStatus(prefix,"Scene Engine : événements et chaîne causale…",false,20);
   const opts={modelTier:p.qualite==="complex"?"complex":"default",engine:"best",signal,cache:false};
   const t0=pipeNow(); let st="PASS";
-  let d=normalizeScenePlan(await sample.json(scenePlanPrompt(idee,p,creative),opts));
-  if(!scenePlanPasses(d,p)){ showStatus(prefix,"Scene Critic : réécriture des scènes faibles…",false,27); st="REWRITE → PASS"; d=normalizeScenePlan(await sample.json(scenePlanPrompt(idee,p,creative,d.scene_critic),opts)); }
+  const target=Number(p.duree)||0, imposed=Array.isArray(p.timeline)&&p.timeline.length;
+  const short=x=>{ const sum=x.scenes.reduce((a,v)=>a+(Number(v.duree_s)||0),0); return !imposed && target && sum>0 && sum<target*0.65 ? `Les scènes ne font que ${Math.round(sum)} s pour ${target} s demandées : ajoute des scènes ou développe-les (obstacle, réaction, conséquence) jusqu'à au moins ${Math.round(target*0.65)} s.` : ""; };
+  let d=normalizeScenePlan(await sample.json(scenePlanPrompt(idee,p,creative),opts)), why=short(d);
+  if(!scenePlanPasses(d,p) || why){ showStatus(prefix, why?"Scene Critic : histoire trop courte pour la durée demandée, réécriture…":"Scene Critic : réécriture des scènes faibles…",false,27); st=why?"REWRITE (durée) → PASS":"REWRITE → PASS"; d=normalizeScenePlan(await sample.json(scenePlanPrompt(idee,p,creative,Object.assign({},d.scene_critic,why?{refus:[why]}:{})),opts)); why=short(d); }
+  if(why){ d.reserves=(d.reserves||[]).concat([why]); st=st.replace(/PASS$/,"PASS AVEC RÉSERVES"); }
   if(!scenePlanPasses(d,p)){
     if(!d.scenes.length){ pipeStep("SCENE_ENGINE + SCENE_CRITIC","FAIL",t0,"aucune scène exploitable"); throw {code:"weak_story",message:"Les événements ne sont pas encore assez lisibles pour passer à la réalisation."}; }
     const sc=d.scene_critic.scores||{}, low=["event","causality","observable_behavior","visual_readability","type_fit"].filter(k=>!(Number(sc[k])>=8));
-    d.reserves=[low.length?`notes sous 8 : ${low.map(k=>`${k} ${Number(sc[k])||0}`).join(", ")}`:"", d.scenes.some(v=>!(Array.isArray(v.causal_beats)&&v.causal_beats.length))?"scènes sans chaîne causale détaillée":"", /^APPROVED/.test(String(d.scene_critic.decision||""))?"":`décision : ${d.scene_critic.decision||"absente"}`].filter(Boolean);
-    st=st.replace(/PASS$/,"PASS AVEC RÉSERVES");
+    d.reserves=(d.reserves||[]).concat([low.length?`notes sous 8 : ${low.map(k=>`${k} ${Number(sc[k])||0}`).join(", ")}`:"", d.scenes.some(v=>!(Array.isArray(v.causal_beats)&&v.causal_beats.length))?"scènes sans chaîne causale détaillée":"", /^APPROVED/.test(String(d.scene_critic.decision||""))?"":`décision : ${d.scene_critic.decision||"absente"}`].filter(Boolean));
+    st=st.replace(/PASS$/,"PASS AVEC RÉSERVES").replace("PASS AVEC RÉSERVES AVEC RÉSERVES","PASS AVEC RÉSERVES");
   }
   pipeStep("SCENE_ENGINE + SCENE_CRITIC",st,t0,`${d.scenes.length} scènes${d.reserves&&d.reserves.length?" · réserves : "+d.reserves.join(" / "):""}`);
   return d;
 }
+/* Plans visés pour une scène : environ un toutes les 4 s (entre 1 et 8) */
+const shotTarget = sc => Math.min(8, Math.max(1, Math.round((Number(sc&&sc.duree_s)||8)/4)));
 function executionPlanPrompt(idee,p,creative,scenePlan,previous){
   const profile=videoProfile(p.vtype,p);
   const sourceAudio=(Array.isArray(p.timeline)?p.timeline:[]).filter(x=>x&&x.texte).map(x=>Object.assign({source_n:x.n,texte:x.texte},x.voix?{voix:x.voix}:{}));
@@ -2061,7 +2098,8 @@ MODEL-INDEPENDENT : model_requirements décrit seulement les capacités nécessa
 
 DIRECTOR CRITIC : refuse avant adaptation tout plan sans événement lisible, blocking motivé, réaction causée, caméra motivée, état entrant/sortant ou séparation sonore claire. Tous les scores pertinents doivent atteindre 8. N'impose pas performance humaine, objet ou dialogue s'ils ne servent pas le format.
 
-NOMBRE DE SHOTS : ${audioLockedOf(p) ? `exactement ${p.timeline.length}, un par unité (source_n 1 à ${p.timeline.length})` : `au moins un par scène du SCENE PLAN, soit au moins ${(scenePlan.scenes||[]).length}`}. Le schéma ci-dessous montre UN SEUL shot pour l'exemple : ton tableau "shots" doit les contenir TOUS, chacun complet.
+DÉCOUPAGE SCÈNE PAR SCÈNE : ${audioLockedOf(p) ? "chaque unité de l'audio est un plan ; garde le scene_id de sa scène pour que les plans d'un même lieu et d'un même moment restent groupés." : "découpe chaque scène du SCENE PLAN, dans l'ordre, en plusieurs shots qui gardent son scene_id : en général un plan qui situe le lieu et les personnages, puis l'action, les réactions et les inserts utiles ; environ un shot toutes les 3 à 5 secondes de scène (action et réactions courtes, plans plus longs seulement pour l'émotion). DÉCOUPAGE CIBLE : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, duree_s:Number(sc.duree_s)||0, shots:shotTarget(sc)})))}."}
+NOMBRE DE SHOTS : ${audioLockedOf(p) ? `exactement ${p.timeline.length}, un par unité (source_n 1 à ${p.timeline.length})` : (()=>{ const t=(scenePlan.scenes||[]).reduce((a,sc)=>a+shotTarget(sc),0)||1; return `environ ${t} (entre ${Math.max(1,Math.round(t*0.75))} et ${Math.round(t*1.3)}), répartis selon le DÉCOUPAGE CIBLE`; })()}. Le schéma ci-dessous montre UN SEUL shot pour l'exemple : ton tableau "shots" doit les contenir TOUS, chacun complet.
 
 RÉPONDS UNIQUEMENT avec ce JSON :
 {"version":"master-video-plan-1","shots":[{"shot_id":"SH01","scene_id":"S01","source_n":1,"purpose":"","change":"","characters":[""],"wants":[{"character":"","wants":""}],"obstacle":"","event":"","blocking":{"start_positions":"","end_positions":"","distance":"","movement":"","entry":"","exit":"","eye_lines":"","foreground":"","background":"","object_relationship":"","power_relationship":""},"performance":[{"character":"","intention":"","observable_behavior":"","cause":"","timing":"","intensity":""}],"objects":[{"id":"","owner":"","interaction":"","state_in":"","state_out":"","effect":""}],"causal_beats":[{"beat":1,"what_happens":"","caused_by":"","who_reacts":"","reaction":"","change":"","why_next":""}],"shot_design":{"must_notice":"","notice_when":"","hidden_information":"","revealed_information":"","moment_owner":"","framing":"","angle":"","lens":"","camera_position":"","camera_movement":"","focus":"","depth":"","duration":5,"start_frame":"","end_frame":"","cut_point":"","shot_mode":"ONE_SHOT|MULTIPLE_SHOTS","camera_reason":""},"sound":{"diegetic":"","ambience":"","dialogue":"","sfx":"","silence":"","voice_over":"","music":"","model_audio":"","post_audio":"","voice_over_dependency":"LOW|MEDIUM|HIGH"},"continuity":{"state_in":"","state_out":"","screen_direction":"","light":"","time_of_day":"","environment":"","emotional_state":"","object_state":"","damage_dirt_wetness":"","story_information":""},"complexity":{"characters":0,"important_actions":0,"physical_interactions":0,"object_interactions":0,"camera_movement":0,"environment_movement":0,"dialogue":0,"special_effects":0,"continuity_requirements":0,"model_difficulty":0,"total":0,"decision":"KEEP","split_reason":""},"model_requirements":{"mode":"t2v|i2v|either","reference_count":0,"character_consistency":false,"camera_control":false,"native_audio":false,"multi_shot":false,"start_end_frames":false,"editing":false,"motion_complexity":"low|medium|high"}}],"continuity_map":[{"from_shot":"SH01","to_shot":"SH02","state_out":"","required_state_in":"","match":true,"correction":""}],"editing_plan":{"shot_order":["SH01"],"reaction_shots":[""],"inserts":[""],"transitions":[""],"rhythm":""},"director_critic":{"decision":"APPROVED FOR ADAPTATION","scores":{"event":0,"causality":0,"blocking":0,"performance":0,"objects":0,"camera_motivation":0,"information_control":0,"continuity":0,"sound_editing":0,"feasibility":0},"defects":[{"shot_id":"","layer":"","problem":"","correction":"","expected_effect":""}]}}`;
@@ -2182,9 +2220,20 @@ async function prepareProduction(idee,p,prefix,signal){
   const compileParams=Object.assign({},p,{masterPlanLocked:true,masterPlan:master,audioKind:"master",duree:String(Math.max(1,Math.round(master.duration))),timeline:compileTimeline});
   return {creative,scenes,master,compileParams,productionIdea:productionIdea(idee,creative,master)};
 }
+/* Scènes du projet : plans consécutifs d'un même scene_id, avec l'en-tête de la scène (lieu, moment, titre) */
+function buildScenes(res,master){
+  const sp=(master&&master.scene_plan&&master.scene_plan.scenes)||[], out=[];
+  (res.plans||[]).forEach(p=>{
+    const sid=String((p.execution&&p.execution.scene_id)||""), cur=out[out.length-1];
+    if(cur && (!sid || cur.scene_id===sid)){ cur.plans.push(p.n); return; }
+    const d=sp.find(x=>String(x.scene_id)===sid)||{};
+    out.push({scene_id:sid||`S${String(out.length+1).padStart(2,"0")}`, titre:d.titre||"", int_ext:d.int_ext||"", lieu:d.lieu||"", moment:d.moment||"", objectif:d.purpose||d.event||"", plans:[p.n]});
+  });
+  return out;
+}
 function attachMasterPlan(res,master){
   res.master_plan=master; res.pipeline={version:"realization-execution-1",director_critic:"before_adaptation",video_critic:"after_generation",model_registry:MODEL_CAPABILITIES.registry_version};
-  (res.plans||[]).forEach((p,i)=>{ const s=master.shots[i]; if(s){ p.n=i+1; p.debut=s.time&&s.time.debut||p.debut; p.fin=s.time&&s.time.fin||p.fin; p.execution=s; p.model_route=s.model_route; p.adapter_contract={master_fingerprint:s.model_route&&s.model_route.master_fingerprint||lockedShotFingerprint(s),story_rewrite:false,direction_rewrite:false}; } }); return res;
+  (res.plans||[]).forEach((p,i)=>{ const s=master.shots[i]; if(s){ p.n=i+1; p.debut=s.time&&s.time.debut||p.debut; p.fin=s.time&&s.time.fin||p.fin; p.execution=s; p.model_route=s.model_route; p.adapter_contract={master_fingerprint:s.model_route&&s.model_route.master_fingerprint||lockedShotFingerprint(s),story_rewrite:false,direction_rewrite:false}; } }); res.scenes=buildScenes(res,master); return res;
 }
 function productionIdea(idee,d,master){ return `${idee}\n\nDOSSIER CRÉATIF VALIDÉ — NE PAS RÉINVENTER :\n${JSON.stringify(d.selection)}${master?`\n\nMASTER VIDEO PLAN VALIDÉ ET VERROUILLÉ — traduis-le sans modifier événement, blocking, performance, objets, caméra, son ni continuité :\n${JSON.stringify(master)}`:""}`; }
 function agentPrompt(idee, p){
@@ -2746,6 +2795,9 @@ function applyProjView(){
   const shots = [...$res.querySelectorAll("#s-plans .shot")], n = shots.length; if(!n) return;
   pv.idx = Math.max(0, Math.min(pv.idx, n-1));
   shots.forEach((s,i)=>{ s.hidden = !list && i!==pv.idx; s.classList.toggle("done", pv.done.has(i)); });
+  const curSc = shots[pv.idx] && shots[pv.idx].dataset.scene, nSc = $res.querySelectorAll("#s-plans .scene-h").length;
+  $res.querySelectorAll("#s-plans .scene-h").forEach(hd=>{ hd.hidden = !list && hd.dataset.sceneH!==curSc; });
+  if($("pg-scene")){ const hd=$res.querySelector(`#s-plans .scene-h[data-scene-h="${curSc}"] .scene-t b`); $("pg-scene").textContent = list ? `${nSc} scènes` : (curSc!=null ? `Scène ${Number(curSc)+1} sur ${nSc}${hd?" · "+hd.textContent:""}` : ""); }
   $("pg-count").textContent = list ? `${n} plans` : `Plan ${pv.idx+1} sur ${n}`;
   $("pg-all").textContent = pv.all ? "Un plan à la fois" : "Voir tous les plans"; $("pg-all").hidden = tout;
   $res.querySelectorAll(".pg-nav").forEach(nav=>{ nav.hidden = list; nav.querySelector('[data-plan-step="-1"]').disabled = pv.idx===0; nav.querySelector('[data-plan-step="1"]').disabled = pv.idx===n-1; });
@@ -2772,11 +2824,14 @@ function creativeHtml(r){
   const defects=Array.isArray(s.defauts_bloquants)?s.defauts_bloquants.filter(x=>x&&x.probleme):[];
   return `<section class="section" id="s-creative"><h3>Cerveau créatif validé</h3><div class="card"><div><span class="label">Concept retenu parmi ${(d.concepts||[]).length||12} · ${esc(s.decision||"APPROVED FOR PRODUCTION")}</span><h4>${esc(s.titre||"")}</h4><p>${esc(s.raison||"")}</p></div><div class="chips">${scores}<span class="chip ${Number(s.comprehension_mode_muet)>=70?"ok":"mid"}">Mode muet ${esc(s.comprehension_mode_muet||0)} %</span></div>${kv([["Promesse spectateur",s.promesse_spectateur],["Hook silencieux",s.hook_silencieux],["Question centrale",s.question_centrale],["Objectif",s.objectif],["Obstacle",s.obstacle],["Objet narratif",s.objet_narratif],["Indices du reveal",asArr(s.indices_reveal).join(" · ")],["Climax",s.climax],["Reveal",s.reveal],["Payoff",s.payoff]])}${defects.length?`<div class="alert"><b>Notes du Director Critic</b><ul class="plain">${defects.map(x=>`<li><b>${esc(x.probleme)}</b> · ${esc(x.correction||"")} ${x.effet_attendu?`<span class="hint">${esc(x.effet_attendu)}</span>`:""}</li>`).join("")}</ul></div>`:""}${prog.length?`<div class="block"><h4>Progression visuelle</h4><ol class="plain">${prog.map(x=>`<li><b>${esc(x.etape||"")}</b> · ${esc([x.declencheur,x.action,x.reaction,x.consequence].filter(Boolean).join(" → "))}${x.changement?` → <b>${esc(x.changement)}</b>`:""}${x.information_nouvelle?` <span class="hint">Information : ${esc(x.information_nouvelle)}</span>`:""}${x.question_suivante?` <span class="hint">Question : ${esc(x.question_suivante)}</span>`:""}</li>`).join("")}</ol></div>`:""}</div></section>`;
 }
+function weakAlert(r){
+  return r && r.pipeline && r.pipeline.weak_model ? `<p class="alert"><b>Fait avec un modèle de secours.</b> Les bons modèles gratuits de Gemini étaient épuisés : ce projet a été écrit par un modèle plus faible (histoire plus courte, moins de plans). Relance-le demain matin avec « Améliorer ce projet », ou active la facturation de ta clé Gemini.</p>` : "";
+}
 function pipelineHtml(r){
   const ex = r.pipeline && Array.isArray(r.pipeline.execution) ? r.pipeline.execution : [];
   if(!ex.length) return "";
-  const lines = ex.map(x=>`${(x.etape+" ").padEnd(32,".")} ${x.statut} · ${String(x.s).replace(".",",")} s${x.resume ? "\n    ↳ "+x.resume : ""}`).join("\n");
-  return `<section class="section" id="s-pipeline"><h3>Rapport d'exécution</h3><p class="hint">Chaque étape réellement exécutée par l'agent, avec son résultat et sa durée.</p><div class="pb k-texte"><pre>${esc(lines)}</pre></div></section>`;
+  const lines = ex.map(x=>`${(x.etape+" ").padEnd(32,".")} ${x.statut} · ${String(x.s).replace(".",",")} s${x.model?` · ${x.model}${weakModel(x.model)?" (secours)":""}`:""}${x.resume ? "\n    ↳ "+x.resume : ""}`).join("\n");
+  return `<section class="section" id="s-pipeline"><h3>Rapport d'exécution</h3><p class="hint">Chaque étape réellement exécutée par l'agent, avec son résultat, sa durée et le modèle qui l'a faite.</p>${weakAlert(r)}<div class="pb k-texte"><pre>${esc(lines)}</pre></div></section>`;
 }
 function realisationHtml(r){
   const c = r.critique, notes = c && c.notes ? CRIT_KEYS.filter(([k])=>c.notes[k]).map(([k,l])=>`<span class="chip ${c.notes[k]>=9?"ok":c.notes[k]>=8?"":"mid"}">${esc(l)} ${c.notes[k]}/10</span>`).join("") : "";
@@ -2855,6 +2910,17 @@ function videoCriticHtml(p,i,enabled){
   }
   return `<details class="fix"${last?" open":""}><summary>Video Critic · contrôler le clip généré${last?` · ${esc(last.overall_score||0)}/10`:""}</summary><div class="fix-body">${report}<div${canRun}><label class="hint" for="vc-file-${i}">Importe le résultat réellement généré pour ce plan (MP4, MOV ou WEBM). Huit images chronologiques, la durée et les métriques audio seront comparées au Master Video Plan.</label><input type="file" id="vc-file-${i}" accept="video/*,.mp4,.mov,.webm,.m4v"><div class="actions"><button type="button" class="btn small primary" data-vcrit="${i}">Analyser le résultat</button><span class="hint" id="vcmsg-${i}"></span></div><p class="hint">Le son n'est pas envoyé : volume, silences et tempo sont mesurés localement. Le critic ne prétend pas entendre ce qu'il ne peut pas vérifier.</p></div></div></details>`;
 }
+/* Scènes à afficher : celles du projet, sinon regroupées par lieu ; sans information de lieu, pas de scènes (affichage par plans) */
+function scenesOf(r){
+  const plans=r.plans||[], ns=new Set(plans.map(p=>p.n));
+  if(Array.isArray(r.scenes) && r.scenes.length && r.scenes.every(x=>Array.isArray(x.plans)&&x.plans.length) && r.scenes.reduce((a,x)=>a+x.plans.filter(n=>ns.has(n)).length,0)===plans.length) return r.scenes;
+  if(!plans.length || !plans.every(p=>p.lieu)) return null;
+  const out=[];
+  plans.forEach(p=>{ const cur=out[out.length-1]; if(cur && cur.lieu_id===p.lieu){ cur.plans.push(p.n); return; } const L=(r.lieux||[]).find(l=>l.id===p.lieu)||{}; out.push({scene_id:`S${String(out.length+1).padStart(2,"0")}`, lieu_id:p.lieu, titre:"", int_ext:"", lieu:L.nom||p.lieu, moment:"", objectif:"", plans:[p.n]}); });
+  return out.length>1 ? out : null;
+}
+/* En-tête de scène façon scénario : « EXT. Le village — midi » */
+const sceneSlug = sc => { const ie=String(sc.int_ext||"").trim().toUpperCase(), pre=["INT","EXT","INT/EXT","EXT/INT"].includes(ie)?ie+". ":"", base=(pre+String(sc.lieu||"").trim()).trim(); return base ? (sc.moment ? `${base} — ${sc.moment}` : base) : ""; };
 function renderProject(){
   [...copyMap.keys()].filter(k=>!k.startsWith("idea-")&&!k.startsWith("img-")).forEach(k=>copyMap.delete(k));
   if(!current){
@@ -2921,7 +2987,8 @@ function renderProject(){
     ${db&&uid&&!proj.isExample?(libNames.has(c.nom)?`<span class="chip ok" style="align-self:flex-start">Dans ta bibliothèque</span>`:`<div class="actions"><button type="button" class="btn small" data-addchar="${esc(c.id)}">Ajouter à ma bibliothèque</button></div>`):""}</div>`; });
   const pad2 = n => String(n).padStart(2,"0"), vw = vidWhere(v), vm = vmodeOf(v);
   const pgNav = `<div class="pg-nav"><button type="button" class="btn small" data-plan-step="-1">‹ Précédent</button><button type="button" class="btn small" data-plan-step="1">Suivant ›</button></div>`;
-  h += `</section><section class="section" id="s-plans"><h3>2. Les plans</h3>
+  const scs = scenesOf(r), sceneIdx = plans.map(p=>scs?scs.findIndex(sc=>sc.plans.includes(p.n)):-1);
+  h += `</section><section class="section" id="s-plans">${weakAlert(r)}<h3>${scs?`2. Les scènes et leurs plans <span class="hint">· ${scs.length} scènes, ${plans.length} plans</span>`:"2. Les plans"}</h3>
     <div class="howto"><b>Pour chaque plan :</b><ol>${vm==="t2v"
       ? `<li>${ktag("video")}<span><b>Colle le prompt vidéo</b> dans ${esc(vw)}. Rien à joindre.</span></li>`
       : vm==="ingr"
@@ -2930,14 +2997,20 @@ function renderProject(){
       <span class="hint">${vm==="both"?"Sans image : prends « Vidéo directe ». ":""}${vm==="ingr"?"Plans sans personnage : vidéo directe. ":""}${v.outil==="wan"?"Wan : structure temporelle et prompt négatif séparé.":v.outil==="runway"?"Runway I2V : l'image porte le style, le prompt contrôle surtout le mouvement.":"Veo : clips de 8 s avec son."} Fais 3 à 4 essais par plan.</span></div>
     ${lintSummary(r, v)}
     ${plans.length?`<div class="pager" id="pager"><div class="pg-top"><b id="pg-count">Plan 1 sur ${plans.length}</b><button type="button" class="btn small quiet" id="pg-all">Voir tous les plans</button></div>
-      <div class="pg-nums" id="pg-nums" aria-label="Aller au plan">${plans.map((p,i)=>`<button type="button" data-plan="${i}" aria-label="Plan ${esc(p.n)}">${pad2(p.n)}</button>`).join("")}</div>
+      ${scs?`<span class="pg-scene" id="pg-scene"></span>`:""}
+      <div class="pg-nums" id="pg-nums" aria-label="Aller au plan">${plans.map((p,i)=>`${scs&&sceneIdx[i]>=0&&(i===0||sceneIdx[i-1]!==sceneIdx[i])?`<span class="pg-sc" aria-hidden="true">S${sceneIdx[i]+1}</span>`:""}<button type="button" data-plan="${i}" aria-label="Plan ${esc(p.n)}${scs&&sceneIdx[i]>=0?`, scène ${sceneIdx[i]+1}`:""}">${pad2(p.n)}</button>`).join("")}</div>
       ${pgNav}<span class="hint desk-only">Astuce : les flèches ← → du clavier passent d'un plan à l'autre.</span></div>`:""}
     <div class="shots">`;
   plans.forEach((p,i)=>{
     const cs = charsOf(r,p.personnages), kf = keyframePrompt(r,p,v);
     const refJoin = cs.length ? (cs.length>1?"les photos de référence (":"la photo de référence (")+cs.map(c=>c.nom).join(", ")+")" : "";
-    h += `<article class="shot" id="plan-${i}"><div class="shot-head"><span class="shot-n" aria-label="Plan ${esc(p.n)}">${pad2(p.n)}</span>
-      <div class="shot-t"><b>${esc(p.intention)}</b><span class="tc">${esc(p.debut)} – ${esc(p.fin)}</span></div>
+    const k = sceneIdx[i], sc = scs&&k>=0 ? scs[k] : null, inSc = sc ? sc.plans.indexOf(p.n) : -1;
+    if(sc && inSc===0){
+      const first = plans.find(x=>x.n===sc.plans[0]), last = plans.find(x=>x.n===sc.plans[sc.plans.length-1]);
+      h += `<header class="scene-h" id="scene-${k}" data-scene-h="${k}"><span class="scene-n">Scène ${k+1}</span><div class="scene-t"><b>${esc(sceneSlug(sc)||sc.titre||"Scène "+(k+1))}</b>${sc.titre&&sceneSlug(sc)?`<span class="scene-title">${esc(sc.titre)}</span>`:""}${sc.objectif?`<span class="scene-obj">${esc(sc.objectif)}</span>`:""}</div><span class="scene-meta">${sc.plans.length} plan${sc.plans.length>1?"s":""}${first&&last?` · ${esc(first.debut)} – ${esc(last.fin)}`:""}</span></header>`;
+    }
+    h += `<article class="shot" id="plan-${i}"${sc?` data-scene="${k}"`:""}><div class="shot-head"><span class="shot-n" aria-label="Plan ${esc(p.n)}">${pad2(p.n)}</span>
+      <div class="shot-t">${sc?`<span class="shot-sc">Scène ${k+1} · plan ${inSc+1} sur ${sc.plans.length}</span>`:""}<b>${esc(p.intention)}</b><span class="tc">${esc(p.debut)} – ${esc(p.fin)}</span></div>
       <span class="score ${scoreClass(p.note)}" title="Fiabilité estimée par l'agent">${esc(p.note)}/10</span></div>
       <div class="shot-body">
       ${(p.repliques||[]).length>1 && v.audio==="voice" && isVeo(v) ? `<div class="vo">${p.repliques.map(x=>`<span><b>${esc(((r.personnages||[]).find(c=>c.id===x.locuteur)||{}).nom||"Voix hors champ")} :</b> <q>${esc(x.texte)}</q></span>`).join("")}${p.voix_off_fr&&p.voix_off_fr!==p.voix_off?`<span class="tr">${esc(p.voix_off_fr)}</span>`:""}<span class="tr">Dialogue dit dans le clip Veo</span></div>` : p.voix_off?`<div class="vo"><q>${esc(p.voix_off)}</q>${p.voix_off_fr&&p.voix_off_fr!==p.voix_off?`<span class="tr">${esc(p.voix_off_fr)}</span>`:""}${v.audio==="voice"&&isVeo(v)?`<span class="tr">${esc(((r.personnages||[]).find(c=>c.id===p.locuteur)||{}).nom||"Voix hors champ")} · ${["enfants","clip"].includes(baseVtype(v.vtype))?"chanté":"dit"} dans le clip Veo</span>`:""}</div>`:""}
@@ -4791,6 +4864,7 @@ async function generateProject(idee, params, prefix, signal){
   pipeStep("PROMPT_COMPILER","DONE",tComp,`${(res.plans||[]).length} plans compilés`);
   pipeStep("GENERATION","READY",pipeNow(),"prompts prêts à coller dans l'outil vidéo");
   res.pipeline.execution = (PIPE||[]).slice();
+  res.pipeline.weak_model = res.pipeline.execution.some(x=>weakModel(x.model));
   (params.persos||[]).forEach(lib=>{ const c=(res.personnages||[]).find(x=>x.id===lib.id||x.nom===lib.nom); if(c) Object.assign(c,{nom:lib.nom,fiche_en:lib.fiche_en,rappel_en:lib.rappel_en,fiche_fr:lib.fiche_fr}); });
   return res;
 }
@@ -5253,6 +5327,7 @@ renderIdeas(); renderProject(); renderImg(); renderLists();
   if(!C || typeof C.use!=="function"){ $("go").disabled=true; $("i-go").disabled=true; $("img-go").disabled=true; $("avail").textContent="Ouvre cette page dans Claude pour générer tes projets."; return; }
   const [s,d,u,dl] = await Promise.all(["sample","db","user","downloads"].map(n=>C.use(n).catch(()=>null)));
   sample=s; downloads=dl;
+  if(sample && typeof sample.json==="function"){ try{ const sj=sample.json; sample.json=async(...a)=>{ const r=await sj(...a); if(r&&r._model) lastModel=r._model; return r; }; }catch(e){} }
   if(sample){ try{ const lim=await sample.limits(); imgOK=!!(lim&&lim.images); imgMax=imgOK?(lim.images.maxCount||1):0; }catch(e){ imgOK=false; } }
   $("qc-drop").hidden = !imgOK; $("qc-noimg").hidden = imgOK; $("rl-img-box").hidden = !imgOK;
   if(imgOK && imgMax<2){ $("qc-ref").hidden=true; $("qc-ref").previousElementSibling.hidden=true; }

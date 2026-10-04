@@ -40,7 +40,7 @@
       throw fail(b.code || (res.status === 429 ? "rate_limited" : "server_error"), b.message || ("Erreur du serveur " + res.status));
     }
     const reader = res.body.getReader(), dec = new TextDecoder();
-    let buf = "", text = "", meta = null, late = null;
+    let buf = "", text = "", meta = null, late = null, model = "";
     try{
       for(;;){
         const {value, done} = await reader.read(); if(done) break;
@@ -52,6 +52,7 @@
           let m; try{ m = JSON.parse(line); }catch(e){ continue; }
           if(m.error){ late = m; continue; }   /* on lit jusqu'au bout : les sources arrivent après */
           if(m.meta) meta = m.meta;
+          if(m.model) model = m.model;
           if(m.delta){ text += m.delta; if(opts.onText) try{ opts.onText({text, delta:m.delta}); }catch(e){} }
         }
       }
@@ -61,10 +62,10 @@
     }
     if(late){
       /* Erreur arrivée APRÈS une réponse JSON complète et valide (ex. facturation OpenAI à la fin) : on garde la réponse */
-      if(json && text.trim()){ try{ parseJSON(text); return {text, meta}; }catch(e){} }
+      if(json && text.trim()){ try{ parseJSON(text); return {text, meta, model}; }catch(e){} }
       throw fail(late.code || "server_error", late.message || "Erreur du modèle.", text);
     }
-    return {text, meta};
+    return {text, meta, model};
   }
 
   function parseJSON(t){
@@ -88,10 +89,11 @@
       throw e;
     }
   }
-  const sample = async (input, opts) => { const r = await callBest(input, opts, false); return {text:r.text, truncated:false, meta:r.meta}; };
+  const sample = async (input, opts) => { const r = await callBest(input, opts, false); return {text:r.text, truncated:false, meta:r.meta, model:r.model}; };
   sample.json = async (input, opts) => {
     const r = await callBest(input, opts, true), o = parseJSON(r.text);
     if(r.meta && o && typeof o === "object") Object.defineProperty(o, "_meta", {value:r.meta, enumerable:false});
+    if(r.model && o && typeof o === "object") Object.defineProperty(o, "_model", {value:r.model, enumerable:false});
     return o;
   };
   sample.limits = async () => ({inputBytes: 4000000, images:{maxCount:8, mediaTypes:["image/png","image/jpeg","image/webp"]}});

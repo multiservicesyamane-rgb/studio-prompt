@@ -47,7 +47,7 @@ async function probeOpenAI(){
     else if(!e){ if(openaiSolBlockedUntil || openaiAllBlockedUntil) console.log(`OpenAI ${openaiModel(true)} : crédits disponibles.`); openaiSolBlockedUntil = 0; openaiAllBlockedUntil = 0; }
   }catch(err){}
 }
-const MAX_OUT = Number(process.env.MAX_OUTPUT_TOKENS) || 32000;
+const MAX_OUT = Number(process.env.MAX_OUTPUT_TOKENS) || 60000;   // un master découpé scène par scène peut être long
 const PUBLIC = path.join(__dirname, "public");
 
 /* Modèles de secours quand le quota du jour d'un modèle est atteint (chaque modèle a son propre quota) */
@@ -267,6 +267,7 @@ async function handleSample(req, res){
       }
       if(delta) res.write(JSON.stringify({delta}) + "\n");
     }
+    res.write(JSON.stringify({model: prov === "gemini" ? geminiUsed : prov === "openai" ? oaModel : "claude"}) + "\n");
     if(search){ if(!searchUsed) meta.nosearch = true; meta.engine = prov === "openai" ? `OpenAI ${oaModel}` : prov; res.write(JSON.stringify({meta}) + "\n"); }
   }catch(e){
     if(!ctl.signal.aborted) res.write(JSON.stringify({error:true, code:"server_error", message:"Flux interrompu : réessaie."}) + "\n");
