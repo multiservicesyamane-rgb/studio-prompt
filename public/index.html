@@ -682,6 +682,7 @@ input[type=text].plain-in{background:var(--surface)}
               <button type="button" class="btn" id="stop" hidden>Arrêter</button>
               <span class="hint" id="avail">Connexion à l'agent…</span>
             </div>
+            <p class="note-box" id="f-dur-hint" hidden></p>
             <div class="status" id="status" hidden><span id="status-text"></span><div class="bar"><i id="status-bar"></i></div></div>
           </form>
 
@@ -1052,7 +1053,7 @@ const OPTS = {
   vtype:[],
   style:[["serie","Série africaine (cinéma)"],["vrai","Réaliste naturel (pas l'air IA)"],["realiste","Réaliste cinéma"],["hybride3d","Personnage 3D, décor réel"],["fruits","Fruits et légumes personnages"],["anim3d","Animation 3D (conte, film d'animation)"],["anim2d","Dessin 2D"],["motion","Motion design"]],
   format:[["16:9","16:9 YouTube"],["9:16","9:16 Shorts"]],
-  duree:[["30","30 s"],["60","1 min"],["90","1 min 30"],["120","2 min"]],
+  duree:[["30","30 s"],["60","1 min"],["90","1 min 30"],["120","2 min"],["180","3 min"],["300","5 min"],["480","8 min"],["600","10 min"],["900","15 min"]],
   langue:[["fr","Français"],["wo","Wolof"],["wofr","Wolof-français"],["en","Anglais"],["ff","Pulaar"]],
   outil:[["veo","Veo 3.1 (Gemini, Flow)"],["runway","Runway Gen-4"],["wan","Wan 3.0 / WanGP"]],
   qualite:[["default","Standard"],["complex","Maximale"]],
@@ -2058,6 +2059,8 @@ const CONTINUITY_DIRECTOR = `CONTINUITY DIRECTOR : maintiens identité, visage, 
 const SOUND_EDITING_DIRECTOR = `SOUND / EDITING DIRECTOR : sépare DIEGETIC SOUND, AMBIENCE, DIALOGUE, SFX, SILENCE, VOICE OVER, MUSIC et POST-PRODUCTION AUDIO. Décide explicitement model_audio et post_audio, sans contradiction. Prévois ordre, point de coupe, reaction shot, insert, match action, J-cut, L-cut, pause, accélération ou pattern interrupt seulement si utile. Choisis ONE SHOT ou MULTIPLE SHOTS avant adaptation.`;
 const SHOT_COMPLEXITY_BUDGET = `SHOT COMPLEXITY BUDGET : évalue de 0 à 3 nombre de personnages, actions importantes, interactions physiques, interactions d'objets, mouvement caméra, mouvement environnement, dialogue, effets spéciaux, exigences de continuité et difficulté modèle. Si le total ou une combinaison rend la lecture/exécution fragile, DIVISE avant de livrer le master. Ne remplis jamais artificiellement une durée.`;
 const EXECUTION_SCORE_KEYS = ["event","causality","blocking","performance","objects","camera_motivation","information_control","continuity","sound_editing","feasibility"];
+/* Scènes attendues pour une durée : environ une toutes les 10 à 40 s */
+const sceneRange = d => { d=Number(d)||60; return [Math.max(1,Math.round(d/40)), Math.max(2,Math.round(d/10))]; };
 function scenePlanPrompt(idee,p,creative,previous){
   const profile=videoProfile(p.vtype,p), imposed=(p.timeline||[]).map(x=>({n:x.n,debut:x.debut,fin:x.fin,duree:x.duree,texte:x.texte||"",source:x.source||"",section:x.section||""}));
   return `Tu es SCENE ENGINE, après validation du concept et avant toute réalisation. Tu ne choisis ni caméra, ni lumière, ni focale, ni générateur, ni prompt.
@@ -2070,7 +2073,7 @@ ${nicheContext(nicheById(p.niche))}
 ${imposed.length?`UNITÉS TEMPORELLES IMPOSÉES PAR LE MÉDIA SOURCE : ${JSON.stringify(imposed)}. Crée exactement ${imposed.length} unités avec les mêmes n, debut et fin.`:`Durée cible : ${p.duree} s. Couvre entre ${Math.round((Number(p.duree)||60)*0.65)} et ${p.duree} s avec des unités réellement utiles : si l'idée paraît trop courte, enrichis-la (obstacle supplémentaire, réaction, conséquence, escalade, retournement) plutôt que de livrer une vidéo trop courte ; jamais de remplissage ni de plan d'attente. Une vidéo de fiction alterne action, réaction et conséquence ; les personnages se parlent plutôt qu'un narrateur ne raconte.`}
 ${previous?`VERSION REFUSÉE : ${JSON.stringify(previous)}. Corrige les gates sous 8 sans ajouter d'esthétique.`:""}
 
-SCÈNES PUIS PLANS : une scène est une unité de LIEU et de TEMPS continue (même lieu, même moment) portée par un enjeu ; au découpage, elle contiendra plusieurs plans (plan qui situe, action, réactions, inserts). Ne crée jamais une scène par plan : change de scène seulement quand le lieu, le moment ou l'enjeu change. Pour chaque scène donne un titre court en français, int_ext (INT ou EXT), le lieu précis, le moment (heure et lumière du jour) et duree_s, sa durée estimée en secondes${imposed.length?"":` ; la somme des duree_s de toutes les scènes fait entre ${Math.round((Number(p.duree)||60)*0.65)} et ${Number(p.duree)||60} s`}.${imposed.length?" Ici les unités imposées sont des PLANS, dans l'ordre : chaque unité garde son source_n, et les unités consécutives qui se passent dans le même lieu et le même moment partagent le même scene_id, le même titre, le même lieu et le même moment.":""}
+SCÈNES PUIS PLANS : une scène est une unité de LIEU et de TEMPS continue (même lieu, même moment) portée par un enjeu ; au découpage, elle contiendra plusieurs plans (plan qui situe, action, réactions, inserts). Ne crée jamais une scène par plan : change de scène seulement quand le lieu, le moment ou l'enjeu change.${imposed.length?"":` NOMBRE DE SCÈNES : entre ${sceneRange(p.duree)[0]} et ${sceneRange(p.duree)[1]} selon l'histoire (une scène dure en général 10 à 40 s ; plus la vidéo est longue, plus elle a de scènes et de lieux).`} Pour chaque scène donne un titre court en français, int_ext (INT ou EXT), le lieu précis, le moment (heure et lumière du jour) et duree_s, sa durée estimée en secondes${imposed.length?"":` ; la somme des duree_s de toutes les scènes fait entre ${Math.round((Number(p.duree)||60)*0.65)} et ${Number(p.duree)||60} s`}.${imposed.length?" Ici les unités imposées sont des PLANS, dans l'ordre : chaque unité garde son source_n, et les unités consécutives qui se passent dans le même lieu et le même moment partagent le même scene_id, le même titre, le même lieu et le même moment.":""}
 EVENT BEFORE AESTHETICS : chaque unité contient un événement, une information, une démonstration, une interaction ou une transformation correspondant à son objectif. Une belle image ne remplace rien.
 INTENTION → BEHAVIOR : toute intention humaine devient un comportement visible. Sans personne, décris l'effet matériel, visuel ou informatif observable.
 ACTION → PERCEPTION → REACTION → COUNTER-ACTION → CONSEQUENCE lorsqu'il y a plusieurs personnages. Une réaction importante influence la suite.
@@ -2091,7 +2094,11 @@ async function developScenes(idee,p,creative,prefix,signal){
   const opts={modelTier:p.qualite==="complex"?"complex":"default",engine:"best",signal,cache:false};
   const t0=pipeNow(); let st="PASS";
   const target=Number(p.duree)||0, imposed=Array.isArray(p.timeline)&&p.timeline.length;
-  const short=x=>{ const sum=x.scenes.reduce((a,v)=>a+(Number(v.duree_s)||0),0); return !imposed && target && sum>0 && sum<target*0.65 ? `Les scènes ne font que ${Math.round(sum)} s pour ${target} s demandées : ajoute des scènes ou développe-les (obstacle, réaction, conséquence) jusqu'à au moins ${Math.round(target*0.65)} s.` : ""; };
+  const short=x=>{ const sum=x.scenes.reduce((a,v)=>a+(Number(v.duree_s)||0),0), lo=sceneRange(target)[0], ids=new Set(x.scenes.map(v=>v.scene_id)).size;
+    if(imposed || !target) return "";
+    if(sum>0 && sum<target*0.65) return `Les scènes ne font que ${Math.round(sum)} s pour ${target} s demandées : ajoute des scènes ou développe-les (obstacle, réaction, conséquence) jusqu'à au moins ${Math.round(target*0.65)} s.`;
+    if(ids<lo) return `Seulement ${ids} scène${ids>1?"s":""} pour ${target} s : une vidéo de cette durée en demande au moins ${lo}. Ajoute des lieux, des moments et des étapes de l'histoire.`;
+    return ""; };
   let d=normalizeScenePlan(await sample.json(scenePlanPrompt(idee,p,creative),opts)), why=short(d);
   if(!scenePlanPasses(d,p) || why){ showStatus(prefix, why?"Scene Critic : histoire trop courte pour la durée demandée, réécriture…":"Scene Critic : réécriture des scènes faibles…",false,27); st=why?"REWRITE (durée) → PASS":"REWRITE → PASS"; d=normalizeScenePlan(await sample.json(scenePlanPrompt(idee,p,creative,Object.assign({},d.scene_critic,why?{refus:[why]}:{})),opts)); why=short(d); }
   if(why){ d.reserves=(d.reserves||[]).concat([why]); st=st.replace(/PASS$/,"PASS AVEC RÉSERVES"); }
@@ -2105,15 +2112,16 @@ async function developScenes(idee,p,creative,prefix,signal){
   return d;
 }
 /* Plans visés pour une scène : environ un toutes les 4 s (entre 1 et 8) */
-const shotTarget = sc => Math.min(8, Math.max(1, Math.round((Number(sc&&sc.duree_s)||8)/4)));
-function executionPlanPrompt(idee,p,creative,scenePlan,previous){
+const shotTarget = sc => Math.min(12, Math.max(1, Math.round((Number(sc&&sc.duree_s)||8)/4)));
+function executionPlanPrompt(idee,p,creative,scenePlan,previous,lot){
   const profile=videoProfile(p.vtype,p);
   const sourceAudio=(Array.isArray(p.timeline)?p.timeline:[]).filter(x=>x&&x.texte).map(x=>Object.assign({source_n:x.n,texte:x.texte},x.voix?{voix:x.voix}:{}));
   return `Tu es le REALIZATION ORCHESTRATOR. Le concept et les événements ci-dessous sont VERROUILLÉS. Tu ne les réécris pas. Tu construis un MASTER VIDEO PLAN indépendant de tout générateur : aucun nom de modèle, aucune syntaxe de prompt.
 
 DEMANDE : """${idee}"""
 CREATIVE PROFILE : ${JSON.stringify({video_type:profile.label,goal:profile.goal,duration:`${p.duree}s`,pace:profile.pace,interaction_need:profile.interactionNeed,visual_priority:profile.visualPriority,sound_priority:profile.soundPriority,realism:profile.realism})}
-SCENE PLAN VERROUILLÉ : ${JSON.stringify(scenePlan.scenes)}
+SCENE PLAN VERROUILLÉ : ${JSON.stringify(scenePlan.scenes)}${lot?`
+PROJET LONG, RÉALISÉ PAR LOTS : cette réponse couvre seulement le lot ${lot.lot} sur ${lot.lots}, c'est-à-dire les scènes ${lot.de} à ${lot.a} sur ${lot.total} (celles du SCENE PLAN ci-dessus). Découpe-les toutes entièrement, sans résumer et sans traiter d'autres scènes.${lot.avant?` État à la fin du plan précédent, pour le raccord : ${lot.avant}`:""}`:""}
 ${audioLockedOf(p)?`AUDIO IMPORTÉ : l'audio existe déjà et ses ${p.timeline.length} unités sont découpées au dixième de seconde. Crée EXACTEMENT un shot par unité, dans l'ordre, avec source_n = n de l'unité : ne divise et ne fusionne aucune unité ; si une unité est trop chargée, simplifie son action au lieu de la diviser.${sourceAudio.length?` Ce qui est dit pendant chaque unité : ${JSON.stringify(sourceAudio)}. L'image montre ce que dit ce texte à ce moment. Laisse sound.voice_over et sound.dialogue vides : l'application y place elle-même le texte exact ; ce son existe déjà (post_audio).`:""}`:""}
 ${previous?`MASTER REFUSÉ : ${JSON.stringify(previous)}. "refus" liste les raisons exactes du refus ; "version_precedente" est le master refusé. Repars de cette version : garde ce qui fonctionne, corrige chaque raison de refus, divise tout plan trop complexe, et renvoie le master complet corrigé.`:""}
 ${nicheGuides(idee,p)}
@@ -2128,7 +2136,7 @@ MODEL-INDEPENDENT : model_requirements décrit seulement les capacités nécessa
 
 DIRECTOR CRITIC : refuse avant adaptation tout plan sans événement lisible, blocking motivé, réaction causée, caméra motivée, état entrant/sortant ou séparation sonore claire. Tous les scores pertinents doivent atteindre 8. N'impose pas performance humaine, objet ou dialogue s'ils ne servent pas le format.
 
-DÉCOUPAGE SCÈNE PAR SCÈNE : ${audioLockedOf(p) ? "chaque unité de l'audio est un plan ; garde le scene_id de sa scène pour que les plans d'un même lieu et d'un même moment restent groupés." : "découpe chaque scène du SCENE PLAN, dans l'ordre, en plusieurs shots qui gardent son scene_id : en général un plan qui situe le lieu et les personnages, puis l'action, les réactions et les inserts utiles ; environ un shot toutes les 3 à 5 secondes de scène (action et réactions courtes, plans plus longs seulement pour l'émotion). DÉCOUPAGE CIBLE : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, duree_s:Number(sc.duree_s)||0, shots:shotTarget(sc)})))}."}
+DÉCOUPAGE SCÈNE PAR SCÈNE : ${audioLockedOf(p) ? "chaque unité de l'audio est un plan ; garde le scene_id de sa scène pour que les plans d'un même lieu et d'un même moment restent groupés." : `découpe chaque scène du SCENE PLAN, dans l'ordre, en plusieurs shots qui gardent son scene_id : en général un plan qui situe le lieu et les personnages, puis l'action, les réactions et les inserts utiles ; environ un shot toutes les 3 à 5 secondes de scène (action et réactions courtes, plans plus longs seulement pour l'émotion). DÉCOUPAGE CIBLE : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, duree_s:Number(sc.duree_s)||0, shots:shotTarget(sc)})))}.`}
 NOMBRE DE SHOTS : ${audioLockedOf(p) ? `exactement ${p.timeline.length}, un par unité (source_n 1 à ${p.timeline.length})` : (()=>{ const t=(scenePlan.scenes||[]).reduce((a,sc)=>a+shotTarget(sc),0)||1; return `environ ${t} (entre ${Math.max(1,Math.round(t*0.75))} et ${Math.round(t*1.3)}), répartis selon le DÉCOUPAGE CIBLE`; })()}. Le schéma ci-dessous montre UN SEUL shot pour l'exemple : ton tableau "shots" doit les contenir TOUS, chacun complet.
 
 RÉPONDS UNIQUEMENT avec ce JSON :
@@ -2215,30 +2223,74 @@ function masterPlanFailures(x,p){
   return out;
 }
 function masterPlanPasses(x,p){ return !masterPlanFailures(x,p).length; }
+/* Réalisation par lots de scènes : un long projet (20 scènes, 100 plans) ne tient pas dans une seule réponse du modèle */
+const BATCH_SHOTS = 12;
+function sceneBatches(scenes, p){
+  const audio=audioLockedOf(p), out=[]; let cur=[], n=0;
+  (scenes||[]).forEach(sc=>{ const t=audio?1:shotTarget(sc); if(cur.length && n+t>BATCH_SHOTS){ out.push(cur); cur=[]; n=0; } cur.push(sc); n+=t; });
+  if(cur.length) out.push(cur);
+  return out;
+}
+function batchParams(p, scenes){
+  if(audioLockedOf(p)){ const keys=new Set(scenes.map(sc=>String(sc.source_n))); return Object.assign({},p,{timeline:(p.timeline||[]).filter((u,i)=>keys.has(unitKey(u,i)))}); }
+  const d=scenes.reduce((a,sc)=>a+(Number(sc.duree_s)||0),0);
+  return d ? Object.assign({},p,{duree:String(Math.round(d))}) : p;
+}
+const rewritePack = (d, fl, cd) => Object.assign({}, d.director_critic, {
+  refus:[...fl.map(x=>x.problem), ...cd.map(x=>x.problem)],
+  defects:[...(Array.isArray(d.director_critic.defects)?d.director_critic.defects:[]), ...cd],
+  version_precedente:d.shots.map(s=>{ const c=Object.assign({},s); delete c.time; delete c.model_route; return c; })
+});
 async function directExecution(idee,p,creative,scenePlan,prefix,signal){
   showStatus(prefix,"Réalisation : blocking, performance, plans, son et continuité…",false,32);
   const opts={modelTier:p.qualite==="complex"?"complex":"default",engine:"best",signal,cache:false};
   const t0=pipeNow();
-  const got=[], ask=async prev=>{ const raw=await sample.json(executionPlanPrompt(idee,p,creative,scenePlan,prev),opts); got.push(Array.isArray(raw&&raw.shots)?raw.shots.length:0); try{ (window.__spDebug=window.__spDebug||{}).master=(window.__spDebug.master||[]).concat([raw]).slice(-3); }catch(e){} return normalizeMasterPlan(raw,scenePlan,p); };
+  const got=[], ask=async (prev, sub, pb, lot)=>{ const raw=await sample.json(executionPlanPrompt(idee,pb||p,creative,sub||scenePlan,prev,lot),opts); got.push(Array.isArray(raw&&raw.shots)?raw.shots.length:0); try{ (window.__spDebug=window.__spDebug||{}).master=(window.__spDebug.master||[]).concat([raw]).slice(-3); }catch(e){} return normalizeMasterPlan(raw,sub||scenePlan,pb||p); };
+  const batches = sceneBatches(scenePlan.scenes, p);
+  if(batches.length > 1) return finishMaster(await directByBatches(batches, ask, idee, p, scenePlan, prefix), p, scenePlan, t0, got, batches.length);
   let d=await ask(), cd=codeDefects(d,p), fl=masterPlanFailures(d,p), rewrites=0;
   while((fl.length || cd.length) && rewrites < 2){
     rewrites++;
     showStatus(prefix, `Director Critic : ${fl.length+cd.length} problème(s) à corriger, réécriture ${rewrites}/2…`, false, 36+4*rewrites);
-    const prev = Object.assign({}, d.director_critic, {
-      refus:[...fl.map(x=>x.problem), ...cd.map(x=>x.problem)],
-      defects:[...(Array.isArray(d.director_critic.defects)?d.director_critic.defects:[]), ...cd],
-      version_precedente:d.shots.map(s=>{ const c=Object.assign({},s); delete c.time; delete c.model_route; return c; })
-    });
-    const next=await ask(prev);
+    const next=await ask(rewritePack(d, fl, cd));
     if(next.shots.length){ d=next; cd=codeDefects(d,p); fl=masterPlanFailures(d,p); }
   }
+  d.rewrites = rewrites;
+  return finishMaster(d, p, scenePlan, t0, got, 1);
+}
+/* Chaque lot : réalisé, contrôlé (une réécriture au plus), puis tous les plans sont réunis et renumérotés */
+async function directByBatches(batches, ask, idee, p, scenePlan, prefix){
+  const N=(scenePlan.scenes||[]).length, audio=audioLockedOf(p), critics=[]; let all=[], avant="", rewrites=0;
+  for(let b=0;b<batches.length;b++){
+    const scs=batches[b], sub=Object.assign({},scenePlan,{scenes:scs}), pb=batchParams(p,scs), de=(scenePlan.scenes||[]).indexOf(scs[0])+1;
+    const lot={lot:b+1, lots:batches.length, de, a:de+scs.length-1, total:N, avant};
+    showStatus(prefix, `Réalisation par lots : scènes ${lot.de} à ${lot.a} sur ${N} (lot ${b+1} sur ${batches.length})…`, false, 32+16*b/batches.length);
+    let d=await ask(null, sub, pb, lot), cd=codeDefects(d,pb), fl=masterPlanFailures(d,pb);
+    if(fl.length || cd.length || !d.shots.length){
+      rewrites++; showStatus(prefix, `Director Critic : lot ${b+1} sur ${batches.length}, ${fl.length+cd.length} problème(s) à corriger…`, false, 32+16*(b+0.5)/batches.length);
+      const next=await ask(rewritePack(d, fl, cd), sub, pb, lot); if(next.shots.length) d=next;
+    }
+    critics.push(d.director_critic);
+    d.shots.forEach(s=>{ delete s.model_route; if(!audio) delete s.time; });
+    all=all.concat(d.shots);
+    const last=d.shots[d.shots.length-1]; if(last && last.continuity) avant=String(last.continuity.state_out||"");
+  }
+  all.forEach((s,i)=>{ s.shot_id=`SH${String(i+1).padStart(2,"0")}`; });
+  const scores={}; EXECUTION_SCORE_KEYS.forEach(k=>{ const v=critics.map(c=>Number(c&&c.scores&&c.scores[k])).filter(x=>!isNaN(x)); scores[k]=v.length?Math.min(...v):0; });
+  const decision=critics.every(c=>/^APPROVED/.test(String(c&&c.decision||"")))?"APPROVED FOR ADAPTATION":"REWRITE REQUIRED";
+  const d=normalizeMasterPlan({version:"master-video-plan-1", shots:all, continuity_map:[], editing_plan:{}, director_critic:{decision, scores, defects:critics.flatMap(c=>Array.isArray(c&&c.defects)?c.defects:[]).slice(0,40)}}, scenePlan, p);
+  d.rewrites=rewrites; return d;
+}
+function finishMaster(d, p, scenePlan, t0, got, lots){
+  let cd=codeDefects(d,p), fl=masterPlanFailures(d,p); const rewrites=d.rewrites||0;
   const filled=fillMissingUnits(d,p,scenePlan);
   if(filled.length){ d=normalizeMasterPlan(d,scenePlan,p); cd=codeDefects(d,p); fl=masterPlanFailures(d,p); fl.push({hard:false,problem:`unités ${filled.join(", ")} construites depuis leur scène du Scene Plan (le réalisateur ne les avait pas détaillées)`}); }
   const hard=fl.filter(x=>x.hard), reserves=[...fl.map(x=>x.problem), ...cd.map(x=>x.problem)];
   if(hard.length){ pipeStep("MASTER_PLAN + DIRECTOR_CRITIC","FAIL",t0,hard.map(x=>x.problem).join(" / ")); throw {code:"weak_story",message:`Le Master Video Plan reste inutilisable : ${hard.map(x=>x.problem).join(" ; ")}.`}; }
   d.code_warnings = cd; d.reserves = reserves;
   const st = (rewrites ? `REWRITE ×${rewrites} → ` : "") + (reserves.length ? "PASS AVEC RÉSERVES" : "PASS");
-  pipeStep("MASTER_PLAN + DIRECTOR_CRITIC", st, t0, `${d.shots.length} plans · ${Math.round(Number(d.duration)||0)} s · plans reçus par tentative : ${got.join(" → ")}${reserves.length ? " · réserves : "+reserves.join(" / ") : ""}`);
+  const nsc = new Set(d.shots.map(s=>s.scene_id).filter(Boolean)).size;
+  pipeStep("MASTER_PLAN + DIRECTOR_CRITIC", st, t0, `${nsc?nsc+" scènes · ":""}${d.shots.length} plans · ${Math.round(Number(d.duration)||0)} s · ${lots>1?`${lots} lots (${got.join(" + ")} plans reçus)`:`plans reçus par tentative : ${got.join(" → ")}`}${reserves.length ? " · réserves : "+reserves.join(" / ") : ""}`);
   const t1=pipeNow(); const routed=routeMasterPlan(d,p);
   pipeStep("MODEL_ROUTER + MODEL_ADAPTER", routed.model_router&&routed.model_router.status||"DONE", t1, `outil : ${label("outil",p.outil)}${(routed.model_router&&routed.model_router.risks||[]).length ? " · "+routed.model_router.risks.length+" risque(s) signalé(s)" : ""}`);
   return routed;
@@ -5478,6 +5530,14 @@ try{ const li=JSON.parse(localStorage.getItem("sp-last-ideas")||"[]"); if(Array.
 try{ const lm=JSON.parse(localStorage.getItem("sp-last-img")||"null"); if(lm&&lm.f&&lm.res){ lm.res=normImg(lm.res); lastImg=lm; } }catch(e){}
 setView(VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : (prefs0.view||"accueil"), {keepScroll:true});
 renderIdeas(); renderProject(); renderImg(); renderLists();
+/* Vidéo longue : estimation du découpage et du nombre de demandes à l'IA, avant de lancer */
+function durHint(){
+  const el=$("f-dur-hint"); if(!el) return;
+  const d=Number($("f-duree").value||form.duree)||60, shots=Math.round(d/4), n=2+Math.ceil(shots/BATCH_SHOTS)+Math.max(1,Math.ceil(shots/CHUNK));
+  el.hidden = d<180;
+  el.textContent = `Vidéo longue : environ ${Math.round(d/20)} scènes et ${shots} plans, réalisés par lots. Compte environ ${n} demandes à l'IA et quelques minutes ; le quota gratuit de Gemini (environ 20 demandes par modèle et par jour) peut ne pas suffire.`;
+}
+$("f-duree").addEventListener("change", durHint); durHint();
 (async function boot(){
   const C = window.claude;
   if(!C || typeof C.use!=="function"){ $("go").disabled=true; $("i-go").disabled=true; $("img-go").disabled=true; $("avail").textContent="Ouvre cette page dans Claude pour générer tes projets."; return; }
