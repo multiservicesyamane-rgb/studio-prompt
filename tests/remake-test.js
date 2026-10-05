@@ -6,7 +6,7 @@ const out = [], check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${
 const S9 = keys => Object.fromEntries(keys.map(k => [k, 9]));
 const CREA = ["concept","hook","curiosite","desir_personnage","conflit","clarte","visual_storytelling","acting","progression","escalade","surprise","emotion","payoff","potentiel_visuel","comprehension_muette","originalite","simplicite_ia","continuite","retention"];
 const EXEC = ["event","causality","blocking","performance","objects","camera_motivation","information_control","continuity","sound_editing","feasibility"];
-const ANALYSIS = {overview: {summary: "Une femme découvre une lettre qu'elle n'attendait pas.", story: "Elle entre, voit la lettre, hésite, l'ouvre.", visual_style: "naturel, fenêtre", editing_style: "lent", audio_style: "voix et ambiance de rue", language: "fr", duration: 24},
+const ANALYSIS = {overview: {summary: "Une femme découvre une lettre qu'elle n'attendait pas.", story: "Elle entre, voit la lettre, hésite, l'ouvre.", visual_style: "naturel, fenêtre", editing_style: "lent", audio_style: "voix et ambiance de rue", language: "fr", duration: 24, video_type: "tale", style_id: "anim3d"},
   characters: [{id: "c1", nom: "Awa", fiche_fr: "femme de 40 ans, tresses, robe verte", fiche_en: "Awa, a 40-year-old woman with long braids and a green dress", rappel_en: "Awa in her green dress"}], locations: [{id: "l1", name: "Salon", description: "petit salon lumineux"}],
   transcript: [{t0: 1, t1: 4, speaker: "Awa", text: "Qui a laissé ça ici ?", language: "fr"}, {t0: 16, t1: 19, speaker: "Awa", text: "Ce n'est pas possible.", language: "fr"}],
   scenes: [{scene_id: "S01", t0: 0, t1: 24, location_id: "l1", objective: "comprendre d'où vient la lettre", event: "une lettre posée sur la table", change: "le doute s'installe", characters: ["c1"]}],
@@ -14,9 +14,9 @@ const ANALYSIS = {overview: {summary: "Une femme découvre une lettre qu'elle n'
     {shot_id: "P02", scene_id: "S01", t0: 14, t1: 24, characters: ["c1"], description: "Gros plan sur la lettre ouverte", action: "ouvre la lettre", performance: "", framing: "insert", angle: "plongée", lens: "", camera_movement: "léger travelling avant", focus: "la lettre", lighting: "fenêtre", color: "", dialogue: "Ce n'est pas possible.", speaker: "Awa", music: "", sfx: "papier", ambience: "", transition_in: "coupe franche", transition_out: "", continuity_in: "", continuity_out: "", object_state: "lettre ouverte", reconstruction_note: ""}],
   defects: [{t0: 2, t1: 5, problem: "image floue au début", improvement: "mise au point sur le visage"}], reconstruction: {keep: ["l'hésitation d'Awa"], improve: ["révéler l'expéditeur plus tard"], risks: ["mains sur le papier"]},
   analysis_source: "full_video", model: "gemini-3.8-flash", processing: "static_4fps", source_deleted: true};
-const prompts = {scene: "", master: [], compile: ""}; let analyzeCalls = 0, analyzeReq = null, quota = false;
+const prompts = {creative: "", scene: "", master: [], compile: ""}; let analyzeCalls = 0, analyzeReq = null, quota = false;
 function reply(pr){
-  if(/Tu es AI Creative Director/.test(pr)) return {concepts: [{titre: "La lettre", situation: "x", scores: S9(CREA)}], selection: {titre: "La lettre", raison: "x", hook_silencieux: "Une lettre sur la table", decision: "APPROVED FOR PRODUCTION", comprehension_mode_muet: 100, scores: S9(CREA), progression: [{etape: "HOOK", action: "x"}]}};
+  if(/Tu es AI Creative Director/.test(pr)){ prompts.creative = pr; } if(/Tu es AI Creative Director/.test(pr)) return {concepts: [{titre: "La lettre", situation: "x", scores: S9(CREA)}], selection: {titre: "La lettre", raison: "x", hook_silencieux: "Une lettre sur la table", decision: "APPROVED FOR PRODUCTION", comprehension_mode_muet: 100, scores: S9(CREA), progression: [{etape: "HOOK", action: "x"}]}};
   if(/Tu es SCENE ENGINE/.test(pr)){ prompts.scene = pr; const n = (pr.match(/"source_shot_id":/g) || []).length;
     return {scenes: Array.from({length: n}, (_, i) => ({scene_id: `S${String(i + 1).padStart(2, "0")}`, source_n: i + 1, titre: `Unité ${i + 1}`, int_ext: "INT", lieu: "Le salon", moment: "jour", duree_s: 6, purpose: "x", change: "x", characters: ["c1"], event: `Événement ${i + 1}`, causal_beats: [{beat: 1, what_happens: "x", caused_by: "y", who_reacts: "z", reaction: "r", change: "c", why_next: "w"}], silent_readability: 100})), scene_critic: {decision: "APPROVED", scores: S9(["event","causality","observable_behavior","object_function","visual_readability","type_fit"])}}; }
   if(/REALIZATION ORCHESTRATOR/.test(pr)){ prompts.master.push(pr); const m = pr.match(/SCENE PLAN VERROUILLÉ : (\[.*\])/); const scs = m ? JSON.parse(m[1]) : [];
@@ -58,6 +58,10 @@ function reply(pr){
   });
   await (await pg.$("#rm-file")).uploadFile(file);
   await pg.waitForFunction(() => !document.getElementById("rm-go").disabled, {timeout: 20000});
+  // 1 bis. page simple : la vidéo et tes conseils ; le reste est caché jusqu'à l'analyse
+  const simple = await pg.evaluate(() => { const vis = id => { const el = document.getElementById(id); return !!el && el.getClientRects().length > 0; };
+    return {note: vis("rm-note"), go: vis("rm-go"), words: vis("rm-words"), vcat: vis("rm-vcat"), src: vis("rm-src"), style: vis("rm-style"), srt: vis("rm-srt"), rl: (d => !!d && (d.open || d.getBoundingClientRect().height > 60))(document.querySelector(".rl-box")), toggle: (document.querySelector("#rm-form .advanced-toggle") || {}).textContent || ""}; });
+  check("page simple avant l'analyse : seulement la vidéo, tes conseils et les boutons", simple.note && simple.go && !simple.words && !simple.vcat && !simple.src && !simple.style && !simple.srt && !simple.rl && /choisis automatiquement/.test(simple.toggle), JSON.stringify(simple));
   // 2. étape 1 : analyse complète et rapport
   await pg.click("#rm-analyze");
   await pg.waitForFunction(() => !document.getElementById("rm-report").hidden || (!document.getElementById("rm-status").hidden && document.getElementById("rm-status").classList.contains("err")), {timeout: 20000});
@@ -67,10 +71,14 @@ function reply(pr){
   check("rapport : résumé, personnages, scènes, plans avec caméra et son, paroles, défauts", /découvre une lettre/.test(rep.text) && /Awa/.test(rep.text) && rep.sums.some(s => /Scènes \(1\)/.test(s)) && rep.sums.some(s => /caméra et son \(2\)/.test(s)) && rep.sums.some(s => /Paroles minutées \(2\)/.test(s)) && /image floue au début/.test(rep.text) && /révéler l'expéditeur/.test(rep.text), rep.sums.join(" | "));
   const det = await pg.evaluate(() => { document.querySelectorAll("#rm-report details").forEach(d => d.open = true); return document.getElementById("rm-report").innerText; });
   check("détail des plans : cadrage, mouvement caméra, transitions, son", /plan large/.test(det) && /léger travelling avant/.test(det) && /coupe franche/.test(det) && /Qui a laissé ça ici/.test(det));
-  check("transcription mot à mot placée dans « Ce qui est dit » (modifiable)", /Qui a laissé ça ici \?/.test(rep.srt) && /-->/.test(rep.srt), rep.srt.slice(0, 80).replace(/\n/g, " "));
+  const words = await pg.evaluate(() => ({vis: document.getElementById("rm-words").getClientRects().length > 0, label: (document.querySelector('label[for="rm-text"]') || {}).textContent || ""}));
+  check("paroles extraites et affichées après l'analyse (modifiables)", /Qui a laissé ça ici \?/.test(rep.srt) && /-->/.test(rep.srt) && words.vis && /Paroles extraites/.test(words.label), rep.srt.slice(0, 80).replace(/\n/g, " "));
+  const auto = await pg.evaluate(() => ({vtype: document.getElementById("rm-vtype").value, style: document.getElementById("rm-style").value, format: document.getElementById("rm-format").value, line: document.getElementById("rm-auto").hidden ? "" : document.getElementById("rm-auto").innerText}));
+  const cat = (() => { try{ return JSON.parse(decodeURIComponent(analyzeReq.headers["x-catalog"] || "")); }catch(e){ return {}; } })();
+  check("réglages choisis automatiquement d'après l'analyse (type, style, format)", auto.vtype === "tale" && auto.style === "anim3d" && auto.format === "16:9" && /choisis automatiquement/.test(auto.line) && (cat.types || []).some(t => t[0] === "tale") && (cat.styles || []).some(t => t[0] === "anim3d"), JSON.stringify(auto));
   check("faits : analyse complète, 24 s → 4 plans Veo de 8 s au plus", /vidéo complète \+ audio/i.test(rep.facts) && /Plans IA prévus\s*4/i.test(rep.facts), rep.facts);
   // 3. téléphone : rien ne déborde
-  await pg.setViewport({width: 390, height: 844});   // sans « isMobile » : cela rechargerait la page et viderait la vidéo await new Promise(r => setTimeout(r, 300));
+  await pg.setViewport({width: 390, height: 844}); await new Promise(r => setTimeout(r, 300));   // sans « isMobile » : cela rechargerait la page et viderait la vidéo
   const over = await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   check("rapport lisible sur téléphone sans défilement horizontal de la page", over <= 1, `${over}px`);
   await pg.screenshot({path: path.join(OUT, "remake-rapport-tel.png"), fullPage: false});
@@ -81,6 +89,7 @@ function reply(pr){
   const err = await pg.evaluate(() => document.getElementById("rm-status").classList.contains("err") ? document.getElementById("rm-status-text").textContent : "");
   const proj = await pg.evaluate(() => ({plans: document.querySelectorAll("#s-plans .shot").length, perso: (document.getElementById("s-perso") || {}).innerText || ""}));
   check("reconstruction faite sans nouvelle analyse, un plan par segment (4)", !err && analyzeCalls === 1 && proj.plans === 4, err || `${proj.plans} plans, ${analyzeCalls} analyse(s)`);
+  check("histoire de ta vidéo verrouillée : pas de nouveaux concepts inventés (mode reconstruction)", /mode RECONSTRUCTION/.test(prompts.creative) && /n'invente aucune autre histoire/.test(prompts.creative));
   check("le Scene Engine reçoit l'analyse multimodale complète", /ANALYSE MULTIMODALE DE LA VIDÉO COMPLÈTE/.test(prompts.scene) && /découvre une lettre/.test(prompts.scene));
   check("le Master Plan reçoit chaque plan source (caméra, son) et les segments techniques", prompts.master.some(m => /ANALYSE DES PLANS SOURCE/.test(m) && /léger travelling avant/.test(m) && /"technical_continuation":true/.test(m)), `${prompts.master.length} lot(s)`);
   check("personnage de la vidéo repris dans le projet (photo de référence)", /Awa/.test(proj.perso));

@@ -148,12 +148,12 @@ button{cursor:pointer}
 }
 /* Écran d'ordinateur peu haut (portable 1366 × 768) : tout tient sans défiler */
 @media (min-width:960px) and (max-height:760px){
-  .side-top{padding-block:10px 6px}
-  .side-nav{padding-bottom:6px}
-  .side-group{padding:8px 10px 3px}
+  .side-top{padding-block:8px 4px}
+  .side-nav{padding-bottom:4px}
+  .side-group{padding:6px 10px 2px}
   .side-group:first-child{display:none}
-  .side-link{min-height:32px;padding-block:5px}
-  .side-foot{padding-block:8px 10px}
+  .side-link{min-height:30px;padding-block:4px}
+  .side-foot{padding-block:6px 8px}
 }
 @media (prefers-reduced-motion:reduce){ .side{transition:none!important} }
 
@@ -332,6 +332,14 @@ dl.kv dd{margin:0;font-size:15px}
 .stat-table table{width:100%;border-collapse:collapse;font-size:13.5px}
 .stat-table th,.stat-table td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
 .rm-report{display:grid;gap:12px;margin:4px 0 2px}
+.cx-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.cx-row:last-of-type{border-bottom:0}.cx-row b{display:block}.cx-row .chip{flex:none}
+.gen-cast .cast-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.gen-cast .cast-who{min-width:110px;font-weight:700}.gen-cast .cast-row .sel{flex:1 1 220px;min-width:0}
+.cast-try audio,.genv audio{height:34px;max-width:100%}
+.genv{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.genv-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0}
+.gen-clip{display:grid;gap:8px;margin-top:6px}.gen-clip video{width:100%;max-height:440px;border-radius:10px;background:#000}
 .rm-report .stat-table td.wrap{white-space:normal;min-width:170px;max-width:360px}
 .rm-report details>summary{cursor:pointer;font-weight:700}
 .rm-report .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -568,7 +576,7 @@ input[type=text].plain-in{background:var(--surface)}
 .welcome-action:hover{transform:translateY(-3px);background:rgba(255,255,255,.12);border-color:rgba(240,154,110,.65)}.welcome-action .ico{width:26px;height:26px;color:#F0A078}.welcome-action b{font-size:17px}.welcome-action span{font-size:13px;line-height:1.45;color:#BFC2D1}
 .welcome-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;color:#AEB2C5;font-size:13px}.welcome-foot button{color:#fff;border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.07)}
 .home-more{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:14px}.home-more button{border:0;background:none;color:var(--ink);font-weight:700;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:4px}
-.advanced-toggle{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:7px 13px;border-radius:99px;border:1px solid var(--line);background:var(--sunken);color:var(--muted);font-size:13px;font-weight:700}.advanced-toggle::before{content:"+";display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--surface);color:var(--accent)}.advanced-toggle[aria-expanded="true"]::before{content:"−"}.simple-options.is-collapsed>*:nth-child(n+4){display:none!important}.simple-options.is-collapsed>*[hidden]{display:none!important}
+.advanced-toggle{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:7px 13px;border-radius:99px;border:1px solid var(--line);background:var(--sunken);color:var(--muted);font-size:13px;font-weight:700}.advanced-toggle::before{content:"+";display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--surface);color:var(--accent)}.advanced-toggle[aria-expanded="true"]::before{content:"−"}.simple-options.is-collapsed>*:nth-child(n+4){display:none!important}.auto-options.is-collapsed{display:none!important}.simple-options.is-collapsed>*[hidden]{display:none!important}
 .page-head{padding-inline:2px}.page-head h1{font-size:clamp(30px,5.8vw,42px)}.card,.idea,.shot,.list,.pager{box-shadow:0 12px 36px -30px rgba(21,24,42,.5)}
 @media (max-width:700px){.welcome-actions{grid-template-columns:1fr}.welcome-action{min-height:0}.welcome{border-radius:24px;padding:30px 22px}.welcome h1{font-size:48px}.welcome-foot{align-items:flex-start;flex-direction:column}.panel{padding:18px}.main{padding-top:18px}.content{gap:20px}}
 @media (max-width:560px){.tabbar{grid-template-columns:repeat(5,minmax(0,1fr));background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 -12px 35px -28px rgba(0,0,0,.65)}.tab{font-size:11px}.actions .btn{flex:1 1 auto}.actions .btn.primary{min-height:50px}.simple-options{grid-template-columns:1fr 1fr}.simple-options.is-collapsed>*:nth-child(n+3){display:none!important}}
@@ -592,6 +600,7 @@ input[type=text].plain-in{background:var(--surface)}
   <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/></symbol>
   <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3v.2A3 3 0 0 0 4 10a3 3 0 0 0 1 2.2A3 3 0 0 0 6 17a3 3 0 0 0 3 3 3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zM15 4a3 3 0 0 1 3 3v.2A3 3 0 0 1 20 10a3 3 0 0 1-1 2.2A3 3 0 0 1 18 17a3 3 0 0 1-3 3 3 3 0 0 1-3-3"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
@@ -624,6 +633,7 @@ input[type=text].plain-in{background:var(--surface)}
       <button type="button" class="side-link" data-go="persos"><svg class="ico"><use href="#i-user"/></svg><span class="side-lbl">Personnages</span></button>
       <button type="button" class="side-link" data-go="images"><svg class="ico"><use href="#i-image"/></svg><span class="side-lbl">Images</span></button>
       <button type="button" class="side-link" data-go="memoire" id="side-memoire"><svg class="ico"><use href="#i-brain"/></svg><span class="side-lbl">Mémoire de l'agent</span><span class="side-count" id="side-mem-count" hidden></span></button>
+      <button type="button" class="side-link" data-go="connexions"><svg class="ico"><use href="#i-plug"/></svg><span class="side-lbl">Connexions et voix</span></button>
       <span class="side-group">Stratégie</span>
       <button type="button" class="side-link" data-go="strategie"><svg class="ico"><use href="#ic-globe"/></svg><span class="side-lbl">Niches, pays et chaîne</span></button>
     </nav>
@@ -875,9 +885,12 @@ input[type=text].plain-in{background:var(--surface)}
             <div class="field"><label for="rm-file">Ta vidéo <span class="hint">(MP4, MOV, WEBM ; un lien YouTube ou TikTok ne peut pas être lu ici : télécharge ta vidéo depuis ton téléphone ou YouTube Studio)</span></label><input type="file" id="rm-file" accept="video/*,.mp4,.mov,.webm,.m4v"><p class="hint">Pour comprendre l’image, les mouvements et le son ensemble, la vidéo complète est envoyée directement par ton serveur à Gemini. Le stockage de l’analyse est désactivé et le serveur demande immédiatement la suppression du fichier après traitement. La clé API reste sur le serveur.</p></div>
             <div class="field" id="rm-capbox" hidden><label for="rm-caps">Ou des captures de ta vidéo, dans l'ordre <span class="hint">(5 à 40 images)</span></label><input type="file" id="rm-caps" accept="image/png,image/jpeg,image/webp" multiple>
               <label class="hint" for="rm-capdur">Durée de la vidéo (m:ss)</label><input type="text" id="rm-capdur" placeholder="10:00" style="max-width:160px"></div>
+            <div class="field"><label for="rm-note">Ce que tu veux améliorer <span class="hint">(facultatif : tes conseils pour la nouvelle version)</span></label><input type="text" id="rm-note" placeholder="Exemple : plus d'émotion au début, des images plus belles, une fin plus forte"></div>
             <div id="rm-info" hidden><div class="facts" id="rm-facts"></div><div class="thumbs" id="rm-thumbs" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0"></div></div>
             <div class="rm-report" id="rm-report" hidden aria-live="polite"></div>
-            <div class="opts">
+            <div class="field" id="rm-words" hidden><label for="rm-text">Paroles extraites de ta vidéo <span class="hint">(gardées dans leur langue ; corrige un mot si besoin)</span></label><textarea id="rm-text" rows="3" placeholder="Les paroles de ta vidéo apparaîtront ici après l’analyse. Tu peux corriger un mot, dans n’importe quelle langue."></textarea></div>
+            <p class="hint rm-auto" id="rm-auto" hidden></p>
+            <div class="opts auto-options" data-toggle-label="Modifier les réglages (choisis automatiquement)">
               <div class="field"><label for="rm-src">Origine de la vidéo</label><div class="sel"><select id="rm-src"></select></div></div>
               <div class="field"><label for="rm-ambition">Nouvelle version</label><div class="sel"><select id="rm-ambition"></select></div></div>
               <div class="field"><label for="rm-vcat">Grande catégorie</label><div class="sel"><select id="rm-vcat"></select></div></div>
@@ -888,16 +901,14 @@ input[type=text].plain-in{background:var(--surface)}
               <div class="field"><label for="rm-langue">Langue de la voix</label><div class="sel"><select id="rm-langue"></select></div></div>
               <div class="field"><label for="rm-pays">Pays cible</label><div class="sel"><select id="rm-pays"></select></div></div>
               <div class="field" hidden><label for="rm-niche">Niche</label><div class="sel"><select id="rm-niche"></select></div></div>
+              <div class="field"><label for="rm-srt">Sous-titres déjà prêts <span class="hint">(facultatif : .srt de CapCut)</span></label><input type="file" id="rm-srt" accept=".srt,.vtt,.txt" aria-label="Fichier de sous-titres"></div>
             </div>
             <p class="alert" id="rm-warn" hidden>La vidéo de quelqu'un d'autre ne peut pas être refaite telle quelle : l'agent créera une vidéo originale (nouvelle histoire, nouveaux personnages, nouvelles phrases) sur le même type de sujet.</p>
-            <div class="field"><label for="rm-text">Ce qui est dit dans la vidéo <span class="hint">(facultatif : l’agent transcrit automatiquement ; tes corrections restent prioritaires)</span></label><textarea id="rm-text" rows="3" placeholder="La transcription apparaîtra ici. Tu peux aussi coller ou charger un fichier .srt, puis corriger librement les paroles dans n’importe quelle langue."></textarea>
-              <input type="file" id="rm-srt" accept=".srt,.vtt,.txt" aria-label="Fichier de sous-titres"></div>
-            <div class="field"><label for="rm-note">Ce que tu veux améliorer <span class="hint">(facultatif)</span></label><input type="text" id="rm-note" placeholder="Exemple : plus d'émotion au début, des images plus belles, une fin plus forte"></div>
             <div class="actions"><button type="button" class="btn" id="rm-analyze">1. Analyser la vidéo complète</button><button type="submit" class="btn primary" id="rm-go">2. Reconstruire en version excellente</button><button type="button" class="btn" id="rm-stop" hidden>Arrêter</button></div>
-            <p class="hint">L’étape 1 est facultative : elle te montre tout ce que l’agent a compris (scènes, plans, caméra, son, paroles, défauts) avant la reconstruction. Sinon, l’étape 2 analyse la vidéo automatiquement.</p>
+            <p class="hint">1 : l’agent lit toute la vidéo (images, son, paroles), te montre ce qu’il a compris et choisit seul les réglages. 2 : il la reconstruit en mieux. Tu peux aussi cliquer directement sur 2.</p>
             <div class="status" id="rm-status" hidden><span id="rm-status-text"></span><div class="bar"><i id="rm-status-bar"></i></div></div>
           </form>
-          <h2 class="sub-h">Ou seulement des conseils pour l'améliorer</h2>
+          <details class="fix rl-box"><summary>Pas de fichier vidéo ? Décris-la pour recevoir seulement des conseils</summary><div class="fix-body">
           <form class="panel" id="rl-form" autocomplete="off">
             <div class="field"><label for="rl-desc">Décris ta vidéo</label><textarea id="rl-desc" rows="3" placeholder="Exemple : 40 secondes filmées au téléphone au marché Sandaga, une vendeuse de fruits qui rit avec ses clients, image un peu sombre, beaucoup de bruit."></textarea></div>
             <div class="opts">
@@ -913,6 +924,7 @@ input[type=text].plain-in{background:var(--surface)}
             <div class="status" id="rl-status" hidden><span id="rl-status-text"></span><div class="bar"><i id="rl-status-bar"></i></div></div>
           </form>
           <div class="result" id="rl-res" aria-live="polite"></div>
+          </div></details>
         </div>
       </section>
 
@@ -1076,6 +1088,16 @@ input[type=text].plain-in{background:var(--surface)}
 
       <!-- ============ PROJETS ============ -->
       <!-- ============ MÉMOIRE DE L'AGENT ============ -->
+      <section id="view-connexions" data-view="connexions" hidden>
+        <div class="content">
+          <div class="page-head">
+            <span class="kicker">Mes contenus · connexions</span>
+            <h1>Ce qui est gratuit, ce qui est payant.</h1>
+            <p>Studio Prompt fabrique gratuitement les voix avec ta clé Gemini. Pour les images et les vidéos, la méthode gratuite passe par l’application Gemini et Google Flow : tu importes ensuite tes fichiers et l’application les range dans les bons plans.</p>
+          </div>
+          <div id="cx-body"><p class="hint">Chargement…</p></div>
+        </div>
+      </section>
       <section id="view-memoire" data-view="memoire" hidden>
         <div class="content" style="max-width:none">
           <div class="page-head">
@@ -2089,6 +2111,7 @@ CONTEXTE : ${label("vtype",p.vtype||"cinematic")}${profile.id==="cinematic"?" ·
 CONFIGURATION CENTRALE : VIDEO_TYPE=${profile.label} ; PRIMARY_GOAL=${profile.goal} ; TARGET_AUDIENCE=${label("public",p.public||"famille")} ; TARGET_COUNTRY=${paysLine(p.pays)} ; PLATFORM=${profile.platform} ; DURATION=${p.duree}s ; TONE=${label("ton",p.ton||"equilibre")} ; PACING=${profile.pace} ; HOOK_STRATEGY=${profile.hookStrategy} ; STORY_IMPORTANCE=${profile.storyImportance} ; CHARACTER_IMPORTANCE=${profile.characterImportance} ; INFORMATION_DENSITY=${profile.informationDensity} ; EMOTIONAL_INTENSITY=${profile.emotionalIntensity} ; INTERACTION_NEED=${profile.interactionNeed} ; VISUAL_PRIORITY=${profile.visualPriority} ; SOUND_PRIORITY=${profile.soundPriority} ; CTA_NEED=${profile.ctaNeed} ; REALISM_LEVEL=${profile.realism} ; NARRATIVE_MODE=${profile.narrative}.
 PRIORITÉ SPÉCIFIQUE : ${profile.directive}. Les seuils bloquants de ce format sont ${profile.gates.join(", ")}. N'impose jamais artificiellement un twist ou une agitation si ce type de vidéo demande observation, contemplation, démonstration, musique ou clarté.
 ${!previous && (p.inputType==="SCRIPT" || p.inputType==="TEXT") ? `ENTRÉE = ${p.inputType==="SCRIPT"?"SCÉNARIO":"TEXTE"} FOURNI PAR L'UTILISATEUR (mode AMÉLIORÉ) : ne génère pas 12 concepts différents. Garde le cœur, les personnages, les événements clés et l'intention ; améliore seulement ce qui rend la vidéo plus forte (hook, réactions, interactions, tension, dialogues, payoff, compression). Liste chaque modification et sa raison dans corrections_effectuees ; ne modifie rien en silence. Remplis concepts avec la seule version améliorée.
+` : ""}${!previous && p.inputType==="VIDEO" && p.remakeSrc!=="autre" && p.ambition!=="reinvente" ? `ENTRÉE = VIDÉO RÉELLE DE L'UTILISATEUR, ANALYSÉE IMAGE ET SON (mode RECONSTRUCTION) : ne génère pas 12 concepts différents et n'invente aucune autre histoire. L'histoire, les personnages, les lieux, l'ordre des événements, les paroles et le message de la vidéo source sont VERROUILLÉS : reprends-les tels que l'idée les décrit (synopsis, paroles exactes, diagnostic). Améliore seulement la réalisation et ce qui rend cette même vidéo plus forte sans en changer le sens (hook visuel, lisibilité, réactions, rythme, cadrage, lumière, jeu, raccords, payoff), en corrigeant les défauts observés. Liste chaque modification et sa raison dans corrections_effectuees ; ne modifie rien en silence. Remplis concepts avec la seule version reconstruite.
 ` : ""}${previous?`VERSION REFUSÉE PAR LE DIRECTOR CRITIC : ${JSON.stringify(previous)}\nIdentifie le module fautif (IDEA ENGINE, STORY ARCHITECT, SCENE ENGINE, HUMAN BEHAVIOR ou VIRAL RETENTION), corrige-le, puis rescoring. Les critères bloquants propres à ce format (${profile.gates.join(", ")}) doivent tous atteindre 8/10, avec au moins ${profile.silent} % de compréhension en mode muet.`:`IDEA ENGINE : génère 12 concepts réellement différents, garde un Top 5, puis un Top 3, puis un gagnant. Pour un récit, varie objet, secret, erreur, rival, délai, perte, choix ou conséquence. Pour un format non narratif, varie mécanisme, matière, geste, preuve, exemple, espace, performance, règle graphique, motif sonore ou type de transformation. Ne choisis jamais automatiquement le premier.`}
 
 PRINCIPE SUPRÊME : cherche d'abord une situation ou une expérience visuelle que le spectateur veut continuer à regarder, jamais seulement une belle image. Rejette les concepts fondés sur quelqu'un qui marche, regarde, travaille, sourit, attend ou sur une succession d'illustrations. La structure du profil prime : conflit, twist et payoff dramatique sont obligatoires seulement quand ils servent ce type ; documentaire, interview, clip, motion design, ASMR ou expérimental utilisent leur propre moteur d'intérêt.
@@ -2721,7 +2744,7 @@ const LOCAL_ERR = new Set(["no_credit","no_key","no_model","bad_key","network","
 const errText = e => { if(e && !ERR[e.code] && !LOCAL_ERR.has(e.code)) console.error(e); return ERR[e&&e.code] || (e && LOCAL_ERR.has(e.code) && e.message) || `La demande a échoué${e&&e.message?` (${String(e.message).slice(0,160)})`:""}. Réessaie.`; };
 
 /* =================== ROUTER =================== */
-const VIEWS = {accueil:"Accueil", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
+const VIEWS = {accueil:"Accueil", connexions:"Connexions et voix", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
 /* Page affichée → bouton surligné : barre du bas (TAB_OF) et menu latéral (NAV_OF) */
 const TAB_OF = {audio:"studio", reel:"studio", tendances:"idees", son:"projets"};   /* les autres pages s'ouvrent par « Menu » */
 const NAV_OF = {niches:"strategie", pays:"strategie", chaine:"strategie", qualite:"images", son:"projets"};
@@ -2919,8 +2942,8 @@ function initEssentialMode(){
     const opts=form.querySelector(".opts"); if(!opts || opts.dataset.essentialReady) return;
     opts.dataset.essentialReady="1"; opts.classList.add("simple-options","is-collapsed");
     const count=Array.from(opts.children).filter(x=>!x.hidden).length; if(count<=3) return opts.classList.remove("is-collapsed");
-    const btn=document.createElement("button"); btn.type="button"; btn.className="advanced-toggle"; btn.setAttribute("aria-expanded","false"); btn.textContent="Personnaliser les réglages";
-    btn.addEventListener("click",()=>{ const open=opts.classList.toggle("is-collapsed")===false; btn.setAttribute("aria-expanded",String(open)); btn.textContent=open?"Masquer les réglages avancés":"Personnaliser les réglages"; });
+    const btn=document.createElement("button"); btn.type="button"; btn.className="advanced-toggle"; btn.setAttribute("aria-expanded","false"); const closed=opts.dataset.toggleLabel||"Personnaliser les réglages"; btn.textContent=closed;
+    btn.addEventListener("click",()=>{ const open=opts.classList.toggle("is-collapsed")===false; btn.setAttribute("aria-expanded",String(open)); btn.textContent=open?"Masquer les réglages avancés":closed; });
     opts.after(btn);
   });
 }
@@ -3415,6 +3438,8 @@ function renderProject(){
   const boardHtml = `<section class="section" id="s-board"><h3>Storyboard : toutes les images</h3>
     <p class="hint">Génère automatiquement une image PNG séparée par plan. Les images réussies sont conservées ; une reprise ne traite que les plans manquants ou ratés.</p>
     <div class="card"><div class="field"><label for="board-refs">Références personnages <span class="hint">(facultatif, jusqu'à 4 images : Nadia, Arman, Blondina…)</span></label><input type="file" id="board-refs" accept="image/png,image/jpeg,image/webp" multiple></div>
+      ${genOn(proj)&&FAB.status&&FAB.status.image&&FAB.status.image.needs?`<p class="hint">💳 « Générer » passe par l’API payante de Google (environ ${genMoney(FAB.status.image.price)} par image) : avec ta clé gratuite, crée plutôt tes images dans l’application Gemini et importe-les ci-dessous.</p>`:""}
+      ${genOn(proj)?`<div class="field"><label for="board-import">Importer mes images faites dans l’application Gemini <span class="hint">(gratuit · plusieurs à la fois · nommées P01, P02… ou dans l’ordre des plans)</span></label><input type="file" id="board-import" accept="image/png,image/jpeg,image/webp" multiple><span class="hint" id="board-import-msg"></span></div>`:""}
       <div class="actions"><button type="button" class="btn primary" id="board-generate">Générer les ${plans.length} images</button><button type="button" class="btn" id="board-retry">Reprendre les manquantes</button><button type="button" class="btn quiet" id="board-stop" hidden>Arrêter</button></div>
       <div class="status" id="board-status" hidden><span id="board-status-text"></span><div class="bar"><i id="board-status-bar"></i></div></div><div class="shots" id="board-generated">${plans.map((p,i)=>{const g=(r.generated_images||{})[String(p.n)]; return g&&g.url?`<article class="shot"><div class="shot-head"><span class="shot-n">${String(p.n).padStart(2,"0")}</span><div class="shot-t"><b>${esc(p.intention||`Plan ${p.n}`)}</b></div><span class="chip ok">Prête</span></div><img src="${esc(g.url)}" alt="Image de départ du plan ${esc(p.n)}" style="width:100%;max-height:520px;object-fit:contain;border-radius:10px"><div class="actions"><a class="btn small" href="${esc(g.url)}" download="P${String(p.n).padStart(2,"0")}.png">Télécharger</a><button type="button" class="btn small quiet" data-board-one="${i}">Régénérer</button></div></article>`:""}).join("")}</div></div>
     <div class="card">
@@ -3462,6 +3487,7 @@ function renderProject(){
       ? `<li>${ktag("image")}<span><b>Une seule fois :</b> crée la photo de référence de chaque personnage (onglet Personnages).</span></li><li>${ktag("video")}<span><b>Pour chaque plan :</b> dans Google Flow, « Ingredients to Video », joins les photos indiquées et colle le prompt.</span></li>`
       : `<li>${ktag("image")}<span><b>1. Crée l'image de départ</b>${(r.personnages||[]).length?" (joins la photo du personnage)":""}.</span></li><li>${ktag("video")}<span><b>2. Transforme-la en vidéo</b> (joins l'image obtenue).</span></li>`}</ol>
       <span class="hint">${vm==="both"?"Sans image : prends « Vidéo directe ». ":""}${vm==="ingr"?"Plans sans personnage : vidéo directe. ":""}${v.outil==="wan"?"Wan : structure temporelle et prompt négatif séparé.":v.outil==="runway"?"Runway I2V : l'image porte le style, le prompt contrôle surtout le mouvement.":"Veo : clips de 8 s avec son."} Fais 3 à 4 essais par plan.</span></div>
+    ${genOn(proj)?`<div class="card gen-import"><div><span class="label">Méthode gratuite · Google Flow</span><p class="hint">Fais chaque plan dans Google Flow avec son prompt (tes crédits gratuits du jour), nomme les clips P01, P02… ou garde l’ordre, puis importe-les tous d’un coup : chacun se range dans son plan, prêt pour le Video Critic et le pré-montage.</p></div><div class="field"><label for="clips-import">Importer mes clips</label><input type="file" id="clips-import" accept="video/*,.mp4,.mov,.webm" multiple><span class="hint" id="clips-msg"></span></div></div>`:""}
     ${lintSummary(r, v)}
     ${plans.length?`<div class="pager" id="pager"><div class="pg-top"><b id="pg-count">Plan 1 sur ${plans.length}</b><button type="button" class="btn small quiet" id="pg-all">Voir tous les plans</button></div>
       ${scs?`<span class="pg-scene" id="pg-scene"></span>`:""}
@@ -3487,6 +3513,7 @@ function renderProject(){
       ${vm==="both"||vm==="i2v"?pblock(`i2v-${i}`, "2. Transforme l'image en vidéo", i2vPrompt(r,p,v), {kind:"video", where:vw, join:"l'image créée à l'étape 1"}):""}
       ${vm==="both"||vm==="t2v"||(vm==="ingr"&&!cs.length)?pblock(`t2v-${i}`, vm==="both"?"Ou : vidéo directe, sans image":"Vidéo directe", t2vPrompt(r,p,v), {kind:"video", where:vw, join:""}):""}
       ${v.outil==="wan"?pblock(`neg-${i}`,"Prompt négatif",negPrompt(v),{kind:"neg", where:"Wan, case « Negative prompt » (Mode avancé)"}):""}
+      ${clipHtml(proj,p,i)}
       ${p.detail_type?`<p class="risk"><b class="edit">${esc(DETAIL_LABEL[baseVtype((proj.params&&proj.params.vtype)||"histoire")]||"Détail")} :</b> ${esc(p.detail_type)}</p>`:""}
       ${p.texte_ecran?`<p class="risk"><b class="edit">Texte à l'écran (montage) :</b> ${esc(p.texte_ecran)}</p>`:""}
       ${p.montage?`<p class="risk"><b class="edit">Montage :</b> ${esc(p.montage)}</p>`:""}
@@ -3730,7 +3757,7 @@ function parVoHtml(p){ return `<textarea class="par-vo" rows="2" placeholder="Vo
 function parolesHtml(proj){
   const r=proj.result||{}, plans=r.plans||[], scs=scenesOf(r), lang=(proj.params&&proj.params.langue)||"fr", locked=audioLockedOf(proj.params||{});
   if(!plans.length) return "";
-  let h=`<section class="section" id="s-paroles"><h3>Paroles</h3><p class="hint">Toutes les paroles de la vidéo${scs?", scène par scène":""}. Modifie un mot, une réplique ou qui parle, puis enregistre : les prompts vidéo se mettent à jour. Le compteur devient rouge quand un texte est trop long pour être dit en entier dans son plan.${locked?" Projet construit sur ton audio : le son ne change pas, corrige seulement les mots mal transcrits.":""}</p><div class="paroles">`;
+  let h=`<section class="section" id="s-paroles"><h3>Paroles</h3><p class="hint">Toutes les paroles de la vidéo${scs?", scène par scène":""}. Modifie un mot, une réplique ou qui parle, puis enregistre : les prompts vidéo se mettent à jour. Le compteur devient rouge quand un texte est trop long pour être dit en entier dans son plan.${locked?" Projet construit sur ton audio : le son ne change pas, corrige seulement les mots mal transcrits.":""}</p>${castHtml(proj)}<div class="paroles">`;
   plans.forEach((p,i)=>{
     const k=scs?scs.findIndex(sc=>sc.plans.includes(p.n)):-1, sc=k>=0?scs[k]:null;
     if(sc && sc.plans[0]===p.n) h+=`<div class="par-scene">Scène ${k+1} · ${esc(sceneSlug(sc)||sc.titre||"")}</div>`;
@@ -3738,6 +3765,7 @@ function parolesHtml(proj){
     h+=`<div class="par-plan" data-par="${i}"><div class="par-h"><b>P${String(p.n).padStart(2,"0")}</b><span class="hint">${esc(p.debut)}–${esc(p.fin)} · ${esc(clip(p.intention,70))}</span><span class="par-count" data-par-count="${i}"></span></div>
       <div class="par-body">${dialog ? reps.map(x=>parRepRow(r,x)).join("") : parVoHtml(p)}</div>
       <div class="par-foot"><button type="button" class="linklike" data-par-add="${i}">+ ${dialog?"Ajouter une réplique":"Transformer en dialogue"}</button></div>
+      ${genOn(proj)?`<div class="genv" id="genv-${i}">${voicePlanHtml(r,p,i)}</div>`:""}
       ${lang!=="fr"||p.voix_off_fr?`<textarea class="par-fr" rows="1" placeholder="Traduction française (pour toi)" aria-label="Traduction française">${esc(p.voix_off_fr||"")}</textarea>`:""}</div>`;
   });
   return h+`</div><div class="actions"><button type="button" class="btn primary" id="par-save">Enregistrer les paroles</button><button type="button" class="btn" id="par-reset">Annuler les changements</button><span class="hint" id="par-msg"></span></div></section>`;
@@ -3769,6 +3797,190 @@ async function saveParoles(){
 }
 document.addEventListener("input", e=>{ const box=e.target&&e.target.closest&&e.target.closest("#s-paroles [data-par]"); if(box) parCount(box); });
 
+/* =================== FABRICATION SUR TON ORDINATEUR : voix gratuites, imports des images et des clips (generation.js) =================== */
+let genApi=null;
+const FAB={status:null, voices:{gemini:[], elevenlabs:[]}, timer:null};
+const genOn = proj => !!(genApi && proj && !proj.isExample);
+const genProject = proj => proj.id || slug((proj.result||{}).titre);
+const pad2n = n => String(n).padStart(2,"0");
+const genMoney = x => (Math.round((Number(x)||0)*100)/100).toFixed(2).replace(".",",")+" $";
+async function genLoad(){
+  if(!genApi) return;
+  try{ FAB.status=await genApi.status(); }catch(e){ FAB.status=null; return; }
+  try{ FAB.voices.gemini=(await genApi.voices("gemini")).voices||[]; }catch(e){ FAB.voices.gemini=[]; }
+  if(FAB.status.voice&&FAB.status.voice[1]&&FAB.status.voice[1].ready){ try{ FAB.voices.elevenlabs=(await genApi.voices("elevenlabs")).voices||[]; }catch(e){ FAB.voices.elevenlabs=[]; } }
+}
+/* Une voix fixe par personnage, devinée d'après sa fiche (femme / homme), modifiable dans l'onglet Paroles */
+function guessGender(c){ const f=` ${String((c&&c.fiche_en)||"")} ${String((c&&c.fiche_fr)||"")} `.toLowerCase();
+  if(/\b(woman|girl|mother|grandmother|lady|wife|daughter|sister|aunt|she|her|femme|fille|mère|grand-mère|sœur|soeur|tante)\b/.test(f)) return "femme";
+  if(/\b(man|boy|father|grandfather|husband|son|brother|uncle|he|his|homme|garçon|père|grand-père|frère|oncle)\b/.test(f)) return "homme"; return ""; }
+function voiceCast(r){
+  r.voix_casting=r.voix_casting||{}; const list=FAB.voices.gemini||[], used=new Set(Object.values(r.voix_casting).map(v=>v&&v.voice));
+  const pick=g=>{ const c=list.filter(v=>!g||String(v.desc).startsWith(g)); const v=c.find(x=>!used.has(x.id))||c[0]||list[0]; return v?v.id:"Kore"; };
+  [{id:"_narr"}].concat(r.personnages||[]).forEach(c=>{ if(!r.voix_casting[c.id]){ const v=c.id==="_narr"?"Charon":pick(guessGender(c)); r.voix_casting[c.id]={service:"gemini",voice:v}; used.add(v); } });
+  return r.voix_casting;
+}
+/* Ce qu'il faut dire dans un plan : les répliques, sinon la voix off */
+function voiceLines(r,p){
+  const reps=(p.repliques||[]).filter(x=>x&&String(x.texte||"").trim());
+  if(reps.length) return reps.map((x,k)=>({k, who:x.locuteur||"_narr", text:String(x.texte).trim(), style:x.ton_en||p.voix_ton_en||"", kind:"rep"}));
+  return String(p.voix_off||"").trim()?[{k:0, who:p.locuteur||"_narr", text:String(p.voix_off).trim(), style:p.voix_ton_en||"", kind:"vo"}]:[];
+}
+const voiceWho = (r,id) => id==="_narr"?"Voix off":(((r.personnages||[]).find(c=>c.id===id)||{}).nom||"Voix off");
+function voicePlanHtml(r,p,i){
+  const lines=voiceLines(r,p), got=((r.generated_voices||{})[p.n])||[], d=planDur(p), sec=x=>String(Math.round(x*10)/10).replace(".",",");
+  if(!lines.length) return `<span class="hint">Rien à dire dans ce plan.</span>`;
+  if(!FAB.status) return `<span class="hint">Voix : lance Studio Prompt sur ton ordinateur pour les fabriquer.</span>`;
+  const items=lines.map(l=>{ const g=got.find(x=>x.k===l.k), stale=g&&g.text!==l.text;
+    const state=!g?"":g.status==="done"&&g.url?`<audio controls preload="none" src="${esc(g.url)}"></audio>${g.seconds?`<span class="chip${stale?" mid":""}">${sec(g.seconds)} s${stale?" · texte modifié : refais la voix":""}</span>`:""}`
+      :/queued|running/.test(g.status)?`<span class="chip">Fabrication…</span>`:g.status==="failed"?`<span class="chip mid" title="${esc(g.error||"")}">Échec : ${esc(clip(g.error||"",110))}</span>`:"";
+    return `<div class="genv-line"><span class="hint"><b>${esc(voiceWho(r,l.who))}</b> · ${esc(clip(l.text,90))}</span>${state}</div>`; }).join("");
+  const total=got.filter(g=>g.status==="done").reduce((a,g)=>a+(Number(g.seconds)||0),0);
+  return `${items}<div class="actions"><button type="button" class="btn small" data-genv="${i}">🔊 ${got.some(g=>g.status==="done")?"Refaire":"Fabriquer"} ${lines.length>1?"les voix":"la voix"} de ce plan</button>${total>d+0.3?`<span class="chip mid">Voix ${sec(total)} s pour un plan de ${sec(d)} s : raccourcis le texte</span>`:""}</div>`;
+}
+function castHtml(proj){
+  if(!genOn(proj)||!FAB.status) return "";
+  const r=proj.result, cast=voiceCast(r), eleven=FAB.status.voice&&FAB.status.voice[1]&&FAB.status.voice[1].ready;
+  const opts=sel=>`<optgroup label="Voix Gemini (gratuites)">${(FAB.voices.gemini||[]).map(v=>`<option value="gemini|${esc(v.id)}"${sel.service==="gemini"&&sel.voice===v.id?" selected":""}>${esc(v.name)} · ${esc(v.desc)}</option>`).join("")}</optgroup>${eleven&&(FAB.voices.elevenlabs||[]).length?`<optgroup label="ElevenLabs">${FAB.voices.elevenlabs.map(v=>`<option value="elevenlabs|${esc(v.id)}"${sel.service==="elevenlabs"&&sel.voice===v.id?" selected":""}>${esc(v.name)}${v.desc?" · "+esc(v.desc):""}</option>`).join("")}</optgroup>`:""}`;
+  const rows=[{id:"_narr",nom:"Voix off"}].concat(r.personnages||[]).map(c=>`<div class="cast-row"><span class="cast-who">${esc(c.nom)}</span><div class="sel"><select data-cast="${esc(c.id)}" aria-label="Voix de ${esc(c.nom)}">${opts(cast[c.id]||{})}</select></div><button type="button" class="btn small quiet" data-cast-try="${esc(c.id)}">Essai</button><span class="cast-try" id="cast-try-${esc(c.id)}"></span></div>`).join("");
+  return `<div class="card gen-cast"><div><span class="label">Voix des personnages · fabrication gratuite avec ta clé Gemini</span><p class="hint">Chaque personnage garde la même voix dans toute la vidéo. « Essai » fait entendre une de ses phrases. Si tes clips de Google Flow parlent déjà, fabrique seulement la voix off.</p></div>${rows}<div class="actions"><button type="button" class="btn small primary" id="genv-all">🔊 Fabriquer toutes les voix</button><span class="hint" id="genv-msg"></span></div></div>`;
+}
+function genPending(r){ const ids=[]; Object.values(r.generated_voices||{}).forEach(l=>(l||[]).forEach(x=>{ if(x&&x.job&&/queued|running/.test(x.status)) ids.push(x.job); })); return ids; }
+function genRefreshVoices(){
+  if(!current) return; const r=current.result;
+  (r.plans||[]).forEach((p,i)=>{ const el=$("genv-"+i); if(el) el.innerHTML=voicePlanHtml(r,p,i); });
+  const m=$("genv-msg"); if(m){ const all=Object.values(r.generated_voices||{}).flat(), done=all.filter(x=>x.status==="done").length, run=all.filter(x=>/queued|running/.test(x.status)).length, ko=all.filter(x=>x.status==="failed").length;
+    m.textContent=all.length?`${done} voix prête${done>1?"s":""}${run?` · ${run} en cours (une à la fois, pour respecter l'offre gratuite)`:""}${ko?` · ${ko} échec${ko>1?"s":""}`:""}`:""; }
+}
+/* Suivi des voix en cours : le serveur fabrique, la page met à jour le projet quand c'est prêt */
+function genWatch(){
+  clearTimeout(FAB.timer); if(!genApi||!current) return; const ids=genPending(current.result); if(!ids.length) return;
+  FAB.timer=setTimeout(async()=>{ const proj=current; if(!proj) return;
+    try{ const {jobs}=await genApi.jobs(genProject(proj), ids); let changed=false;
+      (jobs||[]).forEach(j=>Object.values(proj.result.generated_voices||{}).forEach(l=>(l||[]).forEach(x=>{ if(x&&x.job===j.id&&(x.status!==j.status||x.url!==(j.url||""))){ Object.assign(x,{status:j.status, url:j.url||"", seconds:j.seconds||0, error:j.error||""}); changed=true; } })));
+      if(changed){ proj.updatedAt=Date.now(); await saveProject(proj,{quiet:true}); if(current===proj) genRefreshVoices(); }
+    }catch(e){}
+    if(current===proj) genWatch(); }, 1500);
+}
+async function genVoicesPlan(i){
+  const r=current.result, p=(r.plans||[])[i]; if(!p) return 0;
+  const cast=voiceCast(r), lines=voiceLines(r,p); if(!lines.length) return 0;
+  const list=[];
+  for(const l of lines){
+    const v=cast[l.who]||cast._narr||{service:"gemini",voice:"Kore"};
+    try{ const out=await genApi.start({kind:"voice", service:v.service, voice:v.voice, text:l.text, style:l.style, project:genProject(current), plan:p.n, line:l.k, who:l.who, base:`P${pad2n(p.n)}-voix-${l.k+1}`});
+      list.push({k:l.k, who:l.who, text:l.text, kind:l.kind, job:out.job.id, status:out.job.status, service:v.service, voice:v.voice}); }
+    catch(err){ list.push({k:l.k, who:l.who, text:l.text, kind:l.kind, status:"failed", error:err.message||errText(err)}); }
+  }
+  r.generated_voices=r.generated_voices||{}; r.generated_voices[p.n]=list; current.updatedAt=Date.now();
+  await saveProject(current,{quiet:true}); genRefreshVoices(); genWatch(); return list.length;
+}
+async function genTryVoice(id){
+  const r=current.result, v=voiceCast(r)[id], el=$("cast-try-"+id); if(!v||!el) return;
+  const line=(r.plans||[]).flatMap(p=>voiceLines(r,p)).find(l=>l.who===id), c=(r.personnages||[]).find(x=>x.id===id);
+  const text=line?line.text:(id==="_narr"?"Voici la voix off de ta vidéo.":`Bonjour, je suis ${c?c.nom:"ce personnage"}.`);
+  el.innerHTML=`<span class="hint">Fabrication de l'essai…</span>`;
+  try{ let {job}=await genApi.start({kind:"voice", service:v.service, voice:v.voice, text:clip(text,220), project:genProject(current), plan:0, who:id, base:`essai-${id}`});
+    for(let k=0;k<120&&/queued|running/.test(job.status);k++){ await new Promise(res=>setTimeout(res,800)); job=((await genApi.jobs(genProject(current),[job.id])).jobs||[])[0]||job; }
+    el.innerHTML = job.status==="done" ? `<audio controls autoplay src="${esc(job.url)}"></audio>` : `<span class="chip mid">${esc(job.error||"Essai impossible pour le moment.")}</span>`;
+  }catch(err){ el.innerHTML=`<span class="chip mid">${esc(err.message||errText(err))}</span>`; }
+}
+/* Import groupé : images faites dans Gemini ou clips faits dans Flow, rangés dans leurs plans (P01… ou ordre) */
+async function genImportFiles(files, kind){
+  if(!current||!genApi) return; const proj=current, r=proj.result, plans=r.plans||[], list=[...(files||[])]; if(!list.length) return;
+  const map=autoMap(plans, list.map(f=>({name:f.name}))), key=kind==="image"?"generated_images":"generated_videos", msg=$(kind==="image"?"board-import-msg":"clips-msg");
+  const n=map.filter(x=>x>=0).length; let ok=0, ko=0; r[key]=r[key]||{};
+  for(let pi=0;pi<plans.length;pi++){ const fi=map[pi]; if(fi<0) continue; const f=list[fi], p=plans[pi];
+    if(msg) msg.textContent=`Import ${ok+ko+1} sur ${n}…`;
+    try{ const out=await genApi.upload(f,{project:genProject(proj), base:`P${pad2n(p.n)}-${kind==="image"?"depart":"clip"}`}); r[key][String(p.n)]={url:out.url, imported:true, name:f.name, at:Date.now()}; ok++; }
+    catch(err){ ko++; if(ko===1) toast(err.message||errText(err)); }
+  }
+  proj.updatedAt=Date.now(); await saveProject(proj,{quiet:true});
+  if(current===proj){ renderProject(); projTab(kind==="image"?"board":"plans"); }
+  toast(`${ok} ${kind==="image"?"image":"clip"}${ok>1?"s":""} rangé${ok>1?"s":""} dans ${ok>1?"leurs plans":"son plan"}${ko?` · ${ko} échec${ko>1?"s":""}`:""}${list.length>n?` · ${list.length-n} fichier${list.length-n>1?"s":""} en trop`:""}.`);
+}
+function clipHtml(proj,p,i){
+  if(!genOn(proj)) return "";
+  const r=proj.result, v=(r.generated_videos||{})[String(p.n)], img=(r.generated_images||{})[String(p.n)];
+  const pick=lbl=>`<label class="btn small${v&&v.url?" quiet":""}">${lbl}<input type="file" accept="video/*,.mp4,.mov,.webm" data-clip-import="${i}" hidden></label>`;
+  return `<div class="gen-clip" id="genc-${i}"><span class="label">Clip de ce plan</span>${v&&v.url
+    ? `<video controls preload="metadata" src="${esc(v.url)}"></video><div class="actions">${sample&&!proj.isExample?`<button type="button" class="btn small" data-vc-use="${i}">Contrôler ce clip (Video Critic)</button>`:""}${pick("Remplacer le clip")}</div>`
+    : `<p class="hint">${img&&img.url?"Image de départ prête dans le Storyboard. ":""}Fais la vidéo dans Google Flow avec le prompt ci-dessus, puis importe-la ici.</p><div class="actions">${pick("Importer le clip de ce plan")}</div>`}</div>`;
+}
+async function genImportOneClip(i, file){
+  if(!current||!genApi||!file) return; const proj=current, p=proj.result.plans[i]; if(!p) return;
+  try{ const out=await genApi.upload(file,{project:genProject(proj), base:`P${pad2n(p.n)}-clip`});
+    proj.result.generated_videos=proj.result.generated_videos||{}; proj.result.generated_videos[String(p.n)]={url:out.url, imported:true, name:file.name, at:Date.now()};
+    proj.updatedAt=Date.now(); await saveProject(proj,{quiet:true}); const el=$("genc-"+i); if(el&&current===proj) el.outerHTML=clipHtml(proj,p,i); toast(`Clip rangé dans le plan ${p.n}.`);
+  }catch(err){ toast(err.message||errText(err)); }
+}
+/* Video Critic sur un clip du projet : même analyse que si tu l'importais toi-même */
+async function genCriticUse(i){
+  const p=current.result.plans[i], v=(current.result.generated_videos||{})[String(p.n)]||{}, input=$("vc-file-"+i); if(!v.url||!input) return;
+  try{ const b=await (await fetch(v.url)).blob(), dt=new DataTransfer(); dt.items.add(new File([b], v.name||`P${pad2n(p.n)}.mp4`, {type:b.type||"video/mp4"})); input.files=dt.files;
+    const d=input.closest("details"); if(d) d.open=true; d&&d.scrollIntoView({block:"nearest"}); await runVideoCritic(i); }
+  catch(e){ toast("Le clip n'a pas pu être relu : importe-le de nouveau."); }
+}
+/* Pré-montage : clips du projet et voix fabriquées, plan par plan */
+function pmUseProject(){
+  const r=current.result, plans=r.plans||[], vids=r.generated_videos||{};
+  PM.clips=plans.filter(p=>vids[String(p.n)]&&vids[String(p.n)].url).map(p=>({name:`P${pad2n(p.n)} · ${vids[String(p.n)].name||"clip du projet"}`, url:vids[String(p.n)].url, n:p.n}));
+  PM.map=plans.map(p=>PM.clips.findIndex(c=>c.n===p.n));
+  $("pm-map").innerHTML=pmMapHtml(plans);
+  const nv=Object.values(r.generated_voices||{}).flat().filter(x=>x.status==="done").length;
+  toast(`${PM.clips.length} clip${PM.clips.length>1?"s":""} et ${nv} voix du projet prêts pour le montage.`);
+}
+function pmVoices(ac,dest,plans){
+  const all=(current&&current.result.generated_voices)||{};
+  return plans.map(p=>((all[p.n]||[]).filter(x=>x&&x.status==="done"&&x.url).sort((a,b)=>a.k-b.k)).map(x=>{ const a=new Audio(x.url); a.preload="auto"; try{ const src=ac.createMediaElementSource(a), gn=ac.createGain(); gn.gain.value=1; src.connect(gn).connect(dest); }catch(e){} return a; }));
+}
+function pmVoicesPlay(list){ if(!list||!list.length) return; let k=0; const next=()=>{ const a=list[k++]; if(!a) return; a.onended=next; a.play().catch(()=>next()); }; next(); }
+/* Page Connexions : ce qui est gratuit, ce qui est payant, guides et dernières fabrications */
+async function renderConnexions(){
+  const host=$("cx-body"); if(!host) return;
+  if(!genApi){ host.innerHTML=`<p class="alert">La fabrication marche sur ton ordinateur : ouvre Studio Prompt avec « Lancer Studio Prompt ».</p>`; return; }
+  await genLoad(); const st=FAB.status;
+  if(!st){ host.innerHTML=`<p class="alert">Le serveur local ne répond pas : relance « Lancer Studio Prompt ».</p>`; return; }
+  let jobs=[]; try{ jobs=((await genApi.jobs("",[])).jobs||[]).filter(j=>!/^essai-/.test(j.base||"")).slice(-12).reverse(); }catch(e){}
+  const row=(name,state,cls,how)=>`<div class="cx-row"><div><b>${name}</b><span class="hint">${how}</span></div><span class="chip ${cls}">${state}</span></div>`;
+  const paid=x=>!x?["Indisponible",""]:x.ready&&!x.needs?["Prêt (payant)","ok"]:x.needs==="key"?["Pas de clé",""]:["Payant · non activé","mid"];
+  const vg=st.voice[0]||{}, ve=st.voice[1]||{}, veo=st.video.filter(v=>/^veo/.test(v.id)), rw=st.video.find(v=>v.id==="runway");
+  host.innerHTML=`<div class="panel"><h2 class="sub-h">Gratuit</h2>
+      ${row("Voix Gemini", vg.ready?"Prêt · gratuit":"Pas de clé Gemini", vg.ready?"ok":"mid", "30 voix, français inclus, dans l’onglet « Paroles » de chaque projet. Google limite le nombre de voix par minute et par jour : Studio Prompt les fabrique une par une et attend si besoin (tes limites : AI Studio → Limite de débit).")}
+      ${row("ElevenLabs", ve.ready?"Prêt":"Pas de clé", ve.ready?"ok":"", "Voix très naturelles, petite quantité gratuite chaque mois. Facultatif : voir le guide ci-dessous.")}
+      ${row("Images · application Gemini", "Gratuit, à la main", "ok", "Crée les images dans l’application Gemini avec les prompts du Storyboard, puis importe-les toutes d’un coup dans l’onglet Storyboard du projet.")}
+      ${row("Vidéos · Google Flow", "Gratuit, à la main", "ok", "Avec tes crédits gratuits du jour dans Flow, fais chaque plan avec son prompt, puis importe les clips dans l’onglet Plans : ils vont au Video Critic et au pré-montage.")}</div>
+    <div class="panel"><h2 class="sub-h">Payant (seulement si tu l’actives un jour)</h2>
+      ${row("Images automatiques · Nano Banana (API)", ...paid(st.image), `Environ ${genMoney(st.image&&st.image.price)} par image.`)}
+      ${row("Vidéos automatiques · Veo 3.1 (API)", ...paid(veo[1]||veo[0]), veo.map(v=>`${esc(v.label)} : ${genMoney(v.price_s)} par seconde`).join(" · "))}
+      ${row("Runway Gen-4.5", ...paid(rw), `${genMoney(rw&&rw.price_s)} par seconde, sans son.`)}
+      <p class="hint">Sécurité : ${genMoney(st.budget.spent)} dépensés aujourd’hui sur un maximum de ${genMoney(st.budget.limit)} par jour (réglable avec GEN_BUDGET_USD dans le fichier .env). Prix vérifiés le ${esc(st.prices_date)}.</p></div>
+    <div class="panel"><h2 class="sub-h">Guides</h2>
+      <details class="fix"><summary>Ajouter une clé ElevenLabs (gratuit)</summary><div class="fix-body"><ol>
+        <li>Crée un compte gratuit sur elevenlabs.io.</li><li>Clique sur ton profil (en bas à gauche), puis « API Keys » → « Create API Key ». Copie la clé.</li>
+        <li>Ouvre le dossier studio-prompt, clic droit sur le fichier <b>.env</b> → Ouvrir avec → Bloc-notes.</li><li>Ajoute une ligne <code>ELEVENLABS_API_KEY=</code> et colle la clé juste après le signe =, sans espace. Enregistre (Ctrl+S).</li>
+        <li>Ferme la fenêtre noire de Studio Prompt et relance « Lancer Studio Prompt ».</li><li>Ne colle jamais une clé dans un chat ni sur GitHub.</li></ol></div></details>
+      <details class="fix"><summary>Plus tard : activer le payant sans perdre le gratuit</summary><div class="fix-body"><ol>
+        <li>Dans Google AI Studio, « Créer une clé API » dans un <b>nouveau projet</b> (par exemple « Studio Prompt Videos »).</li><li>Sur cette nouvelle ligne seulement : « Configurer la facturation », puis fixe une limite dans « Dépenses ».</li>
+        <li>Dans le fichier .env, ajoute <code>GEMINI_MEDIA_API_KEY=</code> suivi de cette nouvelle clé. Ta clé actuelle reste gratuite pour les histoires et les voix.</li><li>Relance Studio Prompt : cette page indiquera « Prêt (payant) ».</li></ol></div></details></div>
+    ${jobs.length?`<div class="panel"><h2 class="sub-h">Dernières fabrications</h2><ul class="plain">${jobs.map(j=>`<li>${esc(new Date(j.created).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))} · ${esc(j.label||j.kind)}${j.plan?` · plan ${esc(j.plan)}`:""} · ${j.status==="done"?"prête":j.status==="failed"?"échec : "+esc(clip(j.error||"",90)):"en cours"}</li>`).join("")}</ul></div>`:""}`;
+}
+document.addEventListener("click", async e=>{
+  const t=e.target.closest&&e.target.closest("button"); if(!t||!current) return;
+  if(t.dataset.genv!=null){ t.disabled=true; await genVoicesPlan(Number(t.dataset.genv)); return; }
+  if(t.id==="genv-all"){ t.disabled=true; const n=(current.result.plans||[]).length; let c=0; for(let i=0;i<n;i++){ const m=$("genv-msg"); if(m) m.textContent=`Envoi des voix : plan ${i+1} sur ${n}…`; c+=await genVoicesPlan(i); } t.disabled=false; if(!c) toast("Aucune parole à dire dans ce projet."); return; }
+  if(t.dataset.castTry!=null){ await genTryVoice(t.dataset.castTry); return; }
+  if(t.dataset.vcUse!=null){ await genCriticUse(Number(t.dataset.vcUse)); return; }
+  if(t.id==="pm-use-project"){ pmUseProject(); return; }
+});
+document.addEventListener("change", async e=>{
+  const t=e.target; if(!t||!current) return;
+  if(t.dataset&&t.dataset.cast!=null){ const [service,voice]=String(t.value).split("|"); voiceCast(current.result)[t.dataset.cast]={service,voice}; current.updatedAt=Date.now(); await saveProject(current,{quiet:true}); const el=$("cast-try-"+t.dataset.cast); if(el) el.innerHTML=""; return; }
+  if(t.id==="board-import"){ await genImportFiles(t.files,"image"); return; }
+  if(t.id==="clips-import"){ await genImportFiles(t.files,"video"); return; }
+  if(t.dataset&&t.dataset.clipImport!=null){ await genImportOneClip(Number(t.dataset.clipImport), t.files&&t.files[0]); return; }
+});
+
 /* =================== PRÉ-MONTAGE AUTOMATIQUE : les clips dans l'ordre, coupés à la durée de leur plan, avec le son (dans le navigateur) =================== */
 const PM = {key:"", clips:[], map:[], stop:false, running:false};
 const planDur = p => { const d=tc(p.fin)-tc(p.debut); return d>0.2 ? d : 4; };
@@ -3794,11 +4006,13 @@ function premontHtml(proj){
     <p class="hint">Dépose les clips générés pour ce projet : l'application les met dans l'ordre des plans, coupe chacun à la durée de son plan, ajoute le son et produit une vidéo prête à finir dans CapCut. Nomme tes clips avec le numéro du plan (P01, P02… ou « plan 5 ») pour qu'ils se placent seuls ; sinon ils suivent l'ordre alphabétique.</p>
     <div class="card">
       <div class="field"><label for="pm-clips">Tes clips (plusieurs fichiers à la fois)</label><input type="file" id="pm-clips" accept="video/*,.mp4,.mov,.webm" multiple></div>
+      ${genOn(proj)&&(Object.keys(proj.result.generated_videos||{}).length||Object.keys(proj.result.generated_voices||{}).length)?`<div class="actions"><button type="button" class="btn small primary" id="pm-use-project">Utiliser les clips et les voix du projet</button><span class="hint">clips importés (onglet Plans) et voix fabriquées (onglet Paroles)</span></div>`:""}
       <div id="pm-map">${pmMapHtml(plans)}</div>
       <div class="field"><label for="pm-audio">Voix off ou musique (facultatif)</label><input type="file" id="pm-audio" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg"></div>
       <div class="pm-opts">
         <label class="check"><input type="checkbox" id="pm-clipsound" checked><span>Garder le son des clips (dialogues, ambiance)</span></label>
         <label class="check"><input type="checkbox" id="pm-subs"><span>Incruster les sous-titres</span></label>
+        ${Object.keys((proj.result&&proj.result.generated_voices)||{}).length?`<label class="check"><input type="checkbox" id="pm-voices" checked><span>Ajouter les voix fabriquées (si tes clips parlent déjà, décoche ou ne fabrique que la voix off)</span></label>`:""}
         <div class="field"><label for="pm-res">Qualité</label><div class="sel"><select id="pm-res"><option value="720">720p (plus rapide)</option><option value="1080">1080p</option></select></div></div>
       </div>
       <p class="hint">Le montage se fait en temps réel : environ ${fmtS(Math.round(total))} pour cette vidéo. Garde cet onglet ouvert et visible pendant le montage.</p>
@@ -3845,12 +4059,14 @@ async function runPremontage(){
   PM.running=true; PM.stop=false; $("pm-go").disabled=true; $("pm-stop").hidden=false; $("pm-out").innerHTML="";
   const total=plans.reduce((a,p)=>a+planDur(p),0); let doneSec=0;
   try{
+    const vox=$("pm-voices")&&$("pm-voices").checked?pmVoices(ac,dest,plans):null;
     let next=pmPrepare(ac, dest, PM.map[0]>=0?PM.clips[PM.map[0]].url:null, withSound);
     rec.start(1000); if(extra) extra.play().catch(()=>{});
     for(let i=0;i<plans.length && !PM.stop;i++){
       const p=plans[i], d=planDur(p), el=await next;
       next = i+1<plans.length ? pmPrepare(ac, dest, PM.map[i+1]>=0?PM.clips[PM.map[i+1]].url:null, withSound) : null;
       if(el){ try{ el.currentTime=0; await el.play(); }catch(e){} }
+      if(vox) pmVoicesPlay(vox[i]);
       showStatus("pm-", `Montage : plan ${i+1} sur ${plans.length} · ${fmtS(Math.round(doneSec))} / ${fmtS(Math.round(total))}`, false, 100*doneSec/total);
       const t0=performance.now();
       await new Promise(res=>{ const tick=()=>{ const t=(performance.now()-t0)/1000; pmDraw(g,W,H,el,p,i,subs); if(t>=d || PM.stop) return res(); requestAnimationFrame(tick); }; tick(); });
@@ -3858,7 +4074,7 @@ async function runPremontage(){
       doneSec+=d;
     }
     await new Promise(res=>{ rec.onstop=res; rec.stop(); });
-    if(extra) extra.pause();
+    if(extra) extra.pause(); if(vox) vox.flat().forEach(a=>{ try{ a.pause(); }catch(e){} });
     const type=(rec.mimeType||mime||"video/webm").split(";")[0], ext=/mp4/.test(type)?"mp4":"webm", blob=new Blob(chunks,{type}), url=URL.createObjectURL(blob);
     PM.result={blob, ext, url};
     $("pm-status").hidden=true;
@@ -4729,6 +4945,7 @@ function onViewShown(name){
   if(name==="niches") renderNicheList();
   if(name==="tendances") renderVeille();
   if(name==="memoire") renderLessons();
+  if(name==="connexions") renderConnexions();
   if(name==="audio" && AU.dur) requestAnimationFrame(drawWave);
 }
 
@@ -5374,24 +5591,25 @@ function whisperRun(audio, language, model, onLoad, signal){
     w.postMessage({id, audio, language, model}, [audio.buffer]);
   });
 }
-async function pcm16k(a,b){
-  const src=AU.buf || (AU.buf=await decodeAudio(await AU.file.arrayBuffer())), C=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+async function pcm16k(a,b,S){
+  const A=S||AU, src=A.buf || (A.buf=await decodeAudio(await A.file.arrayBuffer())), C=window.OfflineAudioContext||window.webkitOfflineAudioContext;
   const ctx=new C(1, Math.max(1,Math.ceil((b-a)*16000)), 16000), node=ctx.createBufferSource(); node.buffer=src; node.connect(ctx.destination); node.start(0,a,b-a);
   return new Float32Array((await ctx.startRendering()).getChannelData(0));
 }
-async function transcribeLocal(signal, level){
+async function transcribeLocal(signal, level, S){   /* S (facultatif) : autre source que la page audio, ex. le son d'une vidéo */
+  const A=S||AU, pre=(S&&S.prefix)||"au-";
   if(!window.Worker || !(window.OfflineAudioContext||window.webkitOfflineAudioContext)) throw {code:"bad_request", message:"Ce navigateur ne peut pas lancer la transcription gratuite : utilise Chrome ou Edge à jour."};
   const W=28, cuts=[0];   /* fenêtres de 28 s au plus, coupées dans les pauses de la voix : Whisper écoute par tranches de 30 s */
-  for(let t=0; AU.dur-t>W; ){ let c=t+W; const p=AU.an&&AU.an.pauses.filter(x=>x.mid>t+8&&x.mid<t+W).pop(); if(p) c=p.mid; cuts.push(c); t=c; }
-  cuts.push(AU.dur);
-  const lc=$("au-langue").value, language=WHISPER_LANG[lc]||null, model=WHISPER_MODELS[level]||WHISPER_MODELS.local, segs=[];
+  for(let t=0; A.dur-t>W; ){ let c=t+W; const p=A.an&&A.an.pauses.filter(x=>x.mid>t+8&&x.mid<t+W).pop(); if(p) c=p.mid; cuts.push(c); t=c; }
+  cuts.push(A.dur);
+  const lc=S?String(S.lang||""):$("au-langue").value, language=WHISPER_LANG[lc]||null, model=WHISPER_MODELS[level]||WHISPER_MODELS.local, segs=[];
   for(let i=0;i<cuts.length-1;i++){
     const a=cuts[i], b=cuts[i+1];
-    showStatus("au-", i===0&&!whisperW ? "Démarrage du moteur de transcription gratuit…" : `Transcription gratuite sur ton ordinateur : partie ${i+1} sur ${cuts.length-1}…`, false, 8+86*i/(cuts.length-1));
+    showStatus(pre, i===0&&!whisperW ? "Démarrage du moteur de transcription gratuit…" : `Transcription gratuite sur ton ordinateur : partie ${i+1} sur ${cuts.length-1}…`, false, 8+86*i/(cuts.length-1));
     const part=`Transcription gratuite sur ton ordinateur : partie ${i+1} sur ${cuts.length-1}…`;
-    const out=await whisperRun(await pcm16k(a,b), language, model, d=>{
-      if(d.type==="ready") showStatus("au-",part,false,8+86*i/(cuts.length-1));
-      else if(d.total>2e6) showStatus("au-",`Téléchargement du moteur de transcription gratuit (une seule fois) : ${Math.round(d.loaded/1e6)} / ${Math.round(d.total/1e6)} Mo…`,false,Math.max(2,Math.min(95,100*d.loaded/d.total)));
+    const out=await whisperRun(await pcm16k(a,b,A), language, model, d=>{
+      if(d.type==="ready") showStatus(pre,part,false,8+86*i/(cuts.length-1));
+      else if(d.total>2e6) showStatus(pre,`Téléchargement du moteur de transcription gratuit (une seule fois) : ${Math.round(d.loaded/1e6)} / ${Math.round(d.total/1e6)} Mo…`,false,Math.max(2,Math.min(95,100*d.loaded/d.total)));
     }, signal);
     (out.chunks||[]).forEach(c=>{
       const texte=String(c&&c.text||"").replace(/\s+/g," ").trim(); if(!texte||WHISPER_JUNK.test(texte)) return;
@@ -5795,7 +6013,7 @@ function grabBlob(v, w){
 function videoCancelled(signal){ if(signal&&signal.aborted) throw Object.assign(new Error("Analyse annulée."),{code:"cancelled"}); }
 async function readVideoDuration(file){
   const url=URL.createObjectURL(file), v=document.createElement("video"); v.muted=true; v.preload="metadata"; v.src=url;
-  try{ await new Promise((res,rej)=>{ const done=fn=>{ clearTimeout(to); v.onloadedmetadata=null; v.onerror=null; fn(); }, to=setTimeout(()=>done(()=>rej(new Error("timeout"))),12000); v.onloadedmetadata=()=>done(res); v.onerror=()=>done(()=>rej(new Error("video"))); }); const d=Number(v.duration); if(!isFinite(d)||d<=0) throw new Error("duration"); return d; }
+  try{ await new Promise((res,rej)=>{ const done=fn=>{ clearTimeout(to); v.onloadedmetadata=null; v.onerror=null; fn(); }, to=setTimeout(()=>done(()=>rej(new Error("timeout"))),12000); v.onloadedmetadata=()=>done(res); v.onerror=()=>done(()=>rej(new Error("video"))); }); RM.vw=v.videoWidth||0; RM.vh=v.videoHeight||0; const d=Number(v.duration); if(!isFinite(d)||d<=0) throw new Error("duration"); return d; }
   finally{ try{ URL.revokeObjectURL(url); }catch(e){} v.removeAttribute("src"); }
 }
 async function readVideo(file,signal){
@@ -5885,11 +6103,11 @@ function rmRefresh(){
   const tl=rmTimeline();
   const facts=[["Durée",fmtD(RM.dur)],["Scènes détectées",String(RM.scenes.length)],["Analyse",RM.full?"vidéo complète + audio":"captures locales"],["Voix",RM.full&&RM.full.transcript?`${RM.full.transcript.length} segments transcrits`:RM.an?`${RM.an.pauses.length} pauses`:"non analysée"],["Plans IA prévus",String(tl.length)]]; if(RM.full) facts.splice(3,0,["Fichier distant",RM.full.source_deleted?"supprimé après analyse":"suppression non confirmée"]);
   $("rm-facts").innerHTML=facts.map(([k,v])=>`<div><span class="label">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
-  $("rm-info").hidden=false;
+  $("rm-info").hidden=false; rmWordsShow();
 }
 $("rm-file").addEventListener("change", async e=>{
   const file=e.target.files&&e.target.files[0]; if(!file) return;
-  const loadId=++RM.loadId; RM.file=file; RM.desc=null; RM.full=null; RM.caps=false; RM.dur=0; RM.scenes=[]; RM.frames=[]; RM.an=null; RM.localReady=false; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value=""; $("rm-thumbs").innerHTML=""; $("rm-info").hidden=true; $("rm-go").disabled=true; renderRmReport();
+  const loadId=++RM.loadId; RM.file=file; RM.desc=null; RM.full=null; RM.caps=false; RM.dur=0; RM.scenes=[]; RM.frames=[]; RM.an=null; RM.localReady=false; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value=""; $("rm-thumbs").innerHTML=""; $("rm-info").hidden=true; $("rm-go").disabled=true; renderRmReport(); RM.vw=0; RM.vh=0; $("rm-auto").hidden=true; $("rm-text").placeholder="Les paroles de ta vidéo apparaîtront ici après l’analyse. Tu peux corriger un mot, dans n’importe quelle langue."; rmWordsShow();
   try{
     const dur=await readVideoDuration(file); if(loadId!==RM.loadId||file!==RM.file) return; RM.dur=dur; RM.scenes=[{t0:0,t1:dur}]; $("rm-status").hidden=true; rmRefresh();
   }catch(err){
@@ -5907,7 +6125,7 @@ $("rm-caps").addEventListener("change", async e=>{
 $("rm-capdur").addEventListener("change",()=>{ if(RM.caps){ const fs=RM.frames.length, dur=parseDur($("rm-capdur").value)||fs*8; RM.dur=dur; RM.scenes=RM.frames.map((f,i)=>({t0:i*dur/fs,t1:(i+1)*dur/fs})); RM.frames.forEach((f,i)=>f.t=(i+0.5)*dur/fs); rmRefresh(); } });
 function rmReadText(manual){ const t=$("rm-text").value, c=parseSrt(t); RM.cues=c.length?c:null; RM.plain=c.length?"":t.trim(); if(manual) RM.textDirty=true; if(RM.dur) rmRefresh(); }
 $("rm-text").addEventListener("input",()=>{ RM.textDirty=true; clearTimeout(rmReadText._t); rmReadText._t=setTimeout(()=>rmReadText(true),350); });
-$("rm-srt").addEventListener("change",async e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; try{ $("rm-text").value=await f.text(); rmReadText(true); toast("Sous-titres chargés."); }catch(err){ toast("Fichier illisible."); } });
+$("rm-srt").addEventListener("change",async e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; try{ $("rm-text").value=await f.text(); rmReadText(true); rmWordsShow(); toast("Sous-titres chargés."); }catch(err){ toast("Fichier illisible."); } });
 
 /* Filet de sécurité : retire toute phrase qui parle d'un logo de plateforme, d'un @pseudo ou de sous-titres incrustés */
 const OVERLAY_RE = /\b(tik ?tok|youtube|instagram|facebook|snapchat|capcut|filigrane|watermark|logo de la plateforme|sous-titres? incrust\w*|barre de lecture)\b|@[\w.]+/i;
@@ -5929,7 +6147,7 @@ async function analyzeFullVideo(signal){
   if(!RM.file||RM.caps) return null;
   showStatus("rm-","Gemini lit la vidéo complète : images, audio, paroles, plans et caméra…",false,5);
   let res,out;
-  try{ res=await fetch("/api/video/analyze",{method:"POST",headers:{"Content-Type":RM.file.type||"video/mp4","X-Video-Mime":RM.file.type||"video/mp4","X-Video-Name":encodeURIComponent(RM.file.name||"video"),"X-Video-Duration":String(RM.dur||0)},body:RM.file,signal}); out=await res.json().catch(()=>({})); }
+  try{ res=await fetch("/api/video/analyze",{method:"POST",headers:{"Content-Type":RM.file.type||"video/mp4","X-Video-Mime":RM.file.type||"video/mp4","X-Video-Name":encodeURIComponent(RM.file.name||"video"),"X-Video-Duration":String(RM.dur||0),"X-Catalog":encodeURIComponent(JSON.stringify(rmCatalog()))},body:RM.file,signal}); out=await res.json().catch(()=>({})); }
   catch(err){ if((signal&&signal.aborted)||(err&&err.name==="AbortError")) throw Object.assign(new Error("Analyse annulée."),{code:"cancelled"}); throw err; }
   if(!res.ok) throw Object.assign(new Error(out.message||`Erreur ${res.status}`),{code:out.code||"server_error"});
   const x=normalizeFullVideo(out,RM.dur); if(!x.shots.length||!x.duration) throw Object.assign(new Error("Aucun plan exploitable détecté dans l'analyse complète."),{code:"invalid_json"});
@@ -5937,7 +6155,38 @@ async function analyzeFullVideo(signal){
   RM.full=x; RM.desc=x.shots.map(s=>({t:(Number(s.t0)+Number(s.t1))/2,description:noOverlay([s.description,s.action,s.performance].filter(Boolean).join(" ; ")),cadrage:noOverlay([s.framing,s.angle,s.lens,s.camera_movement].filter(Boolean).join(" ; ")),lumiere:noOverlay([s.lighting,s.color].filter(Boolean).join(" ; ")),defauts:""}));
   if(x.scenes.length) RM.scenes=x.scenes.map(s=>({t0:Number(s.t0),t1:Number(s.t1)}));
   if(x.transcript.length&&!RM.textDirty){ RM.cues=x.transcript.map(c=>({start:c.t0,end:c.t1,text:c.text})); RM.plain=""; $("rm-text").value=toSrt(x.transcript.map(c=>({t0:c.t0,t1:c.t1,texte:c.text}))); }
-  rmRefresh(); renderRmReport(); return x;
+  rmAutoSettings(x); rmRefresh(); renderRmReport(); return x;
+}
+/* Catalogue envoyé à l'analyse : Gemini choisit le type et le style de Studio Prompt les plus proches de la vidéo */
+function rmCatalog(){ return {types:Object.values(VIDEO_CATEGORIES).flat().map(([id,l])=>[id,l]), styles:[...$("rm-style").options].map(o=>[o.value,o.textContent])}; }
+/* Réglages choisis automatiquement d'après la vidéo (format, type, style) ; modifiables dans « Modifier les réglages » */
+function rmAutoSettings(x){
+  if(RM.vw&&RM.vh) $("rm-format").value = RM.vh>RM.vw ? "9:16" : "16:9";
+  const o=(x&&x.overview)||{}, t=String(o.video_type||""), st=String(o.style_id||"");
+  const cat=Object.keys(VIDEO_CATEGORIES).find(c=>VIDEO_CATEGORIES[c].some(([id])=>id===t));
+  if(cat){ $("rm-vcat").value=cat; fillRmVideoTypes(cat,t); $("rm-vtype").value=t; syncRmTypeStyle(); }
+  if(st && [...$("rm-style").options].some(op=>op.value===st)) $("rm-style").value=st;
+  rmAutoLine();
+}
+function rmAutoLine(){
+  const el=$("rm-auto"); if(!el) return; const txt=id=>{ const s=$(id); return s&&s.selectedOptions&&s.selectedOptions[0]?s.selectedOptions[0].textContent:""; };
+  el.innerHTML=`<b>Réglages choisis automatiquement :</b> ${esc([txt("rm-vtype"),txt("rm-style"),txt("rm-format"),txt("rm-outil"),txt("rm-langue"),txt("rm-pays")].filter(Boolean).join(" · "))} · ${esc(txt("rm-src"))}.`;
+  el.hidden=false;
+}
+/* Les paroles se montrent dès qu'elles existent (analyse, transcription gratuite ou sous-titres) */
+function rmWordsShow(){
+  const w=$("rm-words"), ta=$("rm-text"); if(!w||!ta) return;
+  w.hidden=!(ta.value.trim()||RM.full);
+  if(RM.full&&!(RM.full.transcript||[]).length&&!ta.value.trim()) ta.placeholder="Aucune parole détectée dans la vidéo. Tu peux en écrire ici si besoin.";
+}
+/* Paroles sans Gemini : le transcripteur gratuit (Whisper, sur ton ordinateur) écoute le son de la vidéo */
+async function rmLocalWords(signal){
+  if(!RM.file||RM.caps||(RM.cues&&RM.cues.length)||RM.plain||RM.textDirty) return false;
+  if(!RM.localReady){ try{ await ensureLocalVideo(signal); }catch(err){ if(err&&err.code==="cancelled") throw err; return false; } }
+  if(!RM.dur||RM.dur>TR_MAX) return false;
+  const t=await transcribeLocal(signal,"local",{dur:RM.dur, an:RM.an, file:RM.file, buf:null, lang:"", prefix:"rm-"});
+  if(!t.segs.length) return false;
+  RM.cues=t.segs.map(c=>({start:c.t0,end:c.t1,text:c.texte})); RM.plain=""; $("rm-text").value=toSrt(t.segs); rmRefresh(); return true;
 }
 /* Rapport lisible de l'analyse complète : tout ce que l'agent a compris, à vérifier avant la reconstruction */
 function renderRmReport(){
@@ -5991,6 +6240,7 @@ $("rm-form").addEventListener("submit", async e=>{
     let fullErr=null;
     if(!RM.full&&!RM.caps){ try{ await analyzeFullVideo(rmctl.signal); }catch(err){ if(err&&err.code==="cancelled") throw err; fullErr=err; showStatus("rm-","Analyse complète indisponible : les images clés prennent automatiquement le relais…",false,18); } }
     if(!RM.full&&!RM.caps&&!RM.localReady){ try{ await ensureLocalVideo(rmctl.signal); }catch(err){ if(err&&err.code==="cancelled") throw err; if(fullErr) throw fullErr; throw err; } }
+    if(!RM.full&&!RM.caps){ try{ await rmLocalWords(rmctl.signal); }catch(err){ if(err&&err.code==="cancelled") throw err; } }
     if(!RM.desc) RM.desc = await describeFrames(rmctl.signal);
     if(!RM.dur) throw fullErr||Object.assign(new Error("La durée de cette vidéo n'a pas pu être déterminée."),{code:"bad_request"});
     const tl=rmTimeline();
@@ -6019,7 +6269,12 @@ $("rm-analyze").addEventListener("click", async ()=>{
   if(rmctl) return;
   rmctl=new AbortController(); $("rm-analyze").disabled=true; $("rm-go").disabled=true; $("rm-stop").hidden=false;
   try{ RM.full=null; renderRmReport(); await analyzeFullVideo(rmctl.signal); $("rm-status").hidden=true; toast("Vidéo analysée : vérifie ce que l'agent a compris."); }
-  catch(err){ showStatus("rm-", err&&err.code==="cancelled" ? "Analyse arrêtée." : (m=>/images clés/.test(m)?m:`${m} Tu peux quand même lancer l'étape 2 : les images clés prendront le relais.`)(err&&err.message?err.message:errText(err)), true); }
+  catch(err){
+    if(err&&err.code==="cancelled"){ showStatus("rm-","Analyse arrêtée.",true); return; }
+    const m=(x=>/images clés/.test(x)?x:`${x} Tu peux quand même lancer l'étape 2 : les images clés prendront le relais.`)(err&&err.message?err.message:errText(err));
+    let words=false; try{ words=await rmLocalWords(rmctl.signal); }catch(e2){ if(e2&&e2.code==="cancelled"){ showStatus("rm-","Analyse arrêtée.",true); return; } }
+    rmWordsShow(); showStatus("rm-", words?`${m} Les paroles ont été extraites gratuitement sur ton ordinateur.`:m, true);
+  }
   finally{ $("rm-analyze").disabled=false; $("rm-go").disabled=false; $("rm-stop").hidden=true; rmctl=null; }
 });
 
@@ -6365,13 +6620,13 @@ function renderLists(){
   renderPickers(); renderCharList(); fillGlobalSelects(); renderNicheList();
   if(!$("view-son").hidden) fillSndSrc();
 }
-async function saveProject(proj){
+async function saveProject(proj, opts){
   if(!db||!uid||proj.isExample) return;
   try{
     const col=db.collection("data/users/"+uid), ref = proj.id ? col.doc(proj.id) : col.doc();
     proj.id = ref.id;
     await ref.set({kind:"project", titre:proj.result.titre||"Sans titre", idee:proj.idee, params:proj.params, result:proj.result, createdAt:proj.createdAt||Date.now(), updatedAt:proj.updatedAt||Date.now()});
-    toast("Projet enregistré dans Projets.");
+    if(!(opts&&opts.quiet)) toast("Projet enregistré dans Projets.");
   }catch(err){ toast(err&&err.code==="quota_exceeded" ? "Mémoire pleine : supprime d'anciens projets." : "Le projet n'a pas pu être enregistré."); }
 }
 async function saveIdea(x){
@@ -6396,8 +6651,8 @@ $("f-duree").addEventListener("change", durHint); durHint();
 (async function boot(){
   const C = window.claude;
   if(!C || typeof C.use!=="function"){ $("go").disabled=true; $("i-go").disabled=true; $("img-go").disabled=true; $("avail").textContent="Ouvre cette page dans Claude pour générer tes projets."; return; }
-  const [s,d,u,dl] = await Promise.all(["sample","db","user","downloads"].map(n=>C.use(n).catch(()=>null)));
-  sample=s; downloads=dl;
+  const [s,d,u,dl,g] = await Promise.all(["sample","db","user","downloads","gen"].map(n=>C.use(n).catch(()=>null)));
+  sample=s; downloads=dl; genApi=g||null;
   if(sample && typeof sample.json==="function"){ try{ const sj=sample.json; sample.json=async(...a)=>{ const r=await sj(...a); if(r&&r._model) lastModel=r._model; return r; }; }catch(e){} }
   if(sample){ try{ const lim=await sample.limits(); imgOK=!!(lim&&lim.images); imgMax=imgOK?(lim.images.maxCount||1):0; }catch(e){ imgOK=false; } }
   $("qc-drop").hidden = !imgOK; $("qc-noimg").hidden = imgOK; $("rl-img-box").hidden = !imgOK;
@@ -6413,6 +6668,7 @@ $("f-duree").addEventListener("change", durHint); durHint();
     }
   }
   renderIdeas(); renderProject(); renderImg(); renderLists();
+  genLoad().then(()=>{ if(current&&!$("view-projets").hidden){ const t=pv.tab; renderProject(); projTab(t); } genWatch(); });
 })();
 })();
 </script>

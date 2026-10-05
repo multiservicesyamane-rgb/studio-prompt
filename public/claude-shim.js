@@ -5,7 +5,8 @@
   - sample  → ton serveur local (server.js), qui appelle Gemini ou Claude avec TA clé, jamais exposée dans la page ;
   - db      → stockage dans le navigateur (localStorage) ;
   - user    → un utilisateur local unique ;
-  - downloads → téléchargement direct d'un fichier.
+  - downloads → téléchargement direct d'un fichier ;
+  - gen     → fabrication sur le serveur local (voix, imports, vidéos si un service payant est activé), absente sur claude.ai.
   Ne change pas les noms des fonctions : toute l'application les utilise.
 */
 (function(){
@@ -140,6 +141,20 @@
       document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     }
   };
-  const caps = {sample, db:{collection}, user, downloads};
+  /* ---------- gen : fabrication sur le serveur local (voix gratuites, imports, vidéos si un service payant est activé) ---------- */
+  async function api(url, opts){
+    let res; try{ res = await fetch(url, opts); }catch(e){ throw fail("network", "Le serveur local ne répond pas : lance « Lancer Studio Prompt »."); }
+    const b = await res.json().catch(() => ({}));
+    if(!res.ok){ if(res.status === 404 || res.status === 405) throw fail("network", "La fabrication marche sur ton ordinateur (Lancer Studio Prompt), pas sur la version en ligne."); throw fail(b.code || "server_error", b.message || ("Erreur du serveur " + res.status)); }
+    return b;
+  }
+  const gen = {
+    status: () => api("/api/gen/status"),
+    voices: provider => api("/api/gen/voices?provider=" + encodeURIComponent(provider || "gemini")),
+    jobs: (project, ids) => api("/api/gen/jobs?" + (project ? "project=" + encodeURIComponent(project) : "") + (ids && ids.length ? "&ids=" + ids.map(encodeURIComponent).join(",") : "")),
+    start: body => api("/api/gen/start", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}),
+    upload: (file, o) => api("/api/gen/upload-file", {method:"POST", headers:{"Content-Type":file.type || "application/octet-stream", "X-Project":(o && o.project) || "projet", "X-Base":(o && o.base) || "import"}, body:file})
+  };
+  const caps = {sample, db:{collection}, user, downloads, gen};
   window.claude = {use: async name => caps[name] || null};
 })();

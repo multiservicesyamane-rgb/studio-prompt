@@ -67,6 +67,7 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 | `public/index.html` | Toute l'interface et toute la logique (≈ 6 200 lignes, ≈ 300 fonctions, dans une seule IIFE) : agents, prompts, pipeline, contrôles, rendu. |
 | `public/claude-shim.js` | Adaptateur qui recrée `window.claude` sur l'ordinateur. **Son interface est stable** : changer le moteur ou le stockage se fait dans l'adaptateur, jamais dans les appels de `index.html`. |
 | `server.js` | Serveur Node 18+, **sans dépendance**. Il sert `public/`, expose `POST /api/sample` (flux NDJSON) et `GET /api/status`, choisit et relaie les moteurs d'IA et fait la recherche web gratuite. Il expose aussi `POST /api/images/generate` (images du Storyboard, payant) et `POST /api/video/analyze` (analyse complète d'une vidéo, gratuite). `SP_NO_DOTENV=1` ignore `.env`, pour les tests. |
+| `generation.js` | Module serveur de **fabrication**, sans dépendance. Il gère les tâches suivies (`public/generated/jobs.json`, reprise après redémarrage), le budget du jour (`GEN_BUDGET_USD`), les voix (Gemini gratuit, une à la fois, avec attente si Google limite par minute ; ElevenLabs), les vidéos (Veo 3.1 avec `GEMINI_MEDIA_API_KEY` ou la clé principale, Runway), les imports (`/api/gen/upload-file`) et la lecture des médias par morceaux (Range). |
 | `public/*_PROMPTING_GUIDE.md`, `public/MASTER_VIDEO_PROMPT_AGENT.md` | Guides de rédaction par générateur. |
 | `references/` | Specs (`DIRECTOR_ENGINE_V4.md`, `creative-director-v2/`, ce fichier), analyses de style et prompts réussis. |
 | `tests/` | Tests de non-régression avec IA simulée (§8). |
@@ -85,6 +86,15 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 - Préférences dans `sp-prefs`.
 
 **`user.id()`** renvoie `"local"`. **`downloads.save({filename, data})`** enregistre un fichier.
+
+**`window.claude.use("gen")`** (seulement en local ; absent sur claude.ai et sur GitHub Pages)
+- Méthodes : `status()`, `voices(provider)`, `jobs(project, ids)`, `start({kind:"voice"|"video", …})`, `upload(file, {project, base})`.
+- Dans la page, cette capacité s'appelle `genApi`. L'état est dans `FAB`.
+- Le projet garde dans `result` :
+  - `voix_casting` : une voix fixe par personnage, `_narr` étant la voix off ;
+  - `generated_voices[n]` ;
+  - `generated_images[n]` : images importées ou générées ;
+  - `generated_videos[n]` : clips importés.
 
 ### 3.2 Moteurs d'IA (côté serveur)
 
@@ -133,6 +143,21 @@ Point d'entrée : `generateProject`.
 4. `rmTimeline` / `splitFullVideoShots` découpent chaque plan source à la durée du générateur. Un segment technique garde l'action, l'axe et l'état.
 5. `params.fullVideoAnalysis` est injecté dans le Scene Engine (« ANALYSE MULTIMODALE ») et dans le Master Plan (« ANALYSE DES PLANS SOURCE »).
 6. Si l'analyse complète échoue (quota, format), les images clés locales (`readVideo` + `describeFrames`) prennent le relais.
+
+Page simplifiée (demande de l'utilisateur du 5 octobre) :
+- On ne voit que la vidéo, « Ce que tu veux améliorer » (ses conseils) et deux boutons.
+- Les paroles extraites (`#rm-words`), le rapport et la ligne « Réglages choisis automatiquement » (`rmAutoSettings`) n'apparaissent qu'après l'analyse.
+- Le format vient des dimensions de la vidéo. Le type et le style viennent du classement de l'analyse : le catalogue `X-Catalog` est envoyé au serveur, et le schéma impose `overview.video_type` et `overview.style_id`. Si l'API refuse ce classement, l'analyse est refaite sans lui.
+- Les réglages restent modifiables, repliés sous « Modifier les réglages ». Le formulaire « conseils sans fichier » est replié.
+
+Sans analyse complète (quota épuisé) :
+- `rmLocalWords` extrait quand même les paroles avec le transcripteur gratuit local (`transcribeLocal` accepte une autre source que la page audio) ;
+- les images clés prennent ensuite le relais.
+
+**Mode RECONSTRUCTION** (`creativePrompt`) :
+- Avec la propre vidéo de l'utilisateur, hors choix « Réinventée », le moteur d'idées ne génère pas 12 concepts.
+- L'histoire, les personnages, les lieux, l'ordre des événements, les paroles et le message sont verrouillés ; seule la réalisation est améliorée.
+- Avant ce mode, le moteur pouvait choisir une autre histoire (bug signalé : « il mélange une autre »).
 
 Règle des paroles :
 - avec la propre vidéo de l'utilisateur, les paroles sont verrouillées (`audioLockedOf`) ;
@@ -248,6 +273,9 @@ Ce que le code corrige :
 3. **Audio imposé** (V3) : il l'emporte sur la taille de scène et le découpage V4. Il y a un plan par unité audio, et la durée suit la source.
 4. **Caméra, lumière, figurants** : V4 l'emporte sur toute formule de style plus ancienne.
 5. **Éthique et sécurité** (§2) : elles l'emportent sur tout le reste.
+6. **Remake** :
+   - avec la propre vidéo de l'utilisateur, l'histoire source est verrouillée (mode RECONSTRUCTION) et l'emporte sur l'exploration de concepts de V2 ;
+   - avec la vidéo d'un autre ou le choix « Réinventée », une nouvelle histoire est obligatoire.
 
 ## 6. Carte des composants
 
@@ -261,11 +289,12 @@ Ce que le code corrige :
 | Director Critic | ✅ existe | Critique du modèle + `codeDefects` + `masterPlanFailures` | Contrôle par le code de la crédibilité temporelle (aujourd'hui seulement une règle du prompt) |
 | Video Critic | ✅ existe | `runVideoCritic`, `vcApplyMasterPatch` | — |
 | Analyse vidéo (compréhension) | ✅ existe | `/api/video/analyze`, `analyzeFullVideo`, `renderRmReport` | — |
-| Cost Optimizer | ❌ absent | Seulement indirect : relais vers les modèles gratuits, `BATCH_SHOTS`, compression | Estimation du coût en crédits par plan et par modèle, choix de la qualité, limite de régénérations |
+| Cost Optimizer | 🟡 partiel | Budget du jour réservé puis rendu en cas d'échec (`generation.js`) ; prix indicatifs datés ; méthode gratuite (application Gemini + Flow, puis imports) | Estimation complète par projet avant fabrication, limite de régénérations |
 | Model Router | ✅ existe | `MODEL_CAPABILITIES` (veo, runway, wan), `routeShotModel` | Adaptateurs Kling et Seedance (prévus par V2, pas encore écrits) |
-| API vidéo | ❌ absent | L'utilisateur colle les prompts dans le générateur | Appel direct de Veo et des autres depuis `server.js` (clés côté serveur uniquement) |
-| Jobs asynchrones | ❌ absent | Appels en flux depuis l'onglet ouvert ; une vidéo longue fait de nombreux appels à la suite | File de tâches côté serveur, reprise après fermeture de l'onglet, état persistant |
-| Montage | 🟡 partiel | Pré-montage dans le navigateur (`runPremontage`, MediaRecorder MP4), `editing_plan`, export SRT | Montage final avec musique, transitions et export haute qualité |
+| API vidéo | 🟡 partiel | Côté serveur, Veo 3.1 et Runway sont prêts et testés avec un faux service (`generation.js`). L'utilisateur reste **gratuit** : il fait ses clips dans Google Flow et les importe (`genImportFiles`, `clipHtml`). | Boutons « Fabriquer la vidéo » dans l'interface, à brancher le jour où un service payant est activé |
+| Jobs asynchrones | ✅ existe (fabrication) | `generation.js` : file, une voix à la fois, vidéos en parallèle limité, `jobs.json`, reprise des vidéos déjà commandées | Le pipeline d'écriture (agents) reste lié à l'onglet ouvert |
+| Montage | 🟡 partiel | Pré-montage dans le navigateur (`runPremontage`, MediaRecorder MP4) avec les clips importés et les voix fabriquées (`pmUseProject`, `pmVoices`), `editing_plan`, export SRT | Montage final avec musique, transitions et export haute qualité |
+| Voix | ✅ existe | Onglet Paroles : `castHtml` (voix devinée d'après la fiche, essai), `genVoicesPlan`, « Fabriquer toutes les voix » ; Gemini gratuit ou ElevenLabs | Voix clonée de l'utilisateur |
 | Stockage | 🟡 partiel | `localStorage` via le shim (environ 5 Mo), un seul appareil | IndexedDB ou stockage en ligne **derrière le shim**, synchronisation avec le téléphone |
 
 ## 7. Autres vues et agents
@@ -287,8 +316,9 @@ Ce que le code corrige :
 | `niches` | Niches |
 | `pays` | Pays et monétisation |
 | `memoire` | Leçons apprises et statistiques |
+| `connexions` | « Connexions et voix » : ce qui est gratuit et ce qui est payant, budget du jour, guides des clés (ElevenLabs, projet Google payant séparé), dernières fabrications |
 
-- Le menu compte 4 groupes et 11 liens.
+- Le menu compte 4 groupes et 12 liens.
 - Les anciens liens restent valides grâce aux alias (par exemple `strategie`).
 
 ## 8. Tests
@@ -307,6 +337,8 @@ Ce que le code corrige :
 | `gates-test.js` | Routage d'entrée, tous les contrôles du code V3 et V4, `cameraOne` |
 | `audio-lock-test.js` | Alignement des plans sur l'audio importé |
 | `ui-test.js`, `menu-test.js` | Vues, menu, mobile, mode sombre, console sans erreur |
+| `gen-api-test.js` | `generation.js` face à de faux Google, Runway et ElevenLabs : clé gratuite pour les voix, clé payante pour Veo, budget, facturation absente, voix une à la fois, limites par minute et par jour, imports, Range, sécurité des chemins, reprise |
+| `fab-ui-test.js` | Interface de fabrication avec un vrai `server.js` (`GEN_DIR` séparé) : voix par personnage, essai, voix d'un plan ou de tout le projet, imports groupés d'images et de clips, pré-montage, page Connexions |
 | `video-analyze-test.js` | Vrai `server.js` face à un faux Google : envoi reprenable, état ACTIVE, images/s, mode agentic en flux, schéma, suppression, quota, format refusé |
 | `remake-test.js` | Page « Depuis une vidéo » : vraie petite vidéo, rapport, transcription, découpage, reconstruction, quota épuisé |
 | `../tests/director-pipeline.test.js` | Contrôles de structure de l'autre assistant (`npm test` à la racine) |
@@ -361,6 +393,6 @@ Par ordre de valeur pour l'utilisateur :
 2. **Registre des objets de continuité et verrous d'identité** sous forme de données (au lieu de texte libre), contrôlés par le code d'un plan à l'autre.
 3. **Passe de compression dédiée** après le premier storyboard, avec un rapport des plans fusionnés ou supprimés.
 4. **Stockage IndexedDB, puis en ligne** derrière `claude-shim.js`, pour avoir plus de place et retrouver ses projets sur le téléphone.
-5. **Jobs asynchrones côté serveur** pour les vidéos longues : reprise si l'onglet se ferme.
-6. **API vidéo directe** (Veo d'abord), uniquement côté serveur, avec suivi de la tâche et Video Critic automatique sur le clip reçu.
+5. **Pipeline d'écriture côté serveur** (les agents) pour les vidéos longues : reprise si l'onglet se ferme. La fabrication l'a déjà.
+6. **Boutons « Fabriquer la vidéo »** (Veo, Runway) dans l'interface, le jour où l'utilisateur active un service payant. Le serveur est prêt ; il faudra brancher le Video Critic automatique sur le clip reçu.
 7. Adaptateurs **Kling** et **Seedance**, avec des capacités documentées, une source officielle et une date de vérification.

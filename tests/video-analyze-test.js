@@ -23,7 +23,9 @@ const fake = http.createServer(async (req, res) => {
   if(req.method === "GET" && u.pathname === "/v1beta/files/abc"){ seen.polls++;
     return json(res, 200, seen.polls < 2 ? {name: "files/abc", state: "PROCESSING"} : {name: "files/abc", uri: `${FAKE}/v1beta/files/abc`, mimeType: "video/mp4", state: "ACTIVE", videoMetadata: {videoDuration: mode === "long" ? "400s" : "20s"}}); }
   if(req.method === "DELETE" && u.pathname === "/v1beta/files/abc"){ seen.deleted = (seen.deleted || 0) + 1; return json(res, 200, {}); }
-  if(u.pathname === "/v1beta/interactions"){ const o = JSON.parse(b.toString()); seen.ask = o;
+  if(u.pathname === "/v1beta/interactions"){ const o = JSON.parse(b.toString()); seen.asks = (seen.asks || 0) + 1;
+    if(mode === "noenum" && /video_type/.test(JSON.stringify(o.response_format))) return json(res, 400, {error: {code: 400, message: "Invalid JSON payload: enum is not supported", status: "INVALID_ARGUMENT"}});
+    seen.ask = o;
     if(mode === "quota") return json(res, 429, {error: {code: 429, message: "Resource has been exhausted", status: "RESOURCE_EXHAUSTED"}}, {"retry-after": "30"});
     const text = JSON.stringify(ANALYSIS);
     if(o.stream){ res.writeHead(200, {"Content-Type": "text/event-stream"});
@@ -54,6 +56,20 @@ const send = (bytes, headers) => new Promise((r, j) => { const q = http.request(
     check("modèle Flash le plus récent choisi automatiquement", seen.ask.model === "gemini-3.8-flash" && r.body.model === "gemini-3.8-flash", seen.ask.model);
     check("vidéo supprimée chez Google après l'analyse", seen.deleted === 1 && r.body.source_deleted === true && r.body.processing === "static_4fps", `${seen.deleted} ${r.body.processing}`);
     check("nom de fichier nettoyé, aucune clé renvoyée", seen.start.name === "Ma-vid-o-d-t-mp4" && !/cle-test/.test(JSON.stringify(r.body)), seen.start.name);
+    // 1 bis. catalogue de Studio Prompt : Gemini choisit le type et le style, l'application règle le projet toute seule
+    seen = {};
+    const CAT = {types: [["tale", "Conte / fable"], ["documentary", "Documentaire"]], styles: [["realiste", "Réaliste cinéma"], ["anim3d", "Animation 3D"]]};
+    r = await send(video, Object.assign({}, H, {"X-Catalog": encodeURIComponent(JSON.stringify(CAT))}));
+    const ov = seen.ask && seen.ask.response_format.schema.properties.overview;
+    check("classement : type et style choisis parmi ceux de Studio Prompt (schéma imposé)", r.status === 200 && ov && ov.properties.video_type.enum.join() === "tale,documentary" && ov.properties.style_id.enum.join() === "realiste,anim3d" && /CLASSEMENT POUR STUDIO PROMPT/.test(seen.ask.input[1].text), ov ? JSON.stringify(ov.properties.video_type) : `${r.status}`);
+    seen = {};
+    r = await send(video, Object.assign({}, H, {"X-Catalog": "%7Bpas-du-json"}));
+    check("catalogue illisible : analyse normale, sans classement", r.status === 200 && !seen.ask.response_format.schema.properties.overview.properties.video_type && !/CLASSEMENT/.test(seen.ask.input[1].text), String(r.status));
+    // 1 ter. si l'API refuse le classement, l'analyse complète est refaite sans lui (jamais perdue)
+    mode = "noenum"; seen = {};
+    r = await send(video, Object.assign({}, H, {"X-Catalog": encodeURIComponent(JSON.stringify(CAT))}));
+    check("classement refusé par l'API : analyse refaite sans lui, rapport complet quand même", r.status === 200 && r.body.shots && r.body.shots.length === 2 && seen.asks === 2 && !/CLASSEMENT/.test(seen.ask.input[1].text) && /flux visuel ET le flux audio/.test(seen.ask.input[1].text), `${r.status} · ${seen.asks} demande(s)`);
+    mode = "short";
     // 2. vidéo longue : mode agentic + flux
     mode = "long"; seen = {};
     r = await send(video, Object.assign({}, H, {"X-Video-Duration": "400"}));
