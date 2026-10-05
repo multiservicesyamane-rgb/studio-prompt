@@ -313,6 +313,13 @@ dl.kv dd{margin:0;font-size:15px}
 .shot.done .shot-n{color:var(--good)}
 .desk-only{display:none}
 @media (min-width:960px){ .desk-only{display:inline} }
+#stats-panel{margin-bottom:18px}
+.stat-table{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-sm)}
+.stat-table table{width:100%;border-collapse:collapse;font-size:13.5px}
+.stat-table th,.stat-table td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.stat-table td:first-child{white-space:normal;min-width:180px}
+.stat-table th{background:var(--sunken);font-weight:700;font-size:12.5px}
+.stat-pick label{border-radius:var(--r-sm);align-items:flex-start}
 .monet-quick{display:flex;flex-direction:column;gap:10px}
 .mq{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;font-size:14px}
 .mq .chip{white-space:nowrap}
@@ -1006,6 +1013,13 @@ input[type=text].plain-in{background:var(--surface)}
             <span class="kicker">Mes contenus · mémoire de l'agent</span>
             <h1>Ce que tes clips ont appris à l'agent.</h1>
             <p>Chaque fois que tu notes un clip « Réussi » ou « Raté », l'agent en tire une règle générale et l'applique à tous tes prochains prompts.</p>
+          </div>
+          <div class="panel" id="stats-panel">
+            <h2 class="sub-h">Apprendre de tes statistiques YouTube</h2>
+            <p class="hint">Dans YouTube Studio : <b>Statistiques › Mode avancé</b>, choisis la période (par exemple « Depuis la création »), puis le bouton <b>Exporter</b> (flèche) › <b>Valeurs séparées par des virgules (.csv)</b>. Dépose ici le fichier .zip téléchargé, ou le fichier « Table data.csv » qu'il contient.</p>
+            <div class="field"><label for="stats-file">Ton export YouTube Studio</label><input type="file" id="stats-file" accept=".csv,.zip,.txt,text/csv,application/zip"></div>
+            <div class="actions"><button type="button" class="btn primary" id="stats-go">Analyser mes statistiques</button><span class="hint" id="stats-msg"></span></div>
+            <div id="stats-res" aria-live="polite"></div>
           </div>
           <p class="hint" id="mem-stats"></p>
           <div id="mem-list" aria-live="polite"></div>
@@ -1993,6 +2007,7 @@ PRINCIPE SUPRÊME : cherche d'abord une situation ou une expérience visuelle qu
 - DIRECTOR CRITIC : ne flatte pas. Pour chaque défaut, donne problème, raison, scène, correction concrète et effet attendu. Décision unique : APPROVED FOR PRODUCTION, APPROVED WITH NOTES, REWRITE REQUIRED ou REJECT CONCEPT.
 
 Dans le JSON, laisse personnage, desir, obstacle, conflit, objet_narratif, indices_reveal, reveal, climax, payoff ou micro_drame vides lorsqu'ils ne s'appliquent pas au format ; ne les invente jamais pour remplir le schéma.
+${learningBlock(p,"strategie")}
 
 RÉPONDS UNIQUEMENT avec ce JSON :
 {"concepts":[{"titre":"","situation":"","hook_silencieux":"","personnage":"","desir":"","obstacle":"","question":"","conflit":"","objet_narratif":"","escalade":"","reveal":"","payoff":"","scores":{"hook":0,"curiosite":0,"desir_personnage":0,"conflit":0,"interactions":0,"potentiel_visuel":0,"emotion":0,"originalite":0,"escalade":0,"payoff":0,"simplicite_ia":0,"comprehension_muette":0}}],"top_5":[""],"top_3":[""],"selection":{"titre":"","raison":"","promesse_spectateur":"","hook_silencieux":"","question_centrale":"","objectif":"","obstacle":"","objet_narratif":"","indices_reveal":["","",""],"reveal":"","climax":"","payoff":"","comprehension_mode_muet":${profile.silent},"progression":[{"etape":"HOOK","fonction_dramatique":"","qui_veut_quoi":"","obstacle_actuel":"","declencheur":"","action":"","reaction":"","consequence":"","changement":"","objet":"","information_nouvelle":"","question_suivante":"","acting":{"intention":"","comportement_visible":"","micro_reaction":"","geste":"","regard":"","respiration_voix":""},"staging":"","difficulte_ia":"","duree_recommandee":0}],"micro_drame":{"qui":"","veut":"","obstacle":"","action":"","reaction":"","changement":"","question_suivante":""},"decision":"APPROVED FOR PRODUCTION","module_a_corriger":"","forces":[""],"defauts_bloquants":[{"probleme":"","pourquoi":"","scene":"","correction":"","effet_attendu":""}],"scores":{"concept":0,"hook":0,"curiosite":0,"desir_personnage":0,"conflit":0,"clarte":0,"visual_storytelling":0,"acting":0,"progression":0,"escalade":0,"surprise":0,"emotion":0,"payoff":0,"potentiel_visuel":0,"comprehension_muette":0,"originalite":0,"simplicite_ia":0,"continuite":0,"retention":0},"corrections_effectuees":[""]}}.`;
@@ -2512,16 +2527,19 @@ const LESSON_BAD = [
   ["continuite","Raccord raté","Reprends exactement l'état de fin du plan précédent (position, tenue, lumière, objets) au début du plan suivant."]
 ];
 const LESSON_GOOD = [["visage","Visages fidèles"],["mouvement","Mouvement naturel"],["realisme","Vraiment réaliste"],["son","Bon son, bonnes voix"],["dialogue","Dialogue vivant"],["camera","Belle caméra"],["rythme","Bon rythme"]];
-const LESSON_DOMAIN = {visage:"Visage",mains:"Mains et corps",corps:"Mains et corps",mouvement:"Mouvement",camera:"Caméra",cadrage:"Cadrage",realisme:"Réalisme",lumiere:"Lumière",son:"Son",dialogue:"Dialogue",texte:"Texte à l'image",rythme:"Rythme",continuite:"Continuité",autre:"Général"};
+const LESSON_DOMAIN = {titre:"Titre",accroche:"Accroche",sujet:"Sujet",duree:"Durée",format:"Format",publication:"Publication",visage:"Visage",mains:"Mains et corps",corps:"Mains et corps",mouvement:"Mouvement",camera:"Caméra",cadrage:"Cadrage",realisme:"Réalisme",lumiere:"Lumière",son:"Son",dialogue:"Dialogue",texte:"Texte à l'image",rythme:"Rythme",continuite:"Continuité",autre:"Général"};
 const lessonOf = d => Object.assign({id:d.id, at:d.data.updatedAt||0}, d.data.lesson);
-function activeLessons(p){
-  const outil = p && p.outil;
-  return savedLessons().map(lessonOf).filter(l=>l.actif!==false && (!l.portee || l.portee==="tous" || l.portee===outil))
+function activeLessons(p, cible){
+  const outil = p && p.outil, c = cible||"prompt";
+  return savedLessons().map(lessonOf).filter(l=>l.actif!==false && (l.cible||"prompt")===c && (!l.portee || l.portee==="tous" || l.portee===outil))
     .sort((a,b)=>(Number(b.count)||1)-(Number(a.count)||1) || b.at-a.at).slice(0,12);
 }
 /* Bloc injecté dans les prompts de réalisation et de compilation */
-function learningBlock(p){
-  const L = activeLessons(p); if(!L.length) return "";
+function learningBlock(p, cible){
+  const L = activeLessons(p, cible); if(!L.length) return "";
+  if(cible==="strategie") return `CE QUI MARCHE SUR LA CHAÎNE DE L'UTILISATEUR (appris de ses vraies statistiques YouTube ; priorité sur les intuitions génériques, sans recopier d'anciens titres) :
+${L.filter(l=>l.type==="faire").map(l=>"- À FAIRE : "+l.regle).join("\n")}${L.some(l=>l.type==="faire")?"\n":""}${L.filter(l=>l.type!=="faire").map(l=>"- À ÉVITER : "+l.regle).join("\n")}
+`;
   const faire = L.filter(l=>l.type==="faire"), eviter = L.filter(l=>l.type!=="faire"), ex = L.filter(l=>l.type==="faire" && l.exemple).slice(0,2);
   return `MÉMOIRE D'APPRENTISSAGE (leçons tirées des vrais clips que l'utilisateur a générés et notés ; elles priment sur les habitudes génériques : applique-les à chaque plan concerné, sans changer l'histoire) :
 ${faire.length?"À FAIRE :\n"+faire.map(l=>"- "+l.regle).join("\n")+"\n":""}${eviter.length?"À ÉVITER OU CORRIGER :\n"+eviter.map(l=>"- "+l.regle).join("\n")+"\n":""}${ex.length?"PROMPTS QUI ONT DONNÉ DE BONS CLIPS (modèle de précision et d'écriture, jamais d'histoire ni de personnages) :\n"+ex.map(l=>'"""'+clip(l.exemple,600)+'"""').join("\n")+"\n":""}`;
@@ -2541,7 +2559,7 @@ async function storeLesson(l, extra){
   const col = db.collection("data/users/"+uid), known = savedLessons();
   const same = known.find(d=>d.id===l.same_as) || known.find(d=>normRule(d.data.lesson.regle)===normRule(l.regle));
   if(same){ const cur=same.data.lesson; await col.doc(same.id).update({lesson:Object.assign({},cur,{count:(Number(cur.count)||1)+1, actif:true, exemple:cur.exemple||extra.exemple||""}), updatedAt:Date.now()}); return {regle:cur.regle, nouveau:false}; }
-  const lesson = {regle:String(l.regle).trim().slice(0,240), type:l.type==="faire"?"faire":"eviter", domaine:LESSON_DOMAIN[l.domaine]?l.domaine:"autre", portee:["veo","runway","wan","tous"].includes(l.portee)?l.portee:"tous", source:extra.source, count:1, actif:true, exemple:extra.exemple||"", raisons:extra.raisons||[], origine:extra.origine||""};
+  const lesson = {regle:String(l.regle).trim().slice(0,240), type:l.type==="faire"?"faire":"eviter", domaine:LESSON_DOMAIN[l.domaine]?l.domaine:"autre", portee:["veo","runway","wan","tous"].includes(l.portee)?l.portee:"tous", source:extra.source, cible:extra.cible||"prompt", count:1, actif:true, exemple:extra.exemple||"", raisons:extra.raisons||[], origine:extra.origine||""};
   await col.doc().set({kind:"lesson", titre:lesson.regle.slice(0,60), lesson, createdAt:Date.now(), updatedAt:Date.now()});
   return {regle:lesson.regle, nouveau:true};
 }
@@ -2594,7 +2612,7 @@ function renderLessons(){
   $("mem-stats").textContent = L.length ? `${L.length} leçon${L.length>1?"s":""} · ${on} appliquée${on>1?"s":""} à tes prochains prompts (les 12 plus confirmées par outil).` : "";
   if(!db||!uid){ host.innerHTML=`<p class="empty">La mémoire s'enregistre quand l'application est ouverte avec son serveur.</p>`; return; }
   if(!L.length){ host.innerHTML=`<div class="empty"><span>Aucune leçon pour l'instant. Après avoir généré un clip, ouvre son plan dans ton projet et touche « Réussi » ou « Raté » : l'agent en tirera une règle pour toutes tes prochaines vidéos.</span><button type="button" class="btn small" data-go-inline="projets">Ouvrir mes projets</button></div>`; return; }
-  const row = d => { const l=d.data.lesson; return `<div class="row lesson${l.actif===false?" off":""}" data-lesson-row="${esc(d.id)}"><div><span class="t">${esc(l.regle)}</span><span class="m">${esc(LESSON_DOMAIN[l.domaine]||"Général")} · ${esc(!l.portee||l.portee==="tous"?"tous les outils":label("outil",l.portee))} · ${Number(l.count)>1?`confirmée ${esc(l.count)} fois`:"vue 1 fois"} · ${esc(l.source==="critic"?"Video Critic":l.source==="manuel"?"ajoutée par toi":"ton retour")} · ${esc(fmtDate(d.data.updatedAt))}${l.actif===false?" · désactivée":""}</span></div>
+  const row = d => { const l=d.data.lesson; return `<div class="row lesson${l.actif===false?" off":""}" data-lesson-row="${esc(d.id)}"><div><span class="t">${esc(l.regle)}</span><span class="m">${esc(LESSON_DOMAIN[l.domaine]||"Général")} · ${esc(!l.portee||l.portee==="tous"?"tous les outils":label("outil",l.portee))} · ${Number(l.count)>1?`confirmée ${esc(l.count)} fois`:"vue 1 fois"} · ${esc(l.source==="critic"?"Video Critic":l.source==="manuel"?"ajoutée par toi":l.source==="stats"?"tes statistiques":"ton retour")} · ${esc(fmtDate(d.data.updatedAt))}${l.actif===false?" · désactivée":""}</span></div>
     <div class="acts"><button type="button" class="btn small quiet" data-lesson-toggle="${esc(d.id)}">${l.actif===false?"Réactiver":"Désactiver"}</button><button type="button" class="btn small quiet" data-lesson-edit="${esc(d.id)}">Modifier</button><button type="button" class="btn small quiet" data-del="${esc(d.id)}">Supprimer</button></div></div>`; };
   const ev=L.filter(d=>d.data.lesson.type!=="faire"), fa=L.filter(d=>d.data.lesson.type==="faire");
   host.innerHTML = (ev.length?`<h2 class="sub-h">À éviter</h2><div class="list">${ev.map(row).join("")}</div>`:"") + (fa.length?`<h2 class="sub-h">À faire</h2><div class="list">${fa.map(row).join("")}</div>`:"");
@@ -2785,6 +2803,7 @@ HISTOIRE COMPLÈTE : pour chaque idée, écris aussi "histoire", l'histoire comp
 
 TROIS COUCHES pour chaque idée : divertissement (pourquoi on continue à regarder : rire, mystère, danger, curiosité, surprise), émotion (joie, compassion, injustice, peur, espoir, fierté, regret), enseignement (ce qui reste, souvent compris par les conséquences sans être annoncé).
 
+${learningBlock({outil:form.outil},"strategie")}
 RÉPONDS UNIQUEMENT avec un objet JSON valide, de cette forme :
 {"idees":[{"titre":"","titre_local":"","histoire":"","inspiration":"pays, culture ou source d'inspiration","sujet":"sujet humain","probleme":"problème concret","enseignement":"idée ou enseignement de départ","source":{"texte":"","auteur":"","reference":"","statut":"verifiee|paraphrase|incertaine|aucune"},"interet":"pourquoi cette idée est intéressante","adaptation":"comment elle s'adapte au contexte demandé","concept":"le concept en deux phrases","personnage":"personnage principal","accroche":"","conflit":"","scenes":["scène forte 1","scène forte 2","scène forte 3"],"retournement":"","fin":"","enseignement_implicite":"","a_retenir":"ce que le spectateur devrait retenir","accroche_3s":"image et phrase des 3 premières secondes","boucle_ouverte":"la question qui fait rester","pic_emotionnel":"le moment le plus fort","couches":{"divertissement":"","emotion":"","enseignement":""},"potentiel":{"emotion":"","humour":"","video":""},"viralite":"pourquoi elle peut devenir virale dans le pays cible","format_ideal":"plateforme, format et durée","genre":"conte|thriller|epopee|drame|pub|docu|comedie"}]}
 Tout est en français. Chaque idée est très différente des autres (cultures, mécanismes et situations). Phrases concrètes et visuelles, faciles à filmer.`;
@@ -3458,6 +3477,111 @@ $("desk").addEventListener("submit", async e=>{
 $("stop").addEventListener("click",()=>{ if(ctl) ctl.abort(); });
 
 /* Version améliorée d'un projet : l'agent reçoit le projet actuel et la critique, puis réécrit le projet complet */
+/* =================== APPRENDRE DE TES STATISTIQUES (export YouTube Studio) =================== */
+async function inflateRaw(bytes){ const st=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")); return await new Response(st).text(); }
+/* Lit un fichier d'une archive .zip (répertoire central), sans bibliothèque */
+async function zipText(buf, pick){
+  const u=new Uint8Array(buf), v=new DataView(buf); let e=-1;
+  for(let i=u.length-22;i>=Math.max(0,u.length-70000);i--){ if(v.getUint32(i,true)===0x06054b50){ e=i; break; } }
+  if(e<0) return null;
+  const n=v.getUint16(e+10,true), files=[]; let p=v.getUint32(e+16,true);
+  for(let k=0;k<n && p+46<=u.length;k++){ if(v.getUint32(p,true)!==0x02014b50) break;
+    const method=v.getUint16(p+10,true), csize=v.getUint32(p+20,true), nl=v.getUint16(p+28,true), xl=v.getUint16(p+30,true), cl=v.getUint16(p+32,true), off=v.getUint32(p+42,true);
+    files.push({name:new TextDecoder().decode(u.subarray(p+46,p+46+nl)), method, csize, off}); p+=46+nl+xl+cl; }
+  const f=pick(files); if(!f) return null;
+  const ds=f.off+30+v.getUint16(f.off+26,true)+v.getUint16(f.off+28,true), data=u.subarray(ds, ds+f.csize);
+  return f.method===0 ? new TextDecoder().decode(data) : await inflateRaw(data);
+}
+function parseCsv(t){
+  t=String(t||"").replace(/^\uFEFF/,""); const head=t.split("\n")[0], delim=(head.match(/;/g)||[]).length>(head.match(/,/g)||[]).length?";":(head.match(/\t/g)||[]).length>(head.match(/,/g)||[]).length?"\t":",";
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<t.length;i++){ const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){ cell+='"'; i++; } else q=false; } else cell+=c; }
+    else if(c==='"') q=true; else if(c===delim){ row.push(cell); cell=""; } else if(c==="\n"){ row.push(cell); rows.push(row); row=[]; cell=""; } else if(c!=="\r") cell+=c; }
+  if(cell||row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(x=>String(x).trim()));
+}
+/* Colonnes reconnues (YouTube Studio en français ou en anglais, et exports semblables) */
+const STAT_COLS = [["id",/^(content|contenu|video id|id de la vidéo)$/i],["titre",/(video title|titre de la vid|^titre$|^title$)/i],["date",/(publish|publication)/i],["duree",/^(duration|durée)$/i],["vues",/^(views|vues|video views)$/i],
+  ["dureeMoy",/(average view duration|durée moyenne)/i],["pctMoy",/(average percentage|pourcentage moyen)/i],["heures",/(watch time|durée de visionnage)/i],["abonnes",/(subscribers|abonnés)/i],["impressions",/^impressions$/i],["ctr",/(click-through|taux de clics)/i],["revenus",/(revenue|revenus)/i]];
+function statNum(x){
+  let s=String(x==null?"":x).trim().replace(/[\s\u00a0]/g,"").replace("%","");
+  if(/^\d+:\d{1,2}(:\d{1,2})?$/.test(s)){ return s.split(":").map(Number).reduce((a,b)=>a*60+b,0); }
+  if(/^-?\d+,\d+$/.test(s)) s=s.replace(",","."); else s=s.replace(/,/g,"");
+  const n=parseFloat(s); return isFinite(n)?n:null;
+}
+function statsFromCsv(text){
+  const rows=parseCsv(text); if(rows.length<2) throw {code:"bad_request", message:"Fichier vide ou illisible : choisis le fichier « Table data.csv » de l'export YouTube Studio."};
+  const head=rows[0].map(h=>String(h).trim()), col={};
+  head.forEach((h,i)=>{ const k=(STAT_COLS.find(([key,re])=>!(key in col) && re.test(h))||[])[0]; if(k) col[k]=i; });
+  if(!("titre" in col) || !("vues" in col)) throw {code:"bad_request", message:`Colonnes « titre » et « vues » introuvables. Colonnes lues : ${head.slice(0,8).join(", ")}.`};
+  const vids=rows.slice(1).map(r=>{ const o={}; Object.entries(col).forEach(([k,i])=>{ o[k]= ["id","titre","date"].includes(k) ? String(r[i]||"").trim() : statNum(r[i]); }); return o; })
+    .filter(o=>o.titre && !/^(total|totaux)$/i.test(o.titre) && !/^(total|totaux)$/i.test(o.id||"") && o.vues!=null);
+  if(!vids.length) throw {code:"bad_request", message:"Aucune vidéo trouvée dans ce fichier."};
+  return vids;
+}
+const median = a => { const b=a.filter(x=>x!=null&&isFinite(x)).sort((x,y)=>x-y); return b.length ? (b.length%2 ? b[(b.length-1)/2] : (b[b.length/2-1]+b[b.length/2])/2) : null; };
+function statsSummary(v){
+  const med=median(v.map(x=>x.vues)), ok=v.filter(x=>x.vues>=Math.max(1,(med||0)*0.2));
+  const top=(k,n)=>ok.filter(x=>x[k]!=null).sort((a,b)=>b[k]-a[k]).slice(0,n);
+  const buckets=[["moins d'1 min",0,60],["1 à 3 min",60,180],["3 à 8 min",180,480],["plus de 8 min",480,1e9]].map(([l,a,b])=>{ const g=v.filter(x=>x.duree!=null&&x.duree>=a&&x.duree<b); return {duree:l, videos:g.length, vues_medianes:median(g.map(x=>x.vues)), pct_moyen:median(g.map(x=>x.pctMoy))}; }).filter(x=>x.videos);
+  const days=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"], byDay=days.map((d,i)=>{ const g=v.filter(x=>{ const t=Date.parse(x.date); return !isNaN(t)&&new Date(t).getDay()===i; }); return {jour:d, videos:g.length, vues_medianes:median(g.map(x=>x.vues))}; }).filter(x=>x.videos);
+  return {videos:v.length, vues_totales:Math.round(v.reduce((a,x)=>a+(x.vues||0),0)), vues_medianes:med, top_vues:top("vues",8), top_retention:top("pctMoy",5), top_ctr:top("ctr",5), durees:buckets, jours:byDay};
+}
+function statsPrompt(sum, v){
+  const pick=x=>({titre:x.titre, duree_s:x.duree, vues:x.vues, ctr:x.ctr, pct_moyen:x.pctMoy, duree_moy_s:x.dureeMoy, date:x.date, abonnes:x.abonnes});
+  const sorted=v.slice().sort((a,b)=>b.vues-a.vues);
+  return `Tu es l'analyste de croissance d'une chaîne de vidéos faites avec l'IA (histoires, séries et formats réalistes). Voici les VRAIES statistiques de la chaîne, exportées de YouTube Studio.
+RÉSUMÉ CALCULÉ : ${JSON.stringify({videos:sum.videos, vues_totales:sum.vues_totales, vues_medianes:sum.vues_medianes, par_duree:sum.durees, par_jour:sum.jours})}
+MEILLEURES VIDÉOS : ${JSON.stringify(sorted.slice(0,15).map(pick))}
+MOINS BONNES : ${JSON.stringify(sorted.slice(-10).map(pick))}
+Analyse ce qui fait la différence : sujets, promesse du titre, accroche probable, durée, format, jour de publication. Ne t'appuie que sur ces chiffres ; si l'échantillon est trop petit pour conclure sur un point, dis-le.
+regles = 4 à 8 règles GÉNÉRALES pour les prochaines vidéos, à l'impératif, 25 mots au plus, sans citer un titre précis (type faire ou eviter ; domaine titre, accroche, sujet, duree, format, publication ou rythme).
+idees = 5 idées de vidéos NOUVELLES dans la lignée de ce qui marche (jamais une copie d'une vidéo existante).
+RÉPONDS UNIQUEMENT avec ce JSON : {"resume":"","ce_qui_marche":[""],"ce_qui_ne_marche_pas":[""],"regles":[{"regle":"","type":"faire|eviter","domaine":"titre|accroche|sujet|duree|format|publication|rythme"}],"idees":[{"titre":"","pourquoi":""}]}`;
+}
+const fmtN = n => n==null ? "—" : Number(n).toLocaleString("fr-FR",{maximumFractionDigits:1});
+const fmtS = s => s==null ? "—" : `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,"0")}`;
+function statsHtml(st){
+  const s=st.sum, a=st.ia||{};
+  const table=(rows,cols)=>`<div class="stat-table"><table><thead><tr>${cols.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(c[1](r))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  return `<div class="facts"><div><span class="label">Vidéos</span><span>${fmtN(s.videos)}</span></div><div><span class="label">Vues au total</span><span>${fmtN(s.vues_totales)}</span></div><div><span class="label">Vues médianes</span><span>${fmtN(s.vues_medianes)}</span></div></div>
+    <h3 class="sub-h">Tes meilleures vidéos</h3>${table(s.top_vues,[["Titre",r=>r.titre],["Vues",r=>fmtN(r.vues)],["Durée",r=>fmtS(r.duree)],["Regardé",r=>r.pctMoy==null?"—":fmtN(r.pctMoy)+" %"],["Clics",r=>r.ctr==null?"—":fmtN(r.ctr)+" %"]])}
+    ${s.durees.length>1?`<h3 class="sub-h">Selon la durée</h3>${table(s.durees,[["Durée",r=>r.duree],["Vidéos",r=>r.videos],["Vues médianes",r=>fmtN(r.vues_medianes)],["Regardé",r=>r.pct_moyen==null?"—":fmtN(r.pct_moyen)+" %"]])}`:""}
+    ${s.jours.length>1?`<h3 class="sub-h">Selon le jour de publication</h3>${table(s.jours,[["Jour",r=>r.jour],["Vidéos",r=>r.videos],["Vues médianes",r=>fmtN(r.vues_medianes)]])}`:""}
+    ${a.resume?`<h3 class="sub-h">Ce que l'agent en retient</h3><p>${esc(a.resume)}</p>`:""}
+    ${(a.ce_qui_marche||[]).length?`<div><span class="label">Ce qui marche</span><ul class="plain">${a.ce_qui_marche.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+    ${(a.ce_qui_ne_marche_pas||[]).length?`<div><span class="label">Ce qui marche moins</span><ul class="plain">${a.ce_qui_ne_marche_pas.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+    ${(a.regles||[]).length?`<div class="stat-rules"><span class="label">Règles pour tes prochaines vidéos (coche celles à retenir)</span><div class="pick stat-pick">${a.regles.map((r,i)=>`<label><input type="checkbox" value="${i}" checked> ${r.type==="faire"?"À faire":"À éviter"} : ${esc(r.regle)}</label>`).join("")}</div><div class="actions"><button type="button" class="btn small primary" id="stats-keep">Retenir ces règles</button><span class="hint" id="stats-keep-msg"></span></div></div>`:""}
+    ${(a.idees||[]).length?`<div><span class="label">Idées dans la lignée de tes succès</span><ul class="plain">${a.idees.map((x,i)=>`<li><b>${esc(x.titre)}</b> — ${esc(x.pourquoi||"")} <button type="button" class="linklike" data-stat-idea="${i}">Créer cette vidéo</button></li>`).join("")}</ul></div>`:""}`;
+}
+let lastStats = null;
+try{ lastStats = JSON.parse(localStorage.getItem("sp-last-stats")||"null"); }catch(e){}
+function renderStats(){ const h=$("stats-res"); if(h) h.innerHTML = lastStats ? statsHtml(lastStats) : ""; }
+$("stats-go").addEventListener("click", async ()=>{
+  const f=$("stats-file").files&&$("stats-file").files[0], msg=$("stats-msg"), btn=$("stats-go");
+  if(!f){ msg.textContent="Choisis d'abord ton export YouTube Studio (.zip ou .csv)."; return; }
+  btn.disabled=true; msg.textContent="Lecture de tes statistiques…";
+  try{
+    const buf=await f.arrayBuffer(), isZip=new Uint8Array(buf.slice(0,2)).join()==="80,75";
+    const text = isZip ? await zipText(buf, files=>files.find(x=>/table|tableau/i.test(x.name)&&/\.csv$/i.test(x.name))||files.find(x=>/\.csv$/i.test(x.name))) : new TextDecoder().decode(buf);
+    if(!text) throw {code:"bad_request", message:"Aucun fichier .csv dans cette archive."};
+    const vids=statsFromCsv(text), sum=statsSummary(vids);
+    lastStats={at:Date.now(), sum, ia:null}; renderStats();
+    if(sample){
+      msg.textContent=`${vids.length} vidéos lues. L'agent analyse ce qui marche sur ta chaîne…`;
+      try{ const x=await sample.json(statsPrompt(sum, vids), {modelTier:"default", engine:"best", cache:false});
+        lastStats.ia={resume:String(x.resume||""), ce_qui_marche:(x.ce_qui_marche||[]).map(String).slice(0,8), ce_qui_ne_marche_pas:(x.ce_qui_ne_marche_pas||[]).map(String).slice(0,6), regles:(Array.isArray(x.regles)?x.regles:[]).filter(r=>r&&r.regle).slice(0,8).map(r=>({regle:String(r.regle).slice(0,240), type:r.type==="faire"?"faire":"eviter", domaine:String(r.domaine||"autre")})), idees:(Array.isArray(x.idees)?x.idees:[]).filter(i=>i&&i.titre).slice(0,6).map(i=>({titre:String(i.titre), pourquoi:String(i.pourquoi||"")}))};
+        msg.textContent=""; }
+      catch(err){ msg.textContent=`Chiffres calculés. Analyse de l'IA impossible : ${errText(err)}`; }
+    } else msg.textContent=`${vids.length} vidéos lues.`;
+    try{ localStorage.setItem("sp-last-stats", JSON.stringify(lastStats)); }catch(e){}
+    renderStats();
+  }catch(err){ msg.textContent=errText(err); }
+  finally{ btn.disabled=false; }
+});
+renderStats();
+
 /* =================== CONTRÔLE MONÉTISATION AVANT PUBLICATION =================== */
 const MONET_PLAT = [["youtube","YouTube"],["tiktok","TikTok"],["facebook","Facebook"]];
 OPTS.plat = MONET_PLAT;
@@ -5163,8 +5287,8 @@ async function generateProject(idee, params, prefix, signal){
   pipeStart(); const tIn=pipeNow(), route=routeInput(idee, params);
   params = Object.assign({}, params, {inputType:route.type});
   pipeStep("INPUT_ROUTER","DONE",tIn,`${route.type} · ${route.detail}`);
-  const nLes = activeLessons(params).length;
-  pipeStep("LEARNING_MEMORY","DONE",pipeNow(), nLes ? `${nLes} leçon${nLes>1?"s":""} tirée${nLes>1?"s":""} de tes clips appliquée${nLes>1?"s":""}` : "aucune leçon pour l'instant (note tes clips : Réussi / Raté)");
+  const nLes = activeLessons(params).length, nSt = activeLessons(params,"strategie").length;
+  pipeStep("LEARNING_MEMORY","DONE",pipeNow(), (nLes||nSt) ? [nLes?`${nLes} leçon${nLes>1?"s":""} de tes clips`:"", nSt?`${nSt} règle${nSt>1?"s":""} de tes statistiques`:""].filter(Boolean).join(" + ")+" appliquée(s)" : "aucune leçon pour l'instant (note tes clips, importe tes statistiques)");
   const tier = params.qualite==="complex" ? "complex" : "default";
   const prep = await prepareProduction(idee, Object.assign({},params,{qualite:tier}), prefix, signal);
   const compileParams=prep.compileParams, tl=compileParams.timeline||[], total=tl.length;
@@ -5398,6 +5522,7 @@ MISSION : fais MAINTENANT de vraies recherches sur le web (Google), dans les lan
    Pour chaque idée : titre (accrocheur, dans la langue du public), domaine, format (episode_serie, short, histoire, tuto, clip ou ambiance), inspire_de (la série ou la tendance qui prouve que ça marche), pourquoi_maintenant, accroche_3s, resume (3 phrases), scene_cle (la scène la plus forte, en français), prompt_veo_en, potentiel (note de 1 à 10), difficulte_ia (facile, moyenne ou difficile), raison_difficulte, duree (ex. "60 s").
    prompt_veo_en = le prompt Veo 3.1 de la scène clé, en anglais, au format officiel : [cadrage et mouvement de caméra] + [sujet décrit précisément] + [une seule action sur 8 secondes] + [décor] + [lumière et ambiance] + "SFX: …" + "Ambient noise: …" ; une seule prise continue ; ${realism} ; aucun texte à l'écran ; pas de foule ; mains peu visibles.
 ${niches.length?`- Niches de l'utilisateur : ${niches.join(", ")}. Au moins 2 idées doivent servir ces niches.\n`:""}${past.length?`- Idées déjà proposées les jours précédents (ne les repropose pas, trouve d'autres angles) : ${past.join(" ; ")}.\n`:""}
+${learningBlock({outil:form.outil},"strategie")}
 RÉPONDS avec UNIQUEMENT un objet JSON, sans texte autour :
 {"resume_du_jour":"","series":[{"titre":"","diffuseur":"","genre":"","pourquoi":"","public":""}],"tendances":[{"domaine":"","sujet":"","pourquoi":"","format":"","force":"forte"}],"evenements":[{"date":"","nom":"","idee":""}],"idees":[{"titre":"","domaine":"","format":"short","inspire_de":"","pourquoi_maintenant":"","accroche_3s":"","resume":"","scene_cle":"","prompt_veo_en":"","potentiel":8,"difficulte_ia":"facile","raison_difficulte":"","duree":"","langue":"","titre_local":"","plateforme":"","heure":""}]}
 resume_du_jour = 2 phrases sur l'ambiance du moment dans ce pays. Pour chaque idée : langue = la langue de la voix et des titres pour ce public ; titre_local = le titre dans cette langue ; plateforme = où la publier pour être payé (YouTube long, YouTube Shorts, Facebook…) ; heure = la meilleure heure de publication, en heure locale du pays ET en heure de Dakar. Tous les autres champs sont en français, sauf prompt_veo_en en anglais.`;
@@ -5602,6 +5727,12 @@ document.addEventListener("click", async e=>{
   if(t.id==="improve-go" && current){ improveProject(); return; }
   if(t.id==="adapt-go" && current){ adaptProject(); return; }
   if(t.id==="monet-go" && current){ runMonet(); return; }
+  if(t.id==="stats-keep" && lastStats && lastStats.ia && db && uid){
+    const keep=[...document.querySelectorAll("#stats-res .stat-pick input:checked")].map(x=>lastStats.ia.regles[Number(x.value)]).filter(Boolean); t.disabled=true;
+    try{ for(const r of keep) await storeLesson({regle:r.regle, type:r.type, domaine:r.domaine, portee:"tous"}, {source:"stats", cible:"strategie"}); $("stats-keep-msg").textContent=`${keep.length} règle${keep.length>1?"s":""} retenue${keep.length>1?"s":""} : elles guident désormais tes idées, tes concepts et ta veille.`; }
+    catch(err){ $("stats-keep-msg").textContent=errText(err); t.disabled=false; }
+    return; }
+  if(t.dataset.statIdea!=null && lastStats && lastStats.ia){ const x=lastStats.ia.idees[Number(t.dataset.statIdea)]; if(x){ setView("studio"); $("idee").value=`${x.titre}. ${x.pourquoi}`; $("idee").focus(); toast("Idée placée dans « Depuis une idée » : choisis les réglages puis génère."); } return; }
   if(t.dataset.monetPlan && current){ const i=(current.result.plans||[]).findIndex(x=>Number(x.n)===Number(t.dataset.monetPlan)); if(i>=0){ projTab("plans", true); showPlan(i); } return; }
   if(t.id==="copy-all" && current){ const txt=fullText(current,view); try{ await navigator.clipboard.writeText(txt); toast("Tout le projet est copié."); }catch(err){ toast("Copie impossible ici : utilise « Télécharger .txt »."); } return; }
   if(t.id==="dl-txt" && current && downloads){ try{ await downloads.save({filename:slug(current.result.titre)+".txt", data:fullText(current,view)}); toast("Fichier enregistré."); }catch(err){ if(!err||err.code!=="declined") toast("Le téléchargement n'est pas disponible ici."); } return; }
