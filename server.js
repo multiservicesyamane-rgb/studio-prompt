@@ -113,13 +113,56 @@ async function* sseEvents(body){
   const last = parse(buf); if(last) yield last;
 }
 
+/* ---------- Recherche web sans clé ni quota : Google Tendances (recherches du jour par pays) et Google Actualités ----------
+   Le serveur lit les flux publics, puis donne ces données fraîches au modèle. La recherche Google de Gemini reste un bonus. */
+async function fetchText(url, ms = 8000){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try{ const r = await fetch(url, {signal:ctl.signal, headers:{"User-Agent":"Mozilla/5.0 (StudioPrompt)", "Accept-Language":"fr,en;q=0.8"}}); return r.ok ? await r.text() : ""; }
+  catch(e){ return ""; } finally{ clearTimeout(t); }
+}
+const xmlText = s => String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+function rssItems(xml, max){
+  return String(xml || "").split(/<item>/).slice(1, max + 1).map(it => {
+    const g = re => { const m = it.match(re); return m ? xmlText(m[1]) : ""; };
+    return {title:g(/<title>([\s\S]*?)<\/title>/), link:g(/<link>([\s\S]*?)<\/link>/), date:g(/<pubDate>([\s\S]*?)<\/pubDate>/), source:g(/<source[^>]*>([\s\S]*?)<\/source>/), traffic:g(/<ht:approx_traffic>([\s\S]*?)<\/ht:approx_traffic>/),
+      news:[...it.matchAll(/<ht:news_item_title>([\s\S]*?)<\/ht:news_item_title>/g)].map(m => xmlText(m[1])).filter(Boolean).slice(0, 2),
+      newsUrl:(it.match(/<ht:news_item_url>([\s\S]*?)<\/ht:news_item_url>/) || [])[1] || ""};
+  }).filter(x => x.title);
+}
+const shortDate = d => { const t = Date.parse(d); return isNaN(t) ? "" : new Date(t).toLocaleDateString("fr-FR", {day:"numeric", month:"short"}); };
+async function gatherWeb(w){
+  const q = encodeURIComponent, parts = [], srcParts = [];
+  const jobs = [];
+  if(/^[A-Z]{2}$/.test(String(w.geo || ""))) jobs.push(fetchText(`https://trends.google.com/trending/rss?geo=${w.geo}`).then(x => {
+    const items = rssItems(x, 15); if(!items.length) return;
+    parts[0] = `RECHERCHES GOOGLE EN FORTE HAUSSE AUJOURD'HUI (${w.nom}) :\n` + items.map(i => `- ${i.title}${i.traffic ? ` (${i.traffic} recherches)` : ""}${i.news.length ? " : " + i.news.join(" / ") : ""}`).join("\n");
+    srcParts[0] = items.map(i => ({title:`Tendance Google : ${i.title}`, uri:i.newsUrl || `https://trends.google.com/trending?geo=${w.geo}`}));
+  }));
+  (Array.isArray(w.requetes) ? w.requetes : []).slice(0, 6).forEach((rq, k) => jobs.push(fetchText(`https://news.google.com/rss/search?q=${q(String(rq).slice(0, 120) + " when:7d")}&hl=${q(w.hl || "fr")}&gl=${q(w.gl || "FR")}&ceid=${q(w.ceid || "FR:fr")}`).then(x => {
+    const items = rssItems(x, 8); if(!items.length) return;
+    parts[k + 1] = `ACTUALITÉS « ${rq} » (7 derniers jours) :\n` + items.map(i => `- ${i.title}${i.date ? ` (${shortDate(i.date)})` : ""}`).join("\n");
+    srcParts[k + 1] = items.slice(0, 4).map(i => ({title:i.title, uri:i.link}));
+  })));
+  await Promise.all(jobs);
+  const text = parts.filter(Boolean).join("\n\n");
+  return {text, sources:srcParts.filter(Boolean).flat().filter(x => /^https?:\/\//.test(x.uri)).slice(0, 30)};   // tendances d'abord, puis actualités dans l'ordre des requêtes
+}
+
 /* ---------- appel du modèle, réponse en flux (une ligne JSON par morceau) ---------- */
 async function handleSample(req, res){
   let input;
   try{ input = JSON.parse(await readBody(req, 40e6)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Requête illisible."}); }
   if(!PROVIDER) return sendJson(res, 500, {code:"no_key", message:"Aucune clé API : copie .env.example en .env et mets ta clé GEMINI_API_KEY (ou OPENAI_API_KEY, ou ANTHROPIC_API_KEY)."});
-  const prompt = String(input.prompt || ""), images = Array.isArray(input.images) ? input.images.slice(0, 8) : [], json = !!input.json, search = !!input.search;
+  let prompt = String(input.prompt || "");
+  const images = Array.isArray(input.images) ? input.images.slice(0, 8) : [], json = !!input.json, search = !!input.search;
   let searchUsed = search;
+  /* Recherche web : données fraîches de Google Tendances et Actualités ajoutées à la demande, quel que soit le moteur */
+  let web = {text:"", sources:[]};
+  if(search && input.web && typeof input.web === "object"){
+    web = await gatherWeb(input.web);
+    if(web.text) prompt = `DONNÉES DU WEB RÉCUPÉRÉES À L'INSTANT (${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long", year:"numeric"})}) — appuie-toi d'abord sur ces faits réels et récents, sans inventer au-delà :\n${web.text}\n\n` + prompt;
+    console.log(`Recherche web (flux Google) : ${web.sources.length} sources pour « ${input.web.nom || "?"} ».`);
+  }
   /* Un fichier audio (transcription) : seul Gemini sait l'écouter ici */
   const hasAudio = images.some(i => /^audio\//.test(String(i && i.mime)));
   if(hasAudio && !GEMINI_KEY) return sendJson(res, 400, {code:"no_key", message:"La transcription automatique a besoin d'une clé Gemini (GEMINI_API_KEY dans .env) : OpenAI et Claude ne peuvent pas écouter l'audio ici."});
@@ -268,7 +311,7 @@ async function handleSample(req, res){
       if(delta) res.write(JSON.stringify({delta}) + "\n");
     }
     res.write(JSON.stringify({model: prov === "gemini" ? geminiUsed : prov === "openai" ? oaModel : "claude"}) + "\n");
-    if(search){ if(!searchUsed) meta.nosearch = true; meta.engine = prov === "openai" ? `OpenAI ${oaModel}` : prov; res.write(JSON.stringify({meta}) + "\n"); }
+    if(search){ web.sources.forEach(x => addSource(x.title, x.uri)); if(!searchUsed && !web.text) meta.nosearch = true; if(web.text) meta.web = "Google Tendances et Actualités"; meta.engine = (prov === "openai" ? `OpenAI ${oaModel}` : prov) + (web.text ? " + flux Google" : ""); res.write(JSON.stringify({meta}) + "\n"); }
   }catch(e){
     if(!ctl.signal.aborted) res.write(JSON.stringify({error:true, code:"server_error", message:"Flux interrompu : réessaie."}) + "\n");
   }

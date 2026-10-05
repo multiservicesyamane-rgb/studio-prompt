@@ -2858,7 +2858,7 @@ function renderIdeas(){
   const src = lastIdeasMeta && lastIdeasMeta.sources || [];
   host.innerHTML = `<div class="actions" style="justify-content:space-between"><h2 class="sub-h">${lastIdeas.length} idées trouvées</h2><span class="hint">Touche une idée pour la voir en entier.</span></div>`
     + lastIdeas.map((x,i)=>ideaCard(x,i,null)).join("")
-    + (lastIdeasMeta && lastIdeasMeta.nosearch ? `<p class="alert">Recherche web indisponible pour le moment (limite gratuite de la recherche atteinte) : ces idées viennent des connaissances du modèle. Relance plus tard pour des tendances vérifiées.</p>` : "")
+    + (lastIdeasMeta && lastIdeasMeta.nosearch ? `<p class="alert">Recherche web indisponible pour le moment (ni la recherche Google du modèle ni les flux Google Tendances et Actualités n'ont répondu) : ces idées viennent des connaissances du modèle. Vérifie ta connexion Internet, puis relance.</p>` : "")
     + (src.length ? `<details class="fix"><summary>Sources de la recherche web (${src.length})${lastIdeasMeta.engine?` · ${esc(lastIdeasMeta.engine)}`:""}</summary><ul class="plain tv-src">${src.map(x=>`<li><a href="${esc(x.uri)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a></li>`).join("")}</ul></details>` : "");
 }
 let ictl=null;
@@ -2872,7 +2872,7 @@ $("idea-form").addEventListener("submit", async e=>{
   ictl = new AbortController(); $("i-go").disabled=true; $("i-stop").hidden=false;
   showStatus("i-","L'agent explore les cultures et les grands sujets…",false,4);
   try{
-    const opts = {cache:false, search:true, engine:"best", signal:ictl.signal, onText:({text})=>{
+    const opts = {cache:false, search:true, web:webHint(f.pays, [f.theme, f.niche&&f.niche.nom]), engine:"best", signal:ictl.signal, onText:({text})=>{
       const k=(text.match(/"titre"\s*:/g)||[]).length;
       showStatus("i-", k ? `Écriture de l'idée ${Math.min(k,n)} sur ${n}…` : "L'agent cherche sur le web ce qui intéresse ce public en ce moment…", false, 8+88*Math.min(k,n)/n);
     }};
@@ -4089,6 +4089,16 @@ const COUNTRIES = [
   ["us","États-Unis"],["gb","Royaume-Uni"],["ca","Canada"],["au","Australie"],["nz","Nouvelle-Zélande"],["ie","Irlande"],["no","Norvège"],["se","Suède"],["dk","Danemark"],["nl","Pays-Bas"],["de","Allemagne"],["at","Autriche"],["ch","Suisse"],["fr","France"],["be","Belgique"],
   ["es","Espagne"],["it","Italie"],["br","Brésil"],["in","Inde"],["sa","Arabie saoudite"],["ae","Émirats arabes unis"]
 ];
+/* Recherche web sans quota : édition Google Actualités et sujets à chercher pour un pays */
+const NEWS_ED = {sn:["SN","fr"],fr:["FR","fr"],be:["BE","fr"],ma:["MA","fr"],ch:["CH","fr"],de:["DE","de"],at:["AT","de"],nl:["NL","nl"],no:["NO","no"],se:["SE","sv"],dk:["DK","da"],es:["ES","es"],it:["IT","it"],br:["BR","pt-419"],sa:["SA","ar"],ae:["AE","ar"]};
+const WEB_TERMS = {fr:["série","musique","humour","sport"], en:["TV series","music","viral video","sports"]};
+function webHint(code, extra){
+  const c=String(code||"").toLowerCase(), nom=c&&c!=="monde"?label("pays",c):"", en=EN_COUNTRIES.has(c)||["ng","gh","ke","za","in"].includes(c), ed=NEWS_ED[c];
+  const gl=ed?ed[0]:en?c.toUpperCase():"FR", lang=ed?ed[1]:en?"en":"fr", hl=lang==="en"?`en-${gl}`:lang==="pt-419"?"pt-BR":lang;
+  const terms=WEB_TERMS[lang==="en"?"en":"fr"];
+  const req=[...(extra||[]).filter(Boolean).map(x=>nom?`${x} ${nom}`:x), nom, ...terms.map(t=>nom?`${t} ${nom}`:t)];
+  return {geo:nom?c.toUpperCase():"", nom:nom||"international", hl, gl, ceid:`${gl}:${lang}`, requetes:[...new Set(req.filter(Boolean))].slice(0,6)};
+}
 /* Pays où les annonceurs paient le plus par vue, et langue du public */
 const RICH_COUNTRIES = ["us","gb","ca","au"];
 const EN_COUNTRIES = new Set(["us","gb","ca","au","nz","ie"]);
@@ -5290,7 +5300,7 @@ async function runVeille(codes){
     const code = codes[k];
     showStatus("tv-", `Recherche sur le web : ${label("pays",code)} (${k+1} sur ${codes.length})… environ 1 minute par pays.`, false, 6+88*k/codes.length);
     try{
-      const raw = await sample.json(trendPrompt(code, day), {search:true, engine:"best", signal:tvctl.signal, cache:false});
+      const raw = await sample.json(trendPrompt(code, day), {search:true, web:webHint(code), engine:"best", signal:tvctl.signal, cache:false});
       const r = normTrend(raw), m = raw && raw._meta;
       if(!r.idees.length && !r.series.length && !r.tendances.length) throw {code:"invalid_json"};
       v.pays[code] = {r, at:Date.now(), meta: m ? {sources:(m.sources||[]).filter(x=>/^https?:\/\//.test(x.uri)).slice(0,20), queries:(m.queries||[]).slice(0,12), suggestions:String(m.suggestions||"").slice(0,30000)} : null};

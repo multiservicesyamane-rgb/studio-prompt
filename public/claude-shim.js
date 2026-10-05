@@ -29,7 +29,7 @@
     if(opts.images){ const list = opts.images instanceof Blob ? [opts.images] : Array.from(opts.images); images = await Promise.all(list.slice(0, 8).map(toPart)); }
     let res;
     try{
-      res = await fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt, images, tier:opts.modelTier || "default", json:!!json, search:!!opts.search, engine:opts.engine || ""}), signal:opts.signal});
+      res = await fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt, images, tier:opts.modelTier || "default", json:!!json, search:!!opts.search, web:opts.web || null, engine:opts.engine || ""}), signal:opts.signal});
     }catch(e){
       if(e && e.name === "AbortError") throw fail("cancelled", "Annulé.");
       throw fail("network", "Le serveur local ne répond pas : lance « npm start » dans le dossier du projet.");
