@@ -14,3 +14,6 @@ references/*-echec.png
 # Outils de l'éditeur
 .kilocode/
 .vscode/
+
+# Sorties des tests (captures, fichiers générés)
+tests/out/

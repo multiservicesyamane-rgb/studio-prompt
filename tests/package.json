@@ -1,0 +1,13 @@
+{
+  "name": "studio-prompt-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tests de non-régression de Studio Prompt (IA simulée, aucun quota). L'application elle-même reste sans dépendance.",
+  "scripts": {
+    "test": "node run-all.js",
+    "test:code": "node run-all.js gates audio-lock"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}

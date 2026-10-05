@@ -3,7 +3,7 @@
 ## Prompt de départ (à coller dans une nouvelle tâche)
 
 ```
-Tu reprends le projet « Studio Prompt » ouvert dans ce dossier. Lis d'abord LISEZMOI.md, server.js, public/claude-shim.js, puis parcours public/index.html.
+Tu reprends le projet « Studio Prompt » ouvert dans ce dossier. Lis d'abord references/CERVEAU_STUDIO_PROMPT.md (le cerveau du projet : architecture, pipeline, règles V1 à V4 à préserver), puis LISEZMOI.md, server.js, public/claude-shim.js, et parcours public/index.html.
 
 CE QUE C'EST
 Une application web en français pour un créateur de vidéos au Sénégal. Onze agents IA produisent des prompts professionnels pour créer des vidéos virales : Idées, Studio (Agent maître : plans, prompts image → vidéo et texte → vidéo pour Veo et Wan), Images (Nano Banana, ChatGPT Images, Midjourney, Flux, Ideogram), Audio → vidéo (analyse d'un audio dans le navigateur et découpage au dixième de seconde), Vidéo réelle (lecture d'une vidéo, détection des scènes, remake IA), Niches, Pays et monétisation, Personnages, Contrôle qualité, Son et sous-titres, Chaîne YouTube.

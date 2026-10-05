@@ -1,0 +1,32 @@
+// Contrôle monétisation : vérifications immédiates + contrôle complet (IA simulée, aucun quota).
+const p = require("puppeteer-core");
+const out = [], check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — " + x : ""}`);
+let prompt = "";
+(async () => {
+  const b = await p.launch({executablePath: require("./env").EDGE, headless: true}); const pg = await b.newPage(); await require("./noauto")(pg);
+  const errs = []; pg.on("pageerror", e => errs.push(e.message));
+  await pg.setRequestInterception(true);
+  pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ prompt = JSON.parse(r.postData()).prompt || "";
+    const x = /responsable conformité et monétisation/.test(prompt) ? {resume: "Projet familial conforme, un point à corriger.", plateformes: [{id: "youtube", verdict: "À CORRIGER", points: [{plan: 7, regle: "Titre et contenu", constat: "La scène de doute montre une enfant épuisée seule à la nuit tombée.", correction: "Montre le grand-père présent dès le début du plan."}]}, {id: "tiktok", verdict: "OK", points: []}], titres_conformes: ["Elle a creusé 40 jours : la force de la patience"]} : {};
+    r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(x)}) + "\n"}); } else r.continue(); });
+  await pg.setViewport({width: 1366, height: 900});
+  await pg.goto(require("./env").BASE + "/#studio", {waitUntil: "networkidle0"});
+  await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}})); });
+  await pg.reload({waitUntil: "networkidle0"});
+  await pg.evaluate(() => { const bt = [...document.querySelectorAll("button")].find(x => /exemple/i.test(x.textContent)); if(bt) bt.click(); });
+  await pg.waitForSelector('[data-ptab="yt"]'); await pg.click('[data-ptab="yt"]'); await new Promise(r => setTimeout(r, 300));
+  const q = await pg.evaluate(() => ({visible: !document.getElementById("s-monet").hidden, items: [...document.querySelectorAll("#s-monet .mq")].map(x => x.innerText.replace(/\s+/g, " ").slice(0, 90))}));
+  check("section visible dans l'onglet YouTube", q.visible);
+  check("vérifications immédiates : étiquette IA obligatoire (style réaliste), éligibilité, contenu inauthentique", q.items.some(x => /obligatoire Étiquette/.test(x)) && q.items.some(x => /Éligibilité/.test(x)) && q.items.some(x => /inauthentique/.test(x)), q.items.length + " points");
+  await pg.click("#monet-go");
+  await pg.waitForSelector("#monet-res .monet-plat", {timeout: 15000}).catch(() => {});
+  const r = await pg.evaluate(() => ({plats: [...document.querySelectorAll("#monet-res .monet-h")].map(x => x.innerText.replace(/\s+/g, " ")), pts: document.querySelectorAll("#monet-res .monet-pts li").length, titre: (document.querySelector("#monet-res ol li") || {}).textContent || ""}));
+  check("verdict par plateforme", r.plats.some(x => /YouTube À CORRIGER/.test(x)) && r.plats.some(x => /TikTok OK/.test(x)), r.plats.join(" | "));
+  check("point à corriger + titre conforme proposé", r.pts === 1 && /patience/.test(r.titre), r.titre);
+  check("le contrôle relit chaque plan et les règles vérifiées 2026", /"n":11/.test(prompt) && /inauthentique/.test(prompt) && /wolof/.test(prompt));
+  await pg.click('[data-monet-plan="7"]'); await new Promise(r => setTimeout(r, 400));
+  const pl = await pg.evaluate(() => ({tab: (document.querySelector('[data-ptab][aria-selected="true"]') || {}).dataset.ptab, count: (document.getElementById("pg-count") || {}).textContent}));
+  check("lien « plan 7 » ouvre ce plan", pl.tab === "plans" && /Plan 7 sur/.test(pl.count), JSON.stringify(pl));
+  check("aucune erreur JavaScript", errs.length === 0, errs.join(" | "));
+  await b.close(); console.log(out.join("\n"));
+})().catch(e => { console.log(out.join("\n")); console.log("ERREUR DU TEST :", e.message); });

@@ -1,0 +1,342 @@
+# STUDIO PROMPT — CERVEAU FONCTIONNEL
+
+Référence de l'architecte logiciel principal. Les noms de fonctions sont ceux de `public/index.html` ; les numéros de ligne ne sont jamais cités, car ils bougent à chaque modification.
+Dernière mise à jour : 5 octobre 2026 (Director Engine V4).
+
+---
+
+## 0. Avant toute modification
+
+Tu es l'architecte logiciel principal de Studio Prompt et tu réponds de la cohérence de l'ensemble.
+
+- **Le système est cumulatif.** V1, V2, V3 et V4 s'empilent. Aucune fonctionnalité, règle ou capacité existante ne disparaît sans être dite. Quand deux couches se contredisent, applique les règles d'arbitrage du §5.5 et signale le conflit.
+- **Méthode obligatoire pour toute modification importante :**
+  1. inspecter le projet existant ;
+  2. identifier les composants concernés (§4 et §6) ;
+  3. proposer l'architecture ;
+  4. vérifier les risques de régression (§9) ;
+  5. implémenter ;
+  6. tester (§8) ;
+  7. documenter les changements (ce fichier, et `DIRECTOR_ENGINE_V4.md` si le moteur change).
+- **Évolution incrémentale.** Ne réécris jamais l'application si une évolution suffit. Ne crée pas de module en doublon : étends celui qui existe.
+- **Corriger le moteur, jamais une vidéo.** Un défaut constaté sur un projet devient une règle, un contrôle du code ou une correction du pipeline, valable pour toutes les vidéos. La logique centrale ne contient jamais de nom de personnage, d'histoire, de langue, de pays, de marque ni de type de vidéo particulier.
+
+## 1. Le produit
+
+L'utilisateur est un créateur de vidéos IA basé au Sénégal, francophone et non développeur. Il publie des vidéos réalistes (histoires, séries, documentaires, vidéos virales) sur YouTube, TikTok et Facebook. Il vise surtout les pays où le RPM est élevé.
+
+Studio Prompt est son **réalisateur IA**. À partir d'une idée, d'un texte, d'un scénario, d'un audio ou d'une vidéo réelle, il produit :
+- une histoire qui retient (hook, question, progression, payoff) ;
+- des scènes, puis des plans réellement générables et raccordés ;
+- les prompts image et vidéo adaptés au générateur (Veo 3.1, Runway, Wan) ;
+- le son, les dialogues, les sous-titres, le plan de montage, un pré-montage ;
+- le contrôle de monétisation, l'adaptation à un autre pays et l'apprentissage depuis ses clips et ses statistiques.
+
+Principe suprême : chercher d'abord **une situation que le spectateur veut comprendre**, puis la rendre belle. La beauté visuelle ne compense jamais une histoire faible.
+
+Objectifs mesurables : rétention, compréhension sans le son, continuité des personnages, peu de crédits de génération gaspillés (plans inutiles, régénérations) et monétisation sans risque (pas de contenu réutilisé, trompeur ou protégé).
+
+## 2. Règles non négociables
+
+**Sécurité**
+- Aucune clé API dans le code du navigateur. Les clés vivent dans `.env`, lu uniquement par `server.js`.
+- `.env` n'est jamais affiché, même masqué, et jamais commité.
+- Avant chaque commit, chercher dans le diff des motifs de secrets (`AIza`, `sk-`, `sb_secret`, `service_role`, `eyJ`).
+- Tout ce qui est dans `public/` est publié sur GitHub Pages, et le dépôt est public. Aucun fichier privé n'y va.
+- Ne jamais héberger le serveur en ligne sans `APP_PASSWORD`.
+
+**Éthique des agents** (à conserver dans tous les prompts)
+- Pas de personnes réelles ni de célébrités.
+- Pas de contenu protégé.
+- Pas de faux témoignages.
+- Pas de conseil pour se faire passer pour un faux pays avec un VPN.
+
+**Interface**
+- Français simple, pensée pour le téléphone d'abord (390 px), sans défilement horizontal.
+- Mode sombre et mode clair.
+- Aucune erreur dans la console.
+
+**Code**
+- Ne supprime aucune fonction existante qui marche.
+- Les prompts envoyés aux générateurs sont **assemblés par l'application** à partir des champs JSON, pas recopiés tels quels depuis la réponse du modèle.
+
+## 3. Architecture actuelle
+
+| Fichier | Rôle |
+|---|---|
+| `public/index.html` | Toute l'interface et toute la logique (≈ 6 200 lignes, ≈ 300 fonctions, dans une seule IIFE) : agents, prompts, pipeline, contrôles, rendu. |
+| `public/claude-shim.js` | Adaptateur qui recrée `window.claude` sur l'ordinateur. **Son interface est stable** : changer le moteur ou le stockage se fait dans l'adaptateur, jamais dans les appels de `index.html`. |
+| `server.js` | Serveur Node 18+, **sans dépendance**. Il sert `public/`, expose `POST /api/sample` (flux NDJSON) et `GET /api/status`, choisit et relaie les moteurs d'IA et fait la recherche web gratuite. |
+| `public/*_PROMPTING_GUIDE.md`, `public/MASTER_VIDEO_PROMPT_AGENT.md` | Guides de rédaction par générateur. |
+| `references/` | Specs (`DIRECTOR_ENGINE_V4.md`, `creative-director-v2/`, ce fichier), analyses de style et prompts réussis. |
+| `tests/` | Tests de non-régression avec IA simulée (§8). |
+| `.github/workflows/pages.yml` | Publie `public/` sur GitHub Pages à chaque push sur `main`. Pages n'a pas de serveur : l'interface s'affiche, mais les agents ne marchent pas. |
+
+### 3.1 Interfaces stables
+
+**`window.claude.use("sample").json(prompt, {signal, onText, images, modelTier, cache, web})`**
+- C'est le seul point d'appel à l'IA.
+- Erreurs typées : `rate_limited`, `bad_key`, `network`, `overloaded`, `quota_exceeded`, etc.
+- Le modèle réellement utilisé est attaché à la réponse (`_model`, non énumérable) et affiché par étape.
+
+**`window.claude.db`**
+- `collection(path).doc(id).set/delete`, `orderBy().limit().onSnapshot()`.
+- Aujourd'hui sur `localStorage` (clé `sp-local-db`, environ 5 Mo).
+- Préférences dans `sp-prefs`.
+
+**`user.id()`** renvoie `"local"`. **`downloads.save({filename, data})`** enregistre un fichier.
+
+### 3.2 Moteurs d'IA (côté serveur)
+
+Ordre du relais :
+1. **Sol** (OpenAI, s'il reste des crédits) ;
+2. **chaîne Gemini gratuite** (`GEMINI_FALLBACKS`) : en cas de 429, le modèle est bloqué et on passe au suivant ; en cas de 500, 502, 503 ou 504, il est marqué « occupé » et on passe au suivant ;
+3. **Luna** (`OPENAI_FALLBACK`), essayé en premier si tous les Gemini corrects sont bloqués ;
+4. **Flash-Lite**, en dernier recours.
+
+Autres règles du relais :
+- L'audio va toujours vers Gemini.
+- Erreur réseau : un nouvel essai, puis le relais.
+- Le shim relance une fois sur `overloaded`.
+- `/api/status` renvoie l'état du quota et l'heure de remise à zéro.
+
+**Recherche web sans quota** : `gatherWeb` lit les flux RSS Google Tendances et Google Actualités, puis les injecte dans la demande (« DONNÉES DU WEB RÉCUPÉRÉES À L'INSTANT… »).
+
+## 4. Le pipeline vidéo
+
+Point d'entrée : `generateProject`.
+
+**Journal du pipeline**
+- Chaque étape est journalisée par `pipeStart` et `pipeStep`, avec les états READY, DONE, FAIL ou SKIPPED et le modèle utilisé.
+- Ce journal est affiché par `pipelineHtml`.
+- Le suivi en direct est fait par `GEN_STEPS`, `genStart`, `genEnd` et `renderGenSteps`.
+
+| Étape (identifiant du journal) | Fonctions | Contrôles |
+|---|---|---|
+| `INPUT_ROUTER` | `routeInput` → IDEA, TEXT, SCRIPT, AUDIO ou VIDEO | — |
+| `LEARNING_MEMORY` | `activeLessons`, `learningBlock(p, cible)` : leçons générales injectées | Les leçons ne citent jamais un projet. |
+| `IDEA_ENGINE + CREATIVE_CRITIC` | `creativePrompt` → `developCreative` → `normalizeCreative` | Seuils du format (`videoProfile(...).gates`), test de prévisibilité, refus des histoires génériques |
+| `SCENE_ENGINE + SCENE_CRITIC` | `scenePlanPrompt` (+ `DIRECTOR_V4`) → `developScenes` → `normalizeScenePlan`, `scenePlanPasses` | Une scène = une unité dramatique. `sceneRange` donne le nombre de scènes selon la durée (jusqu'à 20). |
+| `MASTER_PLAN + DIRECTOR_CRITIC` | `executionPlanPrompt` (+ `DIRECTOR_V4`, REALIZATION ORCHESTRATOR) → `directExecution` / `directByBatches` (`sceneBatches`, `BATCH_SHOTS = 12`, `batchParams`) → `finishMaster`, `normalizeMasterPlan`, `assignMasterTimes` | `codeDefects` (code) + `masterPlanFailures` (dur ou souple) ; une réécriture (`rewritePack`), puis « PASS AVEC RÉSERVES » plutôt qu'une exception |
+| Audio imposé | `audioLockedOf`, `lockShotsToAudio`, `setUnitText`, `fillMissingUnits` | Un plan par unité audio. Le texte est placé par l'application, jamais réécrit. |
+| `DIALOGUE_DOCTOR` | `dialoguePrompt` → `dialogueDoctor` | Limite de mots par plan (`max_mots`), plans muets voulus |
+| `MODEL_ROUTER + MODEL_ADAPTER` | `routeMasterPlan`, `routeShotModel`, `evaluateShotModel`, `modelExecutionMode`, `routeFallback`, `MODEL_CAPABILITIES` (veo, runway, wan), `MODEL_ADAPTER_CONTRACT` | Le Master Video Plan est verrouillé : l'adaptateur traduit, il ne réécrit pas l'histoire. |
+| `PROMPT_COMPILER` | `prepareProduction`, `productionIdea`, `agentPrompt` (+ `PROMPT_V4`), compilation par morceaux, `normalize`, `validResult` | `lintPlan` / `lintSummary`, prompts assemblés par `keyframePrompt`, `i2vPrompt`, `t2vPrompt`, `startPrompt`, `videoPrompt`, `negPrompt`, `shotLine`, `cameraOne`, `STYLES`, `BASE_AVOID`, `VEO_CLEAN` |
+| `GENERATION` (faite par l'utilisateur) | Prompts copiés dans Veo, Runway ou Wan | `riskOf` / `riskChip` : risque faible, moyen ou élevé avant génération |
+| Après génération | `videoCriticPrompt`, `runVideoCritic` (VIDEO CRITIC), `vcApplyMasterPatch` (TARGETED REGENERATION), `fixShot`, `learnFromClip` / `storeLesson` | Décisions : APPROVED, APPROVED WITH NOTES, REGENERATE, REJECT |
+
+Le projet est enregistré par `saveProject`. Il est rendu par `renderProject` puis organisé par `buildScenes`, `attachMasterPlan` et `scenesOf` en **scènes contenant des plans**, jamais en liste plate de plans.
+
+## 5. Couches de règles (cumulatives)
+
+> La numérotation V1 à V4 est reconstituée à partir de l'historique du projet ; elle sert à savoir d'où vient chaque règle.
+
+### 5.1 V1 — Base de Studio Prompt
+- Agents spécialisés : Idées, Studio (agent maître), Images, Audio → vidéo, Vidéo réelle, Niches, Pays et monétisation, Personnages, Contrôle qualité, Son et sous-titres, Chaîne YouTube.
+- Les prompts des générateurs sont assemblés par le code à partir des champs JSON (fonctions `*Prompt`, `STYLES`, `BASE_AVOID`, `lintPlan`).
+- Fiche de personnage en anglais (`fiche_en`) et rappel (`rappel_en`), répétés dans chaque prompt pour garder les mêmes visages et les mêmes tenues.
+- Règles §2 : sécurité, éthique, interface en français pensée pour le téléphone.
+
+### 5.2 V2 — AI Creative Director (`references/creative-director-v2/`, 7 modules)
+- **Orchestrateur** : la création passe avant la technique.
+  - Séparation cerveau / moteur : le réalisateur décide **ce qui se passe**, l'adaptateur décide **comment le demander**.
+  - Un générateur ne dicte jamais l'histoire.
+  - Une corrélation virale n'est jamais présentée comme une causalité.
+- **Idea Engine** :
+  - un thème n'est pas une histoire ; il faut un désir, un obstacle et une question visible ;
+  - divergence (de 10 à 20 concepts réellement différents), anti-cliché, test de la première seconde sans le son ;
+  - classement jusqu'au Top 3, puis un gagnant.
+- **Story Architect** :
+  - progression flexible : hook, question, objectif, obstacle, action, réaction, conséquence, complication, escalade, révélation, payoff ;
+  - open loops ;
+  - révélation préparée honnêtement (de 2 à 3 indices) ;
+  - mode muet ;
+  - la voix off ne sert pas de béquille.
+- **Scene Engine** :
+  - test en 10 questions par scène ;
+  - formule DÉCLENCHEUR → ACTION → RÉACTION → CHANGEMENT ;
+  - pas d'images illustratives ;
+  - le second personnage modifie la situation ;
+  - objet narratif, escalade visible, fin de scène sur un événement.
+- **Human Behavior & Acting** :
+  - émotions traduites en comportements visibles ;
+  - micro-réactions, réactions asymétriques ;
+  - le dialogue modifie l'action ;
+  - continuité du tempérament.
+- **Viral Retention** :
+  - la rétention vient des questions, des changements de situation et du payoff, pas d'un zoom toutes les deux secondes ;
+  - le hook est toujours payé.
+- **Director Critic** :
+  - gardien entre la création et la production ;
+  - détecte le générique IA ;
+  - critique utile : problème, raison, scène concernée, correction, effet attendu ;
+  - décisions : APPROVED FOR PRODUCTION, APPROVED WITH NOTES, REWRITE REQUIRED, REJECT CONCEPT ;
+  - en cas de refus, renvoi au module fautif.
+
+### 5.3 V3 — AI Film Director (pipeline et production)
+- Pipeline du §4, avec un rapport d'exécution et le modèle utilisé à chaque étape.
+- **Scènes, puis plans** : une scène est un lieu et un moment, elle contient des plans.
+- Vidéos longues (jusqu'à 15 min, 20 scènes et environ 100 plans) réalisées par lots, puis compilées par morceaux.
+- Master Video Plan : `causal_beats`, `blocking`, `performance`, `shot_design` (`must_notice`, `camera_reason`), `sound`, `continuity` (`state_in` / `state_out`), `model_requirements`.
+- Contrôles faits par le code, indépendants de la note que le modèle se donne :
+  - durée couverte d'au moins 65 % ;
+  - durées toutes identiques ;
+  - voix off qui raconte au lieu de faire jouer ;
+  - personnages qui ne se parlent pas.
+- Audio imposé verrouillé ; transcription par Gemini ou par Whisper local (gratuit).
+- Docteur des dialogues ; routeur de modèles appuyé sur des capacités **documentées** (registre versionné).
+- Video Critic après génération et régénération ciblée.
+- **Mémoire d'apprentissage** : uniquement des leçons générales, jamais propres à une histoire.
+- Compétences : adapter à un autre pays (`adaptProject`), contrôle monétisation (`runMonet`), apprendre des statistiques YouTube (`statsFromCsv`, `statsPrompt`), pré-montage (`runPremontage`), onglet Paroles (`parolesHtml`, `saveParoles`), veille (`runVeille`).
+
+### 5.4 V4 — Director Engine (`references/DIRECTOR_ENGINE_V4.md`)
+
+Les 14 règles injectées (`DIRECTOR_V4`, `PROMPT_V4`) :
+1. la durée vient de l'action ;
+2. test d'existence de chaque plan ;
+3. compression ;
+4. causalité (ÉVÉNEMENT → PERCEPTION → RÉACTION → RÉPONSE → CHANGEMENT) ;
+5. question dramatique ;
+6. une scène = une unité dramatique ;
+7. caméra motivée, un seul mouvement dominant, sinon caméra fixe ;
+8. lumière venue du lieu réel ;
+9. pas de figurant par défaut ;
+10. crédibilité temporelle (ellipses) ;
+11. jeu d'acteur sobre ;
+12. une génération = une intention, et le prompt image → vidéo décrit ce qui change et l'état de fin ;
+13. un risque plutôt qu'une note avant génération ;
+14. test de suppression.
+
+Ce que le code contrôle (`codeDefects`) :
+- même cadrage et même mouvement sur plus de 50 % des plans ;
+- mouvement de caméra sur plus de 75 % des plans ;
+- au moins 70 % des durées à ±0,75 s de la médiane ;
+- scène de plus de 10 plans ;
+- LED, néon ou lampe dans une scène extérieure de jour ;
+- figurants sur au moins la moitié des plans ;
+- une seule image figée de 20 s ou plus.
+
+Ce que le code corrige :
+- `cameraOne`, appliqué dans **tous** les constructeurs de prompts (Veo, Runway, Wan, vidéo directe et image → vidéo), garde un seul mouvement par plan et n'associe jamais caméra fixe et caméra à l'épaule. Sans mouvement précisé, le prompt demande une caméra fixe.
+- L'état de fin (`fin_en`) est transmis aux trois outils.
+- `lintPlan` signale les mouvements empilés au lieu d'exiger un mouvement.
+
+`STYLES` ne décrit plus que le rendu : aucune lumière, caméra ni figurant injecté. `shotTarget` est un **maximum** (environ un plan pour 6 s, au plus 8 par scène), jamais un quota.
+
+### 5.5 Arbitrage entre couches
+1. **Découpage** : V4 l'emporte. Plus de quota du type « un plan toutes les 3 à 5 s ». Les « relances toutes les 2 à 4 s » de V2 sont des événements ou des informations, pas des coupes.
+2. **Notes** : les scores sur 10 de V2 restent des **signaux internes** des critiques (seuils de réécriture par format). Ils ne sont jamais affichés comme une note de qualité avant génération. L'interface montre le risque, « Solide » et « À surveiller ». Les notes du Video Critic, faites après génération sur un vrai clip, restent affichées.
+3. **Audio imposé** (V3) : il l'emporte sur la taille de scène et le découpage V4. Il y a un plan par unité audio, et la durée suit la source.
+4. **Caméra, lumière, figurants** : V4 l'emporte sur toute formule de style plus ancienne.
+5. **Éthique et sécurité** (§2) : elles l'emportent sur tout le reste.
+
+## 6. Carte des composants
+
+| Composant | Statut | Où | Ce qui manque |
+|---|---|---|---|
+| Director Engine | ✅ existe | `DIRECTOR_V4`, `scenePlanPrompt`, `executionPlanPrompt` | — |
+| Story Architect | 🟡 partiel | Fondu dans `creativePrompt` (progression, open loops, payoff) | Pas d'appel séparé, ni de sortie « beats + indices de la révélation » contrôlée par le code |
+| Compression Engine | 🟡 partiel | Règle COMPRESSION PASS, `shotTarget` maximum, contrôles de `codeDefects` | Pas de passe dédiée qui fusionne ou supprime des plans après le premier storyboard |
+| Shot Engine | ✅ existe | Master Video Plan (REALIZATION ORCHESTRATOR) par lots | — |
+| Personnages et continuité | 🟡 partiel | Bible (`fiche_en`, `rappel_en`), page Personnages, `continuity.state_in/out`, `lockedShotFingerprint` | Registre des objets de continuité, verrous d'identité, de tenue et d'état de scène sous forme de données, contrôle d'identité entre l'image et la référence |
+| Director Critic | ✅ existe | Critique du modèle + `codeDefects` + `masterPlanFailures` | Contrôle par le code de la crédibilité temporelle (aujourd'hui seulement une règle du prompt) |
+| Video Critic | ✅ existe | `runVideoCritic`, `vcApplyMasterPatch` | — |
+| Cost Optimizer | ❌ absent | Seulement indirect : relais vers les modèles gratuits, `BATCH_SHOTS`, compression | Estimation du coût en crédits par plan et par modèle, choix de la qualité, limite de régénérations |
+| Model Router | ✅ existe | `MODEL_CAPABILITIES` (veo, runway, wan), `routeShotModel` | Adaptateurs Kling et Seedance (prévus par V2, pas encore écrits) |
+| API vidéo | ❌ absent | L'utilisateur colle les prompts dans le générateur | Appel direct de Veo et des autres depuis `server.js` (clés côté serveur uniquement) |
+| Jobs asynchrones | ❌ absent | Appels en flux depuis l'onglet ouvert ; une vidéo longue fait de nombreux appels à la suite | File de tâches côté serveur, reprise après fermeture de l'onglet, état persistant |
+| Montage | 🟡 partiel | Pré-montage dans le navigateur (`runPremontage`, MediaRecorder MP4), `editing_plan`, export SRT | Montage final avec musique, transitions et export haute qualité |
+| Stockage | 🟡 partiel | `localStorage` via le shim (environ 5 Mo), un seul appareil | IndexedDB ou stockage en ligne **derrière le shim**, synchronisation avec le téléphone |
+
+## 7. Autres vues et agents
+
+| Vue | Rôle |
+|---|---|
+| `accueil` | Reprendre un projet, raccourcis |
+| `studio` | Créer une vidéo : idée ou texte → pipeline complet |
+| `projets` | Liste des projets. Chaque projet a des onglets Plans, Paroles, Réalisation, Créatif, Pré-montage, Monétisation, Adapter… |
+| `idees` | Idées |
+| `tendances` | Veille et tendances |
+| `audio` | Audio → vidéo, en 3 étapes, avec transcription |
+| `reel` | Vidéo réelle → remake IA |
+| `images` | Prompts image |
+| `persos` | Personnages |
+| `qualite` | Contrôle qualité |
+| `son` | Son et sous-titres |
+| `chaine` | Série et chaîne |
+| `niches` | Niches |
+| `pays` | Pays et monétisation |
+| `memoire` | Leçons apprises et statistiques |
+
+- Le menu compte 4 groupes et 11 liens.
+- Les anciens liens restent valides grâce aux alias (par exemple `strategie`).
+
+## 8. Tests
+
+**Lancement**
+- Dossier `tests/`, IA simulée : **aucun quota consommé**.
+- Commandes : `cd tests`, `npm install`, puis `npm test` (le serveur doit tourner, avec `npm start` à la racine).
+- `npm run test:code` lance seulement les tests du code, sans navigateur.
+- Les captures d'écran vont dans `tests/out/` (ignoré par git).
+- Navigateur : Edge, via `puppeteer-core`. Variables `EDGE_PATH` et `SP_URL` si besoin.
+
+**Suites**
+
+| Suite | Ce qu'elle vérifie |
+|---|---|
+| `gates-test.js` | Routage d'entrée, tous les contrôles du code V3 et V4, `cameraOne` |
+| `audio-lock-test.js` | Alignement des plans sur l'audio importé |
+| `ui-test.js`, `menu-test.js` | Vues, menu, mobile, mode sombre, console sans erreur |
+| `v4-prompts-test.js` | Prompts réellement affichés pour 8 styles × 3 outils : ni lampes, ni LED, ni figurants, ni micro-mouvements ; un seul mouvement de caméra ; état de fin transmis |
+| `long-mock-test.js` | Vidéo de 5 min : 20 scènes, maximum de plans V4, lots, compilation, docteur des dialogues, aucun `${` envoyé à l'IA |
+| `adapt-test.js` | Adaptation à un autre pays |
+| `monet-test.js` | Contrôle monétisation |
+| `stats-test.js` | Lecture des exports de YouTube Studio |
+| `premont-test.js` | Pré-montage |
+| `paroles-test.js`, `paroles-voix-test.js` | Onglet Paroles |
+
+**Règles**
+- Toute nouvelle règle du moteur ajoute un cas positif et un cas négatif dans `gates-test.js`.
+- Une génération réelle (qui consomme du quota) n'est faite qu'en complément, jamais à la place des tests simulés.
+
+## 9. Avant de livrer
+
+1. La syntaxe des deux scripts de `index.html` et de `server.js` est valide.
+2. `npm test` passe sans échec, ou chaque échec est expliqué et corrigé.
+3. Vérification à 390 px et à 1 366 px, en clair et en sombre, sans erreur dans la console ni débordement horizontal.
+4. Aucun `${` brut dans un prompt envoyé à l'IA. Les prompts d'exemple ne contiennent pas de lampes, LED, figurants ou micro-mouvements caméra injectés.
+5. Aucune fonction ni règle existante supprimée sans le dire.
+6. Pas de secret dans le diff. `.env` n'est ni affiché ni commité. Rien de privé dans `public/`.
+7. Ce fichier est mis à jour, ainsi que la spec concernée dans `references/`.
+8. Commit en français, push sur `main` (ce qui publie sur GitHub Pages).
+9. Compte rendu à l'utilisateur en **français simple**, sans jargon : ce qui change pour lui, ce qu'il doit faire, par exemple régénérer ou améliorer les anciens projets pour profiter d'une nouvelle règle.
+
+## 10. Historique
+
+Les commits sont en français. Étapes majeures :
+1. application de base ;
+2. histoires plus fortes et vrais dialogues ;
+3. contrôles par le code ;
+4. audio → vidéo fiable ;
+5. Whisper local ;
+6. design et pages ;
+7. scènes, puis plans ;
+8. mémoire d'apprentissage ;
+9. vidéos longues ;
+10. recherche web sans quota ;
+11. adaptation, monétisation, statistiques, pré-montage ;
+12. onglet Paroles ;
+13. relais Luna et docteur des dialogues ;
+14. suivi des étapes en direct ;
+15. **Director Engine V4**.
+
+## 11. Chantiers ouverts (proposés, pas encore faits)
+
+Par ordre de valeur pour l'utilisateur :
+1. **Cost Optimizer** : estimer les crédits par plan et par modèle avant génération, et proposer de compresser ou de passer en mode image → vidéo moins cher.
+2. **Registre des objets de continuité et verrous d'identité** sous forme de données (au lieu de texte libre), contrôlés par le code d'un plan à l'autre.
+3. **Passe de compression dédiée** après le premier storyboard, avec un rapport des plans fusionnés ou supprimés.
+4. **Stockage IndexedDB, puis en ligne** derrière `claude-shim.js`, pour avoir plus de place et retrouver ses projets sur le téléphone.
+5. **Jobs asynchrones côté serveur** pour les vidéos longues : reprise si l'onglet se ferme.
+6. **API vidéo directe** (Veo d'abord), uniquement côté serveur, avec suivi de la tâche et Video Critic automatique sur le clip reçu.
+7. Adaptateurs **Kling** et **Seedance**, avec des capacités documentées, une source officielle et une date de vérification.
