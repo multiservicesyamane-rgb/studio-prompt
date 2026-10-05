@@ -206,7 +206,14 @@ Règle des paroles :
    - sous-titres et crédit photo. Le plan vient de `PR.mixPlan`, calculé par `prMix`.
 7. La dernière revue est gardée dans le navigateur (`sp-presse`, photos comprises). « En faire une vidéo » envoie le texte dans « Depuis une idée ».
 
-### 4.3 Autres ajouts du 5 octobre
+### 4.3 Manus AI (ajouté par l'autre assistant, relu le 5 octobre)
+- `POST /api/manus/task` (`handleManusTask`) crée une tâche Manus (API v2, `x-manus-api-key`, clé `MANUS_API_KEY` dans `.env`, délai maximum de 30 s) et renvoie `task_url`.
+- Boutons « 🤖 Créer avec Manus AI » (Storyboard, toutes les scènes) et « 🤖 Générer le visuel avec Manus » (page Images).
+- Les images restent sur le site de Manus : l'utilisateur les télécharge puis les dépose avec « Importer mes images » (`genImportFiles`).
+- Les crédits Manus ne sont pas comptés dans le budget de sécurité de la fabrication.
+- `manus-mcp.js` : serveur MCP séparé, pour les agents d'Antigravity ; il n'est pas utilisé par l'application.
+
+### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
 - **Mode secours** (`fallbackMasterFromScenes`) : si la réalisation détaillée échoue, un Master minimal est construit à partir des scènes validées.

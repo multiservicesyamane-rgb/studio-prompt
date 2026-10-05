@@ -224,9 +224,10 @@ async function handleManusTask(req,res){
   let input; try{ input=JSON.parse(await readBody(req,1e6)); }catch(e){ return sendJson(res,400,{code:"bad_request",message:"Requête JSON invalide."}); }
   const prompt=String(input.prompt||input.content||"").trim();
   if(!prompt) return sendJson(res,400,{code:"bad_request",message:"Le prompt est obligatoire."});
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);   /* Manus ne répond pas : on n'attend pas indéfiniment */
   try {
     const resp = await fetch("https://api.manus.ai/v2/task.create", {
-      method: "POST",
+      method: "POST", signal: ctl.signal,
       headers: {
         "Content-Type": "application/json",
         "x-manus-api-key": key
@@ -245,12 +246,12 @@ async function handleManusTask(req,res){
     return sendJson(res, 200, {
       ok: true,
       task_id: taskId,
-      url: taskId ? `https://manus.im/app/task/${taskId}` : null,
+      url: data.task_url || data.share_url || (taskId ? `https://manus.im/app/task/${taskId}` : null),   /* lien renvoyé par Manus (API v2) */
       data
     });
   } catch(err){
-    return sendJson(res, 502, {code:"network", message:`Impossible de joindre Manus: ${err.message}`});
-  }
+    return sendJson(res, 502, {code:"network", message:err && err.name === "AbortError" ? "Manus ne répond pas : réessaie dans un instant." : `Impossible de joindre Manus: ${err.message}`});
+  } finally { clearTimeout(timer); }
 }
 function codeFor(status){ return status === 429 ? "rate_limited" : status === 401 || status === 403 ? "bad_key" : status === 400 ? "bad_request" : "server_error"; }
 /* Crédits ou quota épuisés : message clair en français (OpenAI répond en anglais) */
