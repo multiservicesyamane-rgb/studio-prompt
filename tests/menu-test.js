@@ -51,7 +51,7 @@ const check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — 
   // Nouvelle organisation : 4 groupes, Stratégie en onglets, plus de page Experts
   const groups = await pg.$$eval(".side-group", g => g.map(x => x.textContent.trim()));
   check("menu en 4 groupes", groups.join(" | ") === "Créer | Trouver quoi faire | Mes contenus | Stratégie", groups.join(" | "));
-  check("12 liens dans le menu (accueil + 11, dont Connexions et voix)", (await pg.$$(".side-link")).length === 12 && !!(await pg.$('.side-link[data-go="connexions"]')));
+  check("13 liens dans le menu (accueil + 12, dont Depuis des infos et Connexions et voix)", (await pg.$$(".side-link")).length === 13 && !!(await pg.$('.side-link[data-go="connexions"]')));
   await pg.click('.side-link[data-go="strategie"]'); await new Promise(r => setTimeout(r, 300));
   check("Stratégie ouvre Niches", !(await pg.$eval("#view-niches", e => e.hidden)));
   await pg.click('#view-niches .strat-tabs [data-go-inline="pays"]'); await new Promise(r => setTimeout(r, 300)); i = await info();

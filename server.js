@@ -274,6 +274,46 @@ async function gatherWeb(w){
   return {text, sources:srcParts.filter(Boolean).flat().filter(x => /^https?:\/\//.test(x.uri)).slice(0, 30)};   // tendances d'abord, puis actualités dans l'ordre des requêtes
 }
 
+/* ---------- Revue de presse : actualité du jour d'un pays (Google Actualités + grands journaux) et lecture d'un article ---------- */
+const NEWS_BASE = (process.env.GOOGLE_NEWS_BASE || "https://news.google.com").replace(/\/$/, "");
+const cleanTitle = (t, src) => { t = String(t || "").trim(); if(src && t.endsWith(" - " + src)) t = t.slice(0, -(src.length + 3)); return t.replace(/\s+-\s+[^-]{2,40}$/, m => src ? m : "").trim(); };
+async function handleNews(req, res){
+  const u = new URL(req.url, "http://x"), q = encodeURIComponent, p = k => String(u.searchParams.get(k) || "").slice(0, 120);
+  const hl = p("hl") || "fr", gl = (p("gl") || "FR").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2) || "FR", ceid = p("ceid") || `${gl}:fr`, topic = p("q").replace(/[<>"]/g, "");
+  const sites = p("sites") ? String(u.searchParams.get("sites")).split(",").map(x => x.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "")).filter(x => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(x)).slice(0, 10) : [];
+  const ed = `hl=${q(hl)}&gl=${q(gl)}&ceid=${q(ceid)}`, seen = new Set();
+  const keep = (list, n) => list.map(i => ({title:cleanTitle(i.title, i.source), source:i.source, date:i.date, link:i.link})).filter(i => { const k = i.title.toLowerCase(); if(!i.title || seen.has(k)) return false; seen.add(k); return true; }).slice(0, n);
+  const [top, ...bySite] = await Promise.all([
+    fetchText(topic ? `${NEWS_BASE}/rss/search?q=${q(topic + " when:1d")}&${ed}` : `${NEWS_BASE}/rss?${ed}`, 10000).then(x => rssItems(x, 30)),
+    ...sites.map(d => fetchText(`${NEWS_BASE}/rss/search?q=${q(`site:${d}${topic ? " " + topic : ""} when:2d`)}&${ed}`, 10000).then(x => rssItems(x, 8)))
+  ]);
+  const sitesOut = sites.map((d, k) => ({site:d, items:keep(bySite[k] || [], 6)}));
+  sendJson(res, 200, {top:keep(top || [], 20), sites:sitesOut, fetched_at:new Date().toISOString()});
+}
+/* Lecture d'un article à partir de son lien : texte principal seulement (titre + paragraphes) */
+function privateHost(h){ h = String(h || "").toLowerCase(); return h === "localhost" || h.endsWith(".local") || h === "::1" || h === "[::1]" || /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h); }
+const htmlDecode = t => String(t || "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;|&rsquo;|&#8217;/g, "'").replace(/&laquo;/g, "«").replace(/&raquo;/g, "»").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n)));
+async function handleNewsRead(req, res){
+  let input; try{ input = JSON.parse(await readBody(req, 20000)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible."}); }
+  let url; try{ url = new URL(String(input.url || "").trim()); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Lien invalide : colle l'adresse complète de l'article (https://…)."}); }
+  if(!/^https?:$/.test(url.protocol) || (privateHost(url.hostname) && !process.env.NEWS_ALLOW_LOCAL)) return sendJson(res, 400, {code:"bad_request", message:"Ce lien ne peut pas être lu."});
+  if(/news\.google\.com$/.test(url.hostname)) return sendJson(res, 400, {code:"bad_request", message:"Lien Google Actualités : ouvre l'article, puis colle le lien du journal lui-même."});
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000); let html = "";
+  try{ const r = await fetch(url, {signal:ctl.signal, redirect:"follow", headers:{"User-Agent":"Mozilla/5.0 (StudioPrompt)", "Accept-Language":"fr,en;q=0.8"}});
+    if(!r.ok) return sendJson(res, 502, {code:"server_error", message:`Le site a refusé la lecture (erreur ${r.status}) : copie le texte de l'article à la main.`});
+    const buf = Buffer.from(await r.arrayBuffer()); html = buf.slice(0, 3e6).toString("utf8"); }
+  catch(e){ return sendJson(res, 502, {code:"network", message:"Article injoignable : vérifie le lien, ou copie le texte à la main."}); }
+  finally{ clearTimeout(t); }
+  const meta = name => (html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${name}["'][^>]+content=["']([^"']+)`, "i")) || [])[1] || "";
+  const title = htmlDecode(meta("og:title") || (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim();
+  let body = html.replace(/<(script|style|noscript|svg|nav|header|footer|aside|form|figure)[\s\S]*?<\/\1>/gi, " ");
+  const art = body.match(/<article[\s\S]*?<\/article>/i); if(art && art[0].length > 800) body = art[0];
+  const paras = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(m => htmlDecode(m[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim()).filter(x => x.length > 40 && !/cookies?|abonnez-vous|newsletter|tous droits réservés|javascript/i.test(x));
+  const text = paras.join("\n").slice(0, 15000);
+  if(text.length < 200) return sendJson(res, 422, {code:"bad_request", message:"Impossible d'extraire le texte de cet article (site protégé ou réservé aux abonnés) : copie le texte à la main."});
+  sendJson(res, 200, {url:url.href, site:url.hostname.replace(/^www\./, ""), title, text, published:meta("article:published_time")});
+}
+
 /* ---------- appel du modèle, réponse en flux (une ligne JSON par morceau) ---------- */
 async function handleSample(req, res){
   let input;
@@ -489,7 +529,9 @@ function authorized(req){
 http.createServer((req, res) => {
   if(!authorized(req)){ res.writeHead(401, {"WWW-Authenticate":'Basic realm="Studio Prompt", charset="UTF-8"', "Content-Type":"text/plain; charset=utf-8"}); return res.end("Mot de passe requis."); }
   if(req.method === "GET" && req.url.startsWith("/api/status")) return handleStatus(res).catch(() => sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model:""}));
-  if(gen.handle(req, res)) return;   /* /api/gen/* (vidéos, voix, imports, budget) et lecture des fichiers de /generated/ */
+  if(gen.handle(req, res)) return;
+  if(req.method === "GET" && req.url.startsWith("/api/news?")) return handleNews(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Actualités indisponibles pour le moment."}); });
+  if(req.method === "POST" && req.url.startsWith("/api/news/read")) return handleNewsRead(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de l'article impossible."}); });   /* /api/gen/* (vidéos, voix, imports, budget) et lecture des fichiers de /generated/ */
   if(req.method === "POST" && req.url.startsWith("/api/video/analyze")) return handleVideoAnalyze(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant l'analyse vidéo."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/images/generate")) return handleImageGenerate(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant la génération de l'image."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/sample")) return handleSample(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Erreur interne du serveur."}); else res.end(); });

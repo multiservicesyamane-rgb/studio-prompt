@@ -66,7 +66,11 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 |---|---|
 | `public/index.html` | Toute l'interface et toute la logique (≈ 6 200 lignes, ≈ 300 fonctions, dans une seule IIFE) : agents, prompts, pipeline, contrôles, rendu. |
 | `public/claude-shim.js` | Adaptateur qui recrée `window.claude` sur l'ordinateur. **Son interface est stable** : changer le moteur ou le stockage se fait dans l'adaptateur, jamais dans les appels de `index.html`. |
-| `server.js` | Serveur Node 18+, **sans dépendance**. Il sert `public/`, expose `POST /api/sample` (flux NDJSON) et `GET /api/status`, choisit et relaie les moteurs d'IA et fait la recherche web gratuite. Il expose aussi `POST /api/images/generate` (images du Storyboard, payant) et `POST /api/video/analyze` (analyse complète d'une vidéo, gratuite). `SP_NO_DOTENV=1` ignore `.env`, pour les tests. |
+| `server.js` | Serveur Node 18+, **sans dépendance**. Il sert `public/`, expose `POST /api/sample` (flux NDJSON) et `GET /api/status`, choisit et relaie les moteurs d'IA et fait la recherche web gratuite. Il expose aussi :
+- `POST /api/images/generate` : images du Storyboard (payant) ;
+- `POST /api/video/analyze` : analyse complète d'une vidéo (gratuite) ;
+- `GET /api/news` : une de Google Actualités pour l'édition d'un pays, plus les titres du jour de chaque journal via `site:` (`GOOGLE_NEWS_BASE` pour les tests) ;
+- `POST /api/news/read` : texte principal d'un article à partir de son lien. Les adresses locales sont refusées, sauf avec `NEWS_ALLOW_LOCAL` en test ; les liens Google Actualités sont refusés avec une explication. `SP_NO_DOTENV=1` ignore `.env`, pour les tests. |
 | `generation.js` | Module serveur de **fabrication**, sans dépendance. Il gère les tâches suivies (`public/generated/jobs.json`, reprise après redémarrage), le budget du jour (`GEN_BUDGET_USD`), les voix (Gemini gratuit, une à la fois, avec attente si Google limite par minute ; ElevenLabs), les vidéos (Veo 3.1 avec `GEMINI_MEDIA_API_KEY` ou la clé principale, Runway), les imports (`/api/gen/upload-file`) et la lecture des médias par morceaux (Range). |
 | `public/*_PROMPTING_GUIDE.md`, `public/MASTER_VIDEO_PROMPT_AGENT.md` | Guides de rédaction par générateur. |
 | `references/` | Specs (`DIRECTOR_ENGINE_V4.md`, `creative-director-v2/`, ce fichier), analyses de style et prompts réussis. |
@@ -163,7 +167,23 @@ Règle des paroles :
 - avec la propre vidéo de l'utilisateur, les paroles sont verrouillées (`audioLockedOf`) ;
 - avec la vidéo d'un autre (`remakeSrc === "autre"`), elles servent seulement de contexte, et rien n'est recopié.
 
-### 4.2 Autres ajouts du 5 octobre
+### 4.2 Entrée « Depuis des infos » (revue de presse)
+
+1. **Matière**, au choix :
+   - automatique : `prFetch` → `/api/news`. `PRESSE_SITES` est une liste de grands médias par pays, simple point de départ modifiable par l'utilisateur. L'utilisateur coche les infos à garder.
+   - ses textes et ses liens : `prReadLinks` → `/api/news/read`.
+2. **Écriture** (`prPrompt`). Les **règles de vérité** sont non négociables :
+   - seulement la matière fournie, chaque info attribuée à son média ;
+   - rester au niveau du titre quand on n'a que le titre ;
+   - aucune rumeur ni accusation présentée comme un fait, aucun parti pris.
+   La longueur suit la durée (2,4 mots par seconde). La revue fournit aussi la publication et les points `a_verifier`. Le texte est modifiable.
+3. **Voix d'or** :
+   - `prParts` coupe la revue en parties de 800 caractères au plus ;
+   - `prVoice` les envoie à la fabrication avec le style `PR_STYLE` (présentateur d'exception) et la voix choisie ;
+   - `prPlayAll` les lit d'un trait, `prDownload` les met bout à bout en un seul WAV.
+4. La dernière revue est gardée dans le navigateur (`sp-presse`). « En faire une vidéo » envoie le texte dans « Depuis une idée ».
+
+### 4.3 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
 - **Mode secours** (`fallbackMasterFromScenes`) : si la réalisation détaillée échoue, un Master minimal est construit à partir des scènes validées.
@@ -316,9 +336,10 @@ Ce que le code corrige :
 | `niches` | Niches |
 | `pays` | Pays et monétisation |
 | `memoire` | Leçons apprises et statistiques |
+| `presse` | « Depuis des infos » : revue de presse fidèle aux sources, avec voix d'or |
 | `connexions` | « Connexions et voix » : ce qui est gratuit et ce qui est payant, budget du jour, guides des clés (ElevenLabs, projet Google payant séparé), dernières fabrications |
 
-- Le menu compte 4 groupes et 12 liens.
+- Le menu compte 4 groupes et 13 liens.
 - Les anciens liens restent valides grâce aux alias (par exemple `strategie`).
 
 ## 8. Tests
@@ -337,6 +358,7 @@ Ce que le code corrige :
 | `gates-test.js` | Routage d'entrée, tous les contrôles du code V3 et V4, `cameraOne` |
 | `audio-lock-test.js` | Alignement des plans sur l'audio importé |
 | `ui-test.js`, `menu-test.js` | Vues, menu, mobile, mode sombre, console sans erreur |
+| `presse-test.js` | Revue de presse avec un vrai `server.js` face à de faux Google Actualités, Google voix et site d'actualité : infos cochées, règles de vérité, voix d'or, audio complet, textes et liens, reprise, vidéo |
 | `gen-api-test.js` | `generation.js` face à de faux Google, Runway et ElevenLabs : clé gratuite pour les voix, clé payante pour Veo, budget, facturation absente, voix une à la fois, limites par minute et par jour, imports, Range, sécurité des chemins, reprise |
 | `fab-ui-test.js` | Interface de fabrication avec un vrai `server.js` (`GEN_DIR` séparé) : voix par personnage, essai, voix d'un plan ou de tout le projet, imports groupés d'images et de clips, pré-montage, page Connexions |
 | `video-analyze-test.js` | Vrai `server.js` face à un faux Google : envoi reprenable, état ACTIVE, images/s, mode agentic en flux, schéma, suppression, quota, format refusé |
@@ -396,3 +418,8 @@ Par ordre de valeur pour l'utilisateur :
 5. **Pipeline d'écriture côté serveur** (les agents) pour les vidéos longues : reprise si l'onglet se ferme. La fabrication l'a déjà.
 6. **Boutons « Fabriquer la vidéo »** (Veo, Runway) dans l'interface, le jour où l'utilisateur active un service payant. Le serveur est prêt ; il faudra brancher le Video Critic automatique sur le clip reçu.
 7. Adaptateurs **Kling** et **Seedance**, avec des capacités documentées, une source officielle et une date de vérification.
+
+Idées de l'utilisateur (5 octobre), à faire avec la même méthode :
+8. **Temps forts d'un long match** (45 min et plus) : l'analyse complète (agentic) repère les moments les plus denses, et l'application propose les coupes, avec leur minutage, pour une vidéo courte.
+9. **Plusieurs vidéos → une vidéo virale** : analyser jusqu'à 5 vidéos, choisir les meilleurs moments et les enchaîner (ordre, raccords, accroche, rythme), dans le respect des droits de chaque source.
+10. **Revue de presse automatique chaque jour** : par pays, à heure fixe (avec la veille), voix d'or comprise.
