@@ -868,7 +868,7 @@ input[type=text].plain-in{background:var(--surface)}
           </div>
           <form class="panel" id="rm-form" autocomplete="off">
             <h2 class="sub-h" style="margin:0">Importer, analyser et améliorer ma vidéo</h2>
-            <div class="field"><label for="rm-file">Ta vidéo <span class="hint">(MP4, MOV, WEBM ; un lien YouTube ou TikTok ne peut pas être lu ici : télécharge ta vidéo depuis ton téléphone ou YouTube Studio)</span></label><input type="file" id="rm-file" accept="video/*,.mp4,.mov,.webm,.m4v"></div>
+            <div class="field"><label for="rm-file">Ta vidéo <span class="hint">(MP4, MOV, WEBM ; un lien YouTube ou TikTok ne peut pas être lu ici : télécharge ta vidéo depuis ton téléphone ou YouTube Studio)</span></label><input type="file" id="rm-file" accept="video/*,.mp4,.mov,.webm,.m4v"><p class="hint">Pour comprendre l’image, les mouvements et le son ensemble, la vidéo complète est envoyée directement par ton serveur à Gemini. Le stockage de l’analyse est désactivé et le serveur demande immédiatement la suppression du fichier après traitement. La clé API reste sur le serveur.</p></div>
             <div class="field" id="rm-capbox" hidden><label for="rm-caps">Ou des captures de ta vidéo, dans l'ordre <span class="hint">(5 à 40 images)</span></label><input type="file" id="rm-caps" accept="image/png,image/jpeg,image/webp" multiple>
               <label class="hint" for="rm-capdur">Durée de la vidéo (m:ss)</label><input type="text" id="rm-capdur" placeholder="10:00" style="max-width:160px"></div>
             <div id="rm-info" hidden><div class="facts" id="rm-facts"></div><div class="thumbs" id="rm-thumbs" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0"></div></div>
@@ -885,7 +885,7 @@ input[type=text].plain-in{background:var(--surface)}
               <div class="field" hidden><label for="rm-niche">Niche</label><div class="sel"><select id="rm-niche"></select></div></div>
             </div>
             <p class="alert" id="rm-warn" hidden>La vidéo de quelqu'un d'autre ne peut pas être refaite telle quelle : l'agent créera une vidéo originale (nouvelle histoire, nouveaux personnages, nouvelles phrases) sur le même type de sujet.</p>
-            <div class="field"><label for="rm-text">Ce qui est dit dans la vidéo <span class="hint">(conseillé : colle les sous-titres .srt de CapCut, ou le texte)</span></label><textarea id="rm-text" rows="3" placeholder="Dans CapCut : Texte › Sous-titres automatiques, puis Exporter › Sous-titres (.srt). Colle-les ici ou charge le fichier."></textarea>
+            <div class="field"><label for="rm-text">Ce qui est dit dans la vidéo <span class="hint">(facultatif : l’agent transcrit automatiquement ; tes corrections restent prioritaires)</span></label><textarea id="rm-text" rows="3" placeholder="La transcription apparaîtra ici. Tu peux aussi coller ou charger un fichier .srt, puis corriger librement les paroles dans n’importe quelle langue."></textarea>
               <input type="file" id="rm-srt" accept=".srt,.vtt,.txt" aria-label="Fichier de sous-titres"></div>
             <div class="field"><label for="rm-note">Ce que tu veux améliorer <span class="hint">(facultatif)</span></label><input type="text" id="rm-note" placeholder="Exemple : plus d'émotion au début, des images plus belles, une fin plus forte"></div>
             <div class="actions"><button type="submit" class="btn primary" id="rm-go">Analyser tout et proposer mieux</button><button type="button" class="btn" id="rm-stop" hidden>Arrêter</button></div>
@@ -1231,7 +1231,7 @@ const TYPE_PROFILE_OVERRIDES = {
 function videoProfile(v,p){ const id=v==="ambiance"?"ambiance":LEGACY_VTYPE[v]||v||"cinematic", cat=categoryOf(id), c=CATEGORY_PROFILES[cat], d=CREATIVE_PROFILE_DIMENSIONS[cat], o=TYPE_PROFILE_OVERRIDES[id]||{}; return Object.assign({},c,d,{id,category:cat,label:label("vtype",id),platform:(p&&p.format)==="9:16"?"TikTok, Reels ou YouTube Shorts":"YouTube ou diffusion 16:9",directive:id==="ambiance"?"plans contemplatifs en boucle pour concentration ou relaxation":TYPE_DIRECTIVES[id]||""},o); }
 const PLAN_SEC = {veo:8, runway:5, wan:5};
 function nPlans(duree, outil){ const secs = Number(duree)||90; return Math.max(3, Math.round(secs/(PLAN_SEC[outil]||8))); }
-const LANG_NAME = {fr:"français",wo:"wolof",wofr:"wolof mêlé de français (comme on parle à Dakar)",en:"anglais",ff:"pulaar",de:"allemand",es:"espagnol",it:"italien",pt:"portugais",ar:"arabe",nl:"néerlandais"};
+const LANG_NAME = {auto:"langue originale de chaque parole, sans traduction",fr:"français",wo:"wolof",wofr:"wolof mêlé de français (comme on parle à Dakar)",en:"anglais",ff:"pulaar",de:"allemand",es:"espagnol",it:"italien",pt:"portugais",ar:"arabe",nl:"néerlandais"};
 const label = (k,v)=> { if(k==="vtype" && v==="ambiance") return "Ambiance / relaxation"; if(k==="vtype" && LEGACY_VTYPE[v]) v=LEGACY_VTYPE[v]; return ((OPTS[k]||[]).find(o=>o[0]===v)||[v,v])[1]; };
 function fillSelect(sel, key, current, onChange){
   if(!sel) return;
@@ -2201,13 +2201,14 @@ const EXECUTION_SCORE_KEYS = ["event","causality","blocking","performance","obje
 /* Scènes attendues pour une durée : environ une toutes les 10 à 40 s */
 const sceneRange = d => { d=Number(d)||60; return [Math.max(1,Math.round(d/40)), Math.max(2,Math.round(d/10))]; };
 function scenePlanPrompt(idee,p,creative,previous){
-  const profile=videoProfile(p.vtype,p), imposed=(p.timeline||[]).map(x=>({n:x.n,debut:x.debut,fin:x.fin,duree:x.duree,texte:x.texte||"",source:x.source||"",section:x.section||""}));
+  const profile=videoProfile(p.vtype,p), imposed=(p.timeline||[]).map(x=>({n:x.n,debut:x.debut,fin:x.fin,duree:x.duree,texte:x.texte||"",source:x.source||"",section:x.section||"",source_shot_id:x.source_shot_id||"",source_segment:x.source_segment||"",coupe:x.coupe||""}));
   return `Tu es SCENE ENGINE, après validation du concept et avant toute réalisation. Tu ne choisis ni caméra, ni lumière, ni focale, ni générateur, ni prompt.
 
 DEMANDE : """${idee}"""
 CREATIVE PROFILE : ${JSON.stringify({video_type:profile.label,primary_goal:profile.goal,audience:label("public",p.public||"famille"),platform:profile.platform,duration:`${p.duree}s`,pacing:profile.pace,hook_strategy:profile.hookStrategy,story_importance:profile.storyImportance,character_importance:profile.characterImportance,information_density:profile.informationDensity,emotional_intensity:profile.emotionalIntensity,interaction_need:profile.interactionNeed,visual_priority:profile.visualPriority,sound_priority:profile.soundPriority,cta_need:profile.ctaNeed,realism:profile.realism,narrative_mode:profile.narrative,silent_test:profile.silent})}
 DOSSIER CRÉATIF VALIDÉ : ${JSON.stringify(creative.selection)}
 ${p.lyricsAnalysis?`ANALYSE DES PAROLES VERROUILLÉE : ${JSON.stringify(p.lyricsAnalysis)}. Utilise les ids de characters dans chaque scène concernée. Les scene_anchors servent à relier les paroles exactes aux personnages, lieux et événements visibles ; ne modifie jamais les paroles.`:""}
+${p.fullVideoAnalysis?`ANALYSE MULTIMODALE DE LA VIDÉO COMPLÈTE : ${JSON.stringify({overview:p.fullVideoAnalysis.overview,characters:p.fullVideoAnalysis.characters,locations:p.fullVideoAnalysis.locations,scenes:p.fullVideoAnalysis.scenes,reconstruction:p.fullVideoAnalysis.reconstruction})}. Les plans et paroles horodatés de la timeline sont la source de vérité. Pour une version fidèle, conserve actions et raccords ; pour une version améliorée, corrige les défauts sans perdre la causalité.`:""}
 RÈGLE DU TYPE : ${TYPE_RULE_OVERRIDES[profile.id]||TYPE_RULES[baseVtype(profile.id)]||TYPE_RULES.histoire}
 ${nicheContext(nicheById(p.niche))}
 ${imposed.length?`UNITÉS TEMPORELLES IMPOSÉES PAR LE MÉDIA SOURCE : ${JSON.stringify(imposed)}. Crée exactement ${imposed.length} unités avec les mêmes n, debut et fin.`:`Durée cible : ${p.duree} s. Couvre entre ${Math.round((Number(p.duree)||60)*0.65)} et ${p.duree} s avec des unités réellement utiles : si l'idée paraît trop courte, enrichis-la (obstacle supplémentaire, réaction, conséquence, escalade, retournement) plutôt que de livrer une vidéo trop courte ; jamais de remplissage ni de plan d'attente. Une vidéo de fiction alterne action, réaction et conséquence ; les personnages se parlent plutôt qu'un narrateur ne raconte.`}
@@ -2257,13 +2258,14 @@ const shotTarget = sc => Math.min(8, Math.max(1, Math.round((Number(sc&&sc.duree
 function executionPlanPrompt(idee,p,creative,scenePlan,previous,lot){
   const profile=videoProfile(p.vtype,p);
   const sourceAudio=(Array.isArray(p.timeline)?p.timeline:[]).filter(x=>x&&x.texte).map(x=>Object.assign({source_n:x.n,texte:x.texte},x.voix?{voix:x.voix}:{}));
+  const sourceVideo=(Array.isArray(p.timeline)?p.timeline:[]).map((x,i)=>({source_n:x.n==null?i+1:x.n,debut:x.debut,fin:x.fin,source_shot_id:x.source_shot_id||"",source_segment:x.source_segment||"",technical_continuation:x.coupe==="continuation technique",analysis:x.original_shot||null}));
   return `Tu es le REALIZATION ORCHESTRATOR. Le concept et les événements ci-dessous sont VERROUILLÉS. Tu ne les réécris pas. Tu construis un MASTER VIDEO PLAN indépendant de tout générateur : aucun nom de modèle, aucune syntaxe de prompt.
 
 DEMANDE : """${idee}"""
 CREATIVE PROFILE : ${JSON.stringify({video_type:profile.label,goal:profile.goal,duration:`${p.duree}s`,pace:profile.pace,interaction_need:profile.interactionNeed,visual_priority:profile.visualPriority,sound_priority:profile.soundPriority,realism:profile.realism})}
 SCENE PLAN VERROUILLÉ : ${JSON.stringify(scenePlan.scenes)}${lot?`
 PROJET LONG, RÉALISÉ PAR LOTS : cette réponse couvre seulement le lot ${lot.lot} sur ${lot.lots}, c'est-à-dire les scènes ${lot.de} à ${lot.a} sur ${lot.total} (celles du SCENE PLAN ci-dessus). Découpe-les toutes entièrement, sans résumer et sans traiter d'autres scènes.${lot.avant?` État à la fin du plan précédent, pour le raccord : ${lot.avant}`:""}`:""}
-${audioLockedOf(p)?`AUDIO IMPORTÉ : l'audio existe déjà et ses ${p.timeline.length} unités sont découpées au dixième de seconde. Crée EXACTEMENT un shot par unité, dans l'ordre, avec source_n = n de l'unité : ne divise et ne fusionne aucune unité ; si une unité est trop chargée, simplifie son action au lieu de la diviser.${sourceAudio.length?` Ce qui est dit pendant chaque unité : ${JSON.stringify(sourceAudio)}. L'image montre ce que dit ce texte à ce moment. Laisse sound.voice_over et sound.dialogue vides : l'application y place elle-même le texte exact ; ce son existe déjà (post_audio).`:""}`:""}
+${timelineLockedOf(p)?`MÉDIA SOURCE HORODATÉ : ses ${p.timeline.length} unités sont découpées au dixième de seconde. Crée EXACTEMENT un shot par unité, dans l'ordre, avec source_n = n de l'unité : ne divise et ne fusionne aucune unité ; si une unité est trop chargée, simplifie son action au lieu de la diviser. ANALYSE DES PLANS SOURCE : ${JSON.stringify(sourceVideo)}. Si technical_continuation=true, cette unité continue le même plan source : aucun nouveau cadrage ni saut d'axe, et STATE IN recopie exactement le segment précédent. Reprends cadrage, focale, mouvement, focus, lumière, son, objets, performance, transitions et raccords de analysis selon l'ambition demandée ; toute amélioration doit être motivée et conserver l'événement.${audioLockedOf(p)&&sourceAudio.length?` Ce qui est dit pendant chaque unité : ${JSON.stringify(sourceAudio)}. Laisse sound.voice_over et sound.dialogue vides : l'application y place elle-même le texte exact ; ce son existe déjà (post_audio).`:p.audioKind==="remake"&&p.remakeSrc==="autre"?" La source appartient à un tiers : n'en recopie aucune phrase ; écris des paroles originales qui gardent seulement la fonction narrative.":""}`:""}
 ${previous?`MASTER REFUSÉ : ${JSON.stringify(previous)}. "refus" liste les raisons exactes du refus ; "version_precedente" est le master refusé. Repars de cette version : garde ce qui fonctionne, corrige chaque raison de refus, divise tout plan trop complexe, et renvoie le master complet corrigé.`:""}
 ${nicheGuides(idee,p)}
 ${learningBlock(p)}
@@ -2278,8 +2280,8 @@ MODEL-INDEPENDENT : model_requirements décrit seulement les capacités nécessa
 
 DIRECTOR CRITIC : refuse avant adaptation tout plan sans événement lisible, blocking motivé, réaction causée, caméra motivée, état entrant/sortant ou séparation sonore claire. Tous les scores pertinents doivent atteindre 8. N'impose pas performance humaine, objet ou dialogue s'ils ne servent pas le format.
 
-DÉCOUPAGE SCÈNE PAR SCÈNE : ${audioLockedOf(p) ? "chaque unité de l'audio est un plan ; garde le scene_id de sa scène pour que les plans d'un même lieu et d'un même moment restent groupés." : `découpe chaque scène du SCENE PLAN, dans l'ordre, en plusieurs shots qui gardent son scene_id : en général un plan qui situe le lieu et les personnages, puis l'action, les réactions et les inserts utiles ; seulement les plans qui passent le TEST D'EXISTENCE, avec des durées qui suivent l'action (inserts et réactions courts, plans plus longs pour l'émotion) ; « shots » est un MAXIMUM, jamais un quota : COMPRESSION PASS avant de répondre. DÉCOUPAGE CIBLE (maximum par scène) : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, duree_s:Number(sc.duree_s)||0, shots:shotTarget(sc)})))}.`}
-NOMBRE DE SHOTS : ${audioLockedOf(p) ? `exactement ${p.timeline.length}, un par unité (source_n 1 à ${p.timeline.length})` : (()=>{ const t=(scenePlan.scenes||[]).reduce((a,sc)=>a+shotTarget(sc),0)||1; return `au plus ${t}, répartis selon le DÉCOUPAGE CIBLE ; moins si l'histoire est aussi claire et aussi forte avec moins de plans`; })()}. Le schéma ci-dessous montre UN SEUL shot pour l'exemple : ton tableau "shots" doit les contenir TOUS, chacun complet.
+DÉCOUPAGE SCÈNE PAR SCÈNE : ${timelineLockedOf(p) ? "chaque unité du média source est un shot ; garde le scene_id de sa scène pour que les plans d'un même lieu et d'un même moment restent groupés." : `découpe chaque scène du SCENE PLAN, dans l'ordre, en plusieurs shots qui gardent son scene_id : en général un plan qui situe le lieu et les personnages, puis l'action, les réactions et les inserts utiles ; seulement les plans qui passent le TEST D'EXISTENCE, avec des durées qui suivent l'action (inserts et réactions courts, plans plus longs pour l'émotion) ; « shots » est un MAXIMUM, jamais un quota : COMPRESSION PASS avant de répondre. DÉCOUPAGE CIBLE (maximum par scène) : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, duree_s:Number(sc.duree_s)||0, shots:shotTarget(sc)})))}.`}
+NOMBRE DE SHOTS : ${timelineLockedOf(p) ? `exactement ${p.timeline.length}, un par unité (source_n 1 à ${p.timeline.length})` : (()=>{ const t=(scenePlan.scenes||[]).reduce((a,sc)=>a+shotTarget(sc),0)||1; return `au plus ${t}, répartis selon le DÉCOUPAGE CIBLE ; moins si l'histoire est aussi claire et aussi forte avec moins de plans`; })()}. Le schéma ci-dessous montre UN SEUL shot pour l'exemple : ton tableau "shots" doit les contenir TOUS, chacun complet.
 
 RÉPONDS UNIQUEMENT avec ce JSON :
 {"version":"master-video-plan-1","shots":[{"shot_id":"SH01","scene_id":"S01","source_n":1,"purpose":"","change":"","characters":[""],"wants":[{"character":"","wants":""}],"obstacle":"","event":"","blocking":{"start_positions":"","end_positions":"","distance":"","movement":"","entry":"","exit":"","eye_lines":"","foreground":"","background":"","object_relationship":"","power_relationship":""},"performance":[{"character":"","intention":"","observable_behavior":"","cause":"","timing":"","intensity":""}],"objects":[{"id":"","owner":"","interaction":"","state_in":"","state_out":"","effect":""}],"causal_beats":[{"beat":1,"what_happens":"","caused_by":"","who_reacts":"","reaction":"","change":"","why_next":""}],"shot_design":{"must_notice":"","notice_when":"","hidden_information":"","revealed_information":"","moment_owner":"","framing":"","angle":"","lens":"","camera_position":"","camera_movement":"","focus":"","depth":"","duration":5,"start_frame":"","end_frame":"","cut_point":"","shot_mode":"ONE_SHOT|MULTIPLE_SHOTS","camera_reason":""},"sound":{"diegetic":"","ambience":"","dialogue":"","sfx":"","silence":"","voice_over":"","music":"","model_audio":"","post_audio":"","voice_over_dependency":"LOW|MEDIUM|HIGH"},"continuity":{"state_in":"","state_out":"","screen_direction":"","light":"","time_of_day":"","environment":"","emotional_state":"","object_state":"","damage_dirt_wetness":"","story_information":""},"complexity":{"characters":0,"important_actions":0,"physical_interactions":0,"object_interactions":0,"camera_movement":0,"environment_movement":0,"dialogue":0,"special_effects":0,"continuity_requirements":0,"model_difficulty":0,"total":0,"decision":"KEEP","split_reason":""},"model_requirements":{"mode":"t2v|i2v|either","reference_count":0,"character_consistency":false,"camera_control":false,"native_audio":false,"multi_shot":false,"start_end_frames":false,"editing":false,"motion_complexity":"low|medium|high"}}],"continuity_map":[{"from_shot":"SH01","to_shot":"SH02","state_out":"","required_state_in":"","match":true,"correction":""}],"editing_plan":{"shot_order":["SH01"],"reaction_shots":[""],"inserts":[""],"transitions":[""],"rhythm":""},"director_critic":{"decision":"APPROVED FOR ADAPTATION","scores":{"event":0,"causality":0,"blocking":0,"performance":0,"objects":0,"camera_motivation":0,"information_control":0,"continuity":0,"sound_editing":0,"feasibility":0},"defects":[{"shot_id":"","layer":"","problem":"","correction":"","expected_effect":""}]}}`;
@@ -2300,7 +2302,8 @@ function assignMasterTimes(shots,p){
   return shots.reduce((m,s)=>Math.max(m,Number(s.time&&s.time.end)||0),0);
 }
 /* Audio importé : un plan par unité de l'audio, dans l'ordre ; le texte de l'audio est placé par l'application, jamais recopié par le modèle */
-const audioLockedOf = p => !!(p && p.audioKind && p.audioKind!=="remake" && Array.isArray(p.timeline) && p.timeline.length);
+const timelineLockedOf = p => !!(p && p.audioKind && Array.isArray(p.timeline) && p.timeline.length);
+const audioLockedOf = p => !!(timelineLockedOf(p) && !(p.audioKind==="remake" && p.remakeSrc==="autre"));
 const unitKey = (u,i) => String(u && u.n!=null ? u.n : i+1);
 function setUnitText(s,u){
   const t=String(u&&u.texte||"").trim(); s.sound=s.sound&&typeof s.sound==="object"?s.sound:{};
@@ -2308,11 +2311,11 @@ function setUnitText(s,u){
   if(String(s.sound.dialogue||"").trim() && !String(s.sound.voice_over||"").trim()) s.sound.dialogue=t; else { s.sound.voice_over=t; s.sound.dialogue=""; }
   s.sound.post_audio = s.sound.post_audio || "audio importé";
 }
-function lockShotsToAudio(shots,units){
+function lockShotsToAudio(shots,units,lockText){
   const keys=units.map(unitKey), byKey=new Map(), loose=[];
   shots.forEach(s=>{ const k=String(s.source_n); if(keys.includes(k)&&!byKey.has(k)) byKey.set(k,s); else loose.push(s); });
   keys.forEach(k=>{ if(!byKey.has(k) && loose.length) byKey.set(k,loose.shift()); });
-  const out=[]; units.forEach((u,i)=>{ const s=byKey.get(keys[i]); if(!s) return; s.source_n=u.n!=null?u.n:i+1; setUnitText(s,u); out.push(s); });
+  const out=[]; units.forEach((u,i)=>{ const s=byKey.get(keys[i]); if(!s) return; s.source_n=u.n!=null?u.n:i+1; if(lockText) setUnitText(s,u); out.push(s); });
   return out;
 }
 /* Unités de la source restées sans plan après les réécritures : on prolonge le plan voisin plutôt que de tout perdre */
@@ -2336,7 +2339,7 @@ function fillMissingUnits(d,p,scenePlan){
 function normalizeMasterPlan(x,scenePlan,p){
   x=x&&typeof x==="object"?x:{}; x.version=x.version||"master-video-plan-1"; x.shots=Array.isArray(x.shots)?x.shots.filter(s=>s&&s.event&&s.shot_design):[]; x.scene_plan=scenePlan; x.director_critic=x.director_critic&&typeof x.director_critic==="object"?x.director_critic:{};
   x.shots.forEach((s,i)=>{ s.shot_id=s.shot_id||`SH${String(i+1).padStart(2,"0")}`; s.performance=Array.isArray(s.performance)?s.performance.filter(v=>v&&(v.character||v.observable_behavior)):[]; s.objects=Array.isArray(s.objects)?s.objects.filter(v=>v&&(v.id||v.interaction||v.effect)):[]; s.causal_beats=Array.isArray(s.causal_beats)?s.causal_beats.filter(Boolean):[]; s.complexity=s.complexity&&typeof s.complexity==="object"?s.complexity:{}; const keys=["characters","important_actions","physical_interactions","object_interactions","camera_movement","environment_movement","dialogue","special_effects","continuity_requirements","model_difficulty"]; const total=keys.reduce((sum,k)=>sum+Math.max(0,Math.min(3,Number(s.complexity[k])||0)),0); s.complexity.total=total; if(total>MAX_SHOT_COMPLEXITY) s.complexity.decision="SPLIT"; });
-  if(audioLockedOf(p)) x.shots=lockShotsToAudio(x.shots,p.timeline);
+  if(timelineLockedOf(p)) x.shots=lockShotsToAudio(x.shots,p.timeline,audioLockedOf(p));
   x.duration=assignMasterTimes(x.shots,p); x.continuity_map=Array.isArray(x.continuity_map)?x.continuity_map:[];
   const normState=v=>String(v||"").trim().replace(/\s+/g," ");
   x.shots.slice(0,-1).forEach((s,i)=>{ const n=x.shots[i+1]; if(s.scene_id!==n.scene_id) return; const actual=normState(s.continuity&&s.continuity.state_out); let required=normState(n.continuity&&n.continuity.state_in), auto=false; if(actual&&actual!==required){ n.continuity=n.continuity&&typeof n.continuity==="object"?n.continuity:{}; n.continuity.state_in=actual; required=actual; auto=true; } const match=!!actual&&actual===required; let m=x.continuity_map.find(v=>v&&v.from_shot===s.shot_id&&v.to_shot===n.shot_id); if(!m){ m={from_shot:s.shot_id,to_shot:n.shot_id}; x.continuity_map.push(m); } Object.assign(m,{state_out:actual,required_state_in:required,match,correction:match?(auto?"STATE IN recopié automatiquement depuis STATE OUT.":""):"Recopier exactement STATE OUT dans STATE IN."}); if(!match){ const defects=Array.isArray(x.director_critic.defects)?x.director_critic.defects:(x.director_critic.defects=[]); defects.push({shot_id:n.shot_id,layer:"CONTINUITY",problem:"STATE IN ne correspond pas exactement au STATE OUT précédent.",correction:"Recopier le même état sans reformulation.",expected_effect:"Raccord spatial, humain et matériel vérifiable."}); } });
@@ -2345,7 +2348,7 @@ function normalizeMasterPlan(x,scenePlan,p){
 function masterPlanFailures(x,p){
   const scores=x.director_critic&&x.director_critic.scores||{}, shots=x.shots||[], imposed=Array.isArray(p.timeline)?p.timeline:[];
   const sourcesOk=!imposed.length||imposed.every((src,i)=>shots.some(s=>String(s.source_n)==String(src.n==null?i+1:src.n)));
-  const normText=v=>String(v||"").trim().replace(/\s+/g," "), audioLocked=!!(p.audioKind&&p.audioKind!=="remake");
+  const normText=v=>String(v||"").trim().replace(/\s+/g," "), audioLocked=audioLockedOf(p);
   const sourceAudioOk=!audioLocked||imposed.every((src,i)=>{ if(!normText(src.texte)) return true; const key=String(src.n==null?i+1:src.n), joined=shots.filter(s=>String(s.source_n)===key).map(s=>normText(s.sound&&(s.sound.voice_over||s.sound.dialogue))).filter(Boolean).join(" "); return joined===normText(src.texte); });
   const hasPeople=shots.some(s=>(s.characters||[]).filter(Boolean).length), hasObjects=shots.some(s=>(s.objects||[]).length);
   const required=EXECUTION_SCORE_KEYS.filter(k=>(k!=="performance"||hasPeople)&&(k!=="objects"||hasObjects));
@@ -2358,7 +2361,7 @@ function masterPlanFailures(x,p){
   const incomplete=shots.filter(s=>!(s.event&&s.change&&s.blocking&&s.shot_design&&s.shot_design.must_notice&&s.shot_design.camera_reason&&s.continuity&&s.continuity.state_in&&s.continuity.state_out&&s.sound));
   if(incomplete.length) add(false,`plans incomplets : ${incomplete.map(s=>s.shot_id).join(", ")}`);
   const complex=shots.filter(s=>s.complexity&&(s.complexity.decision==="SPLIT"||Number(s.complexity.total)>MAX_SHOT_COMPLEXITY));
-  if(complex.length) add(false,`plans trop complexes, à ${audioLockedOf(p)?"simplifier (l'audio impose un plan par unité)":"diviser"} : ${complex.map(s=>s.shot_id).join(", ")}`);
+  if(complex.length) add(false,`plans trop complexes, à ${timelineLockedOf(p)?"simplifier (le média impose un plan par unité)":"diviser"} : ${complex.map(s=>s.shot_id).join(", ")}`);
   const low=required.filter(k=>!(Number(scores[k])>=8));
   if(low.length) add(false,`notes sous 8 : ${low.map(k=>`${k} ${Number(scores[k])||0}`).join(", ")}`);
   if(!/^APPROVED/.test(String(x.director_critic.decision||""))) add(false,`décision du critic : ${x.director_critic.decision||"absente"}`);
@@ -2370,13 +2373,13 @@ function masterPlanPasses(x,p){ return !masterPlanFailures(x,p).length; }
    une réponse de 8 à 12 shots avant la fermeture du JSON, même avec une limite élevée. */
 const BATCH_SHOTS = 8, AUDIO_BATCH_SHOTS = 4;
 function sceneBatches(scenes, p){
-  const audio=audioLockedOf(p), limit=audio?AUDIO_BATCH_SHOTS:BATCH_SHOTS, out=[]; let cur=[], n=0;
+  const audio=timelineLockedOf(p), limit=audio?AUDIO_BATCH_SHOTS:BATCH_SHOTS, out=[]; let cur=[], n=0;
   (scenes||[]).forEach(sc=>{ const t=audio?1:shotTarget(sc); if(cur.length && n+t>limit){ out.push(cur); cur=[]; n=0; } cur.push(sc); n+=t; });
   if(cur.length) out.push(cur);
   return out;
 }
 function batchParams(p, scenes){
-  if(audioLockedOf(p)){ const keys=new Set(scenes.map(sc=>String(sc.source_n))); return Object.assign({},p,{timeline:(p.timeline||[]).filter((u,i)=>keys.has(unitKey(u,i)))}); }
+  if(timelineLockedOf(p)){ const keys=new Set(scenes.map(sc=>String(sc.source_n))); return Object.assign({},p,{timeline:(p.timeline||[]).filter((u,i)=>keys.has(unitKey(u,i)))}); }
   const d=scenes.reduce((a,sc)=>a+(Number(sc.duree_s)||0),0);
   return d ? Object.assign({},p,{duree:String(Math.round(d))}) : p;
 }
@@ -2414,7 +2417,7 @@ async function directExecution(idee,p,creative,scenePlan,prefix,signal){
 }
 /* Chaque lot : réalisé, contrôlé (une réécriture au plus), puis tous les plans sont réunis et renumérotés */
 async function directByBatches(batches, ask, idee, p, scenePlan, prefix){
-  const N=(scenePlan.scenes||[]).length, audio=audioLockedOf(p), critics=[]; let all=[], avant="", rewrites=0;
+  const N=(scenePlan.scenes||[]).length, audio=timelineLockedOf(p), critics=[]; let all=[], avant="", rewrites=0;
   for(let b=0;b<batches.length;b++){
     const scs=batches[b], sub=Object.assign({},scenePlan,{scenes:scs}), pb=batchParams(p,scs), de=(scenePlan.scenes||[]).indexOf(scs[0])+1;
     const lot={lot:b+1, lots:batches.length, de, a:de+scs.length-1, total:N, avant};
@@ -2498,13 +2501,13 @@ async function dialogueDoctor(idee, p, creative, scenePlan, master, prefix, sign
    découpé. On transforme les scènes validées en Master minimal, sans ajouter
    d'événement, de caméra décorative ni de dialogue. Le compilateur peut continuer. */
 function fallbackMasterFromScenes(scenePlan,p,reason){
-  const scenes=(scenePlan&&scenePlan.scenes)||[], units=audioLockedOf(p)?p.timeline:scenes;
+  const scenes=(scenePlan&&scenePlan.scenes)||[], units=timelineLockedOf(p)?p.timeline:scenes;
   const shots=units.map((u,i)=>{
-    const key=audioLockedOf(p)?unitKey(u,i):String(u.scene_id||`S${String(i+1).padStart(2,"0")}`);
-    const sc=audioLockedOf(p)?(scenes.find(x=>String(x.source_n)===key)||scenes[i]||{}):u;
+    const key=timelineLockedOf(p)?unitKey(u,i):String(u.scene_id||`S${String(i+1).padStart(2,"0")}`);
+    const sc=timelineLockedOf(p)?(scenes.find(x=>String(x.source_n)===key)||scenes[i]||{}):u;
     const event=String(sc.event||sc.change||u.source||u.texte||"Progression visuelle de la scène");
     const state=`${event} — ${String(sc.lieu||"")} ${String(sc.moment||"")}`.trim();
-    const s={shot_id:`SH${String(i+1).padStart(2,"0")}`,scene_id:String(sc.scene_id||`S${String(i+1).padStart(2,"0")}`),source_n:audioLockedOf(p)?(u.n!=null?u.n:i+1):(sc.source_n!=null?sc.source_n:i+1),purpose:String(sc.purpose||event),change:String(sc.change||event),characters:Array.isArray(sc.characters)?sc.characters:[],wants:Array.isArray(sc.wants)?sc.wants:[],obstacle:String(sc.obstacle||""),event,
+    const s={shot_id:`SH${String(i+1).padStart(2,"0")}`,scene_id:String(sc.scene_id||`S${String(i+1).padStart(2,"0")}`),source_n:timelineLockedOf(p)?(u.n!=null?u.n:i+1):(sc.source_n!=null?sc.source_n:i+1),purpose:String(sc.purpose||event),change:String(sc.change||event),characters:Array.isArray(sc.characters)?sc.characters:[],wants:Array.isArray(sc.wants)?sc.wants:[],obstacle:String(sc.obstacle||""),event,
       blocking:{start_positions:"État visible au début de l'unité",end_positions:"État visible après l'événement",distance:"",movement:"Seulement le mouvement exigé par l'événement",entry:"",exit:"",eye_lines:"",foreground:"",background:"Décor stable",object_relationship:"",power_relationship:""},
       performance:[],objects:Array.isArray(sc.objects)?sc.objects:[],causal_beats:Array.isArray(sc.causal_beats)?sc.causal_beats:[],
       shot_design:{must_notice:event,notice_when:"pendant l'événement",hidden_information:"",revealed_information:String(sc.change||""),moment_owner:"",framing:"medium or wide shot as needed for readability",angle:"eye level",lens:"natural perspective",camera_position:"stable readable position",camera_movement:"locked",focus:"main event",depth:"context remains readable",duration:Number(u.duree||sc.duree_s)||5,start_frame:state,end_frame:String(sc.change||event),cut_point:"after the change is readable",shot_mode:"ONE_SHOT",camera_reason:"show the validated event clearly"},
@@ -2528,7 +2531,7 @@ async function prepareProduction(idee,p,prefix,signal){
   }
   await dialogueDoctor(idee,p,creative,scenes,master,prefix,signal);
   const sourceTimeline=Array.isArray(p.timeline)?p.timeline:[];
-  const compileTimeline=master.shots.map((s,i)=>{ const src=sourceTimeline.find((x,k)=>String(x.n==null?k+1:x.n)===String(s.source_n)); return {n:i+1,t0:s.time.start,t1:s.time.end,debut:s.time.debut,fin:s.time.fin,duree:s.shot_design.duration,section:s.scene_id,source:s.event,texte:src&&src.texte||""}; });
+  const compileTimeline=master.shots.map((s,i)=>{ const src=sourceTimeline.find((x,k)=>String(x.n==null?k+1:x.n)===String(s.source_n)); return {n:i+1,t0:s.time.start,t1:s.time.end,debut:s.time.debut,fin:s.time.fin,duree:s.shot_design.duration,section:s.scene_id,source:s.event,texte:src&&src.texte||"",source_shot_id:src&&src.source_shot_id||"",source_segment:src&&src.source_segment||"",coupe:src&&src.coupe||"",original_shot:src&&src.original_shot||null}; });
   const compileParams=Object.assign({},p,{masterPlanLocked:true,masterPlan:master,audioKind:"master",duree:String(Math.max(1,Math.round(master.duration))),timeline:compileTimeline});
   return {creative,scenes,master,compileParams,productionIdea:productionIdea(idee,creative,master)};
 }
@@ -5492,11 +5495,12 @@ window.addEventListener("resize",()=>{ if(!$("view-audio").hidden && AU.dur) dra
 
 function timelineRule(p){
   const t=p.timeline||[], kind=p.audioKind||"histoire";
-  if(kind==="master") return `MASTER VIDEO PLAN INDÉPENDANT VALIDÉ : produis exactement ${t.length} plans avec ces timecodes et événements verrouillés : ${JSON.stringify(t.map(x=>({n:x.n,debut:x.debut,fin:x.fin,duree:x.duree,scene:x.section,event:x.source})))}. Ces durées viennent du Shot Director, pas du générateur. Ne fusionne, n'ajoute et ne réécris aucun événement.`;
-  if(kind==="remake") return `REMAKE EN VERSION IA D'UNE VRAIE VIDÉO, analysée par l'application (changements de plan, images clés, pauses de la voix). Les plans sont IMPOSÉS : exactement ${t.length} plans, avec ces n, debut et fin, recopiés tels quels (format m:ss.d) : ${JSON.stringify(t.map(x=>({n:x.n,debut:x.debut,fin:x.fin,duree:x.duree,texte_original:x.texte||undefined,image_originale:x.source||undefined,scene:x.section})))}
+  if(kind==="master") return `MASTER VIDEO PLAN INDÉPENDANT VALIDÉ : produis exactement ${t.length} plans avec ces timecodes et événements verrouillés : ${JSON.stringify(t.map(x=>({n:x.n,debut:x.debut,fin:x.fin,duree:x.duree,scene:x.section,event:x.source,texte_original:x.texte||undefined,source_shot_id:x.source_shot_id||undefined,source_segment:x.source_segment||undefined,analyse_source:x.original_shot||undefined})))}. Ces durées viennent du Shot Director, pas du générateur. Ne fusionne, n'ajoute et ne réécris aucun événement.`;
+  if(kind==="remake") return `REMAKE EN VERSION IA D'UNE VRAIE VIDÉO, analysée par l'application (flux visuel, mouvements, son, paroles, scènes, plans et caméra). Les unités de génération sont IMPOSÉES : exactement ${t.length}, avec ces n, debut et fin, recopiés tels quels (format m:ss.d) : ${JSON.stringify(t.map(x=>({n:x.n,debut:x.debut,fin:x.fin,duree:x.duree,texte_original:x.texte||undefined,image_originale:x.source||undefined,scene:x.section,source_shot_id:x.source_shot_id||undefined,source_segment:x.source_segment||undefined,analyse_source:x.original_shot||undefined})))}
 - image_originale = ce que montre la vidéo d'origine à ce moment. Refais ce plan en version ${AMBITION[p.ambition]||AMBITION.cinema} ; même place dans le récit, mais cadrage, lumière, décor et jeu de niveau cinéma ; corrige chaque défaut signalé (flou, sombre, tremblé, cadrage raté) ; ajoute ce qui manque (plan d'ensemble pour situer, gros plan d'émotion, détail) sans changer la durée du plan. Un changement de scene = un changement de plan net.
 ${p.ambition==="fidele" ? "" : `- CRÉE DE NOUVELLES IMAGES : image_originale sert seulement à comprendre l'idée et l'émotion du plan, jamais à la recopier. Pour chaque plan, change au moins deux choses parmi : l'angle et la valeur de plan, le décor, le moment de la journée et la lumière, la composition. Les personnages sont nouveaux (autres visages, coiffures, tenues et couleurs que dans la vidéo d'origine), fixés dans leurs fiches.
 `}- N'écris jamais rien sur les incrustations de la vidéo d'origine (logo ou filigrane TikTok, YouTube, Instagram, CapCut, @pseudo, sous-titres, titres « Épisode ») : la nouvelle vidéo n'a aucun logo ni texte dans l'image.
+- source_segment indique qu'un plan source long a été divisé seulement pour respecter la durée technique du générateur : garde exactement la même action, le même axe, les mêmes positions et le même état entre ces segments ; ce n'est pas une nouvelle coupe narrative.
 - texte_original = ce qui est dit dans la vidéo d'origine pendant ce plan. voix_off = la version AMÉLIORÉE pour une voix off propre, enregistrée ensuite avec ElevenLabs : même sens, plus claire et plus forte, sans hésitation ni répétition, au maximum 2,3 mots par seconde de plan pour qu'elle tienne dans le plan sans être coupée ni précipitée. Garde les informations, les chiffres et les noms importants. Plan sans parole : voix_off = "".
 - Personnes réelles : ne reproduis jamais le visage d'une personne réelle identifiable ; crée des personnages fictifs qui tiennent le même rôle, avec des fiches fixes.
 ${p.remakeSrc==="autre"?"- La vidéo d'origine appartient à quelqu'un d'autre : RÉINVENTE tout (nouvelle histoire, nouveaux personnages, nouveaux décors, nouvelles phrases) ; garde seulement le type de sujet et la structure ; ne recopie aucune phrase.\n":""}- Le générateur fait des clips de ${PLAN_SEC[p.outil]||8} s : le monteur coupe chaque clip à la durée du plan.${(p.stretch||1)>1?` Les plans durent jusqu'à ${(PLAN_SEC[p.outil]||8)*p.stretch} s : le monteur enchaîne ${p.stretch} versions du même prompt.`:""}`;
@@ -5749,14 +5753,15 @@ async function generateProject(idee, params, prefix, signal){
   res.pipeline.execution = (PIPE||[]).slice();
   res.pipeline.weak_model = res.pipeline.execution.some(x=>weakModel(x.model));
   genEnd();
-  (params.persos||[]).forEach(lib=>{ const c=(res.personnages||[]).find(x=>x.id===lib.id||x.nom===lib.nom); if(c) Object.assign(c,{nom:lib.nom,fiche_en:lib.fiche_en,rappel_en:lib.rappel_en,fiche_fr:lib.fiche_fr}); });
+  res.personnages=Array.isArray(res.personnages)?res.personnages:[];
+  (params.persos||[]).forEach(lib=>{ const c=res.personnages.find(x=>x.id===lib.id||x.nom===lib.nom); if(c) Object.assign(c,{nom:lib.nom,fiche_en:lib.fiche_en,rappel_en:lib.rappel_en,fiche_fr:lib.fiche_fr}); else res.personnages.push({id:lib.id,nom:lib.nom,fiche_en:lib.fiche_en,rappel_en:lib.rappel_en,fiche_fr:lib.fiche_fr}); });
   return res;
 }
 
 /* =================== 12 · REFAIRE UNE VRAIE VIDÉO EN VERSION IA =================== */
 OPTS.ambition=[["cinema","Plus cinématique (même histoire)"],["fidele","Fidèle (même découpage, qualité cinéma)"],["reinvente","Réinventée (plus virale)"]];
 const AMBITION = {fidele:"fidèle : même découpage et même contenu, avec une qualité d'image et une mise en scène de cinéma", cinema:"plus cinématique : même histoire et même message, mise en scène réinventée (cadrages, lumière, décors, rythme)", reinvente:"réinventée : même sujet, histoire améliorée, accroche et rythme pensés pour devenir virale"};
-const RM = {file:null, dur:0, scenes:[], frames:[], an:null, cues:null, plain:"", desc:null, caps:false};
+const RM = {file:null, dur:0, scenes:[], frames:[], an:null, cues:null, plain:"", desc:null, caps:false, full:null, textDirty:false, localReady:false, loadId:0};
 function fillRmVideoTypes(category,current){
   const sel=$("rm-vtype"), list=VIDEO_CATEGORIES[category]||VIDEO_CATEGORIES.story;
   sel.innerHTML=""; list.forEach(([v,t])=>{ const o=document.createElement("option"); o.value=v; o.textContent=t; if(v===current) o.selected=true; sel.append(o); });
@@ -5773,6 +5778,7 @@ $("rm-vtype").addEventListener("change",syncRmTypeStyle);
 fillSelect($("rm-outil"),"outil",form.outil||"veo",()=>{ if(RM.dur) rmRefresh(); });
 fillSelect($("rm-format"),"format",form.format||"16:9",()=>{});
 fillSelect($("rm-langue"),"langue",form.langue||"fr",()=>{});
+{ const o=document.createElement("option"); o.value="auto"; o.textContent="Conserver la ou les langues originales"; $("rm-langue").prepend(o); $("rm-langue").value="auto"; }
 
 function seekTo(v,t){ return new Promise(res=>{ const to=setTimeout(res,4000); v.onseeked=()=>{ clearTimeout(to); res(); }; v.currentTime=Math.max(0,Math.min(t,(v.duration||t)-0.05)); }); }
 function grabBlob(v, w){
@@ -5780,17 +5786,23 @@ function grabBlob(v, w){
   c.getContext("2d").drawImage(v,0,0,w,h);
   return new Promise(res=>c.toBlob(b=>res({blob:b, canvas:c}),"image/jpeg",0.82));
 }
-async function readVideo(file){
+function videoCancelled(signal){ if(signal&&signal.aborted) throw Object.assign(new Error("Analyse annulée."),{code:"cancelled"}); }
+async function readVideoDuration(file){
+  const url=URL.createObjectURL(file), v=document.createElement("video"); v.muted=true; v.preload="metadata"; v.src=url;
+  try{ await new Promise((res,rej)=>{ const done=fn=>{ clearTimeout(to); v.onloadedmetadata=null; v.onerror=null; fn(); }, to=setTimeout(()=>done(()=>rej(new Error("timeout"))),12000); v.onloadedmetadata=()=>done(res); v.onerror=()=>done(()=>rej(new Error("video"))); }); const d=Number(v.duration); if(!isFinite(d)||d<=0) throw new Error("duration"); return d; }
+  finally{ try{ URL.revokeObjectURL(url); }catch(e){} v.removeAttribute("src"); }
+}
+async function readVideo(file,signal){
   const url=URL.createObjectURL(file), v=document.createElement("video");
   v.muted=true; v.playsInline=true; v.preload="auto"; v.src=url;
   try{
     await new Promise((res,rej)=>{ const to=setTimeout(()=>rej(new Error("timeout")),20000); v.onloadeddata=()=>{ clearTimeout(to); res(); }; v.onerror=()=>{ clearTimeout(to); rej(new Error("video")); }; });
-    const dur=v.duration; if(!isFinite(dur)||dur<=0) throw new Error("duration");
+    videoCancelled(signal); const dur=v.duration; if(!isFinite(dur)||dur<=0) throw new Error("duration");
     const step = dur<=90?0.5 : dur<=300?1 : dur<=900?2 : 3;
     const sc=document.createElement("canvas"); sc.width=48; sc.height=27; const g=sc.getContext("2d",{willReadFrequently:true});
     let prev=null; const diffs=[];
     for(let t=0;t<dur;t+=step){
-      await seekTo(v,t); g.drawImage(v,0,0,48,27);
+      videoCancelled(signal); await seekTo(v,t); videoCancelled(signal); g.drawImage(v,0,0,48,27);
       const px=g.getImageData(0,0,48,27).data, gray=new Float32Array(48*27);
       for(let i=0;i<gray.length;i++) gray[i]=0.299*px[i*4]+0.587*px[i*4+1]+0.114*px[i*4+2];
       let d=0; if(prev){ for(let i=0;i<gray.length;i++) d+=Math.abs(gray[i]-prev[i]); d/=gray.length; }
@@ -5804,11 +5816,17 @@ async function readVideo(file){
     let times=[]; scenes.forEach((s,si)=>{ const n=Math.max(1,Math.ceil((s.t1-s.t0)/20)); for(let k=0;k<n;k++) times.push({t:s.t0+(k+0.5)*(s.t1-s.t0)/n, scene:si}); });
     const FMAX=40; if(times.length>FMAX){ const keep=[]; for(let i=0;i<FMAX;i++) keep.push(times[Math.round(i*(times.length-1)/(FMAX-1))]); times=keep; }
     const frames=[];
-    for(let i=0;i<times.length;i++){ await seekTo(v,times[i].t); const fb=await grabBlob(v,512); frames.push(Object.assign({t:times[i].t, scene:times[i].scene}, fb)); showStatus("rm-",`Images clés : ${i+1} sur ${times.length}…`,false,50+20*(i+1)/times.length); }
+    for(let i=0;i<times.length;i++){ videoCancelled(signal); await seekTo(v,times[i].t); const fb=await grabBlob(v,512); frames.push(Object.assign({t:times[i].t, scene:times[i].scene}, fb)); showStatus("rm-",`Images clés : ${i+1} sur ${times.length}…`,false,50+20*(i+1)/times.length); }
     let an=null;
-    try{ if(file.size<=400e6){ showStatus("rm-","Analyse de la voix…",false,74); const ab=await decodeAudio(await file.arrayBuffer()); an=analyze(ab); } }catch(e){ an=null; }
+    try{ if(file.size<=400e6){ videoCancelled(signal); showStatus("rm-","Analyse locale de secours de la piste audio…",false,74); const ab=await decodeAudio(await file.arrayBuffer()); videoCancelled(signal); an=analyze(ab); } }catch(e){ if(e&&e.code==="cancelled") throw e; an=null; }
     return {dur, scenes, frames, an};
   } finally { try{ URL.revokeObjectURL(url); }catch(e){} v.removeAttribute("src"); }
+}
+async function ensureLocalVideo(signal){
+  if(RM.localReady||!RM.file||RM.caps) return;
+  const file=RM.file, loadId=RM.loadId, r=await readVideo(file,signal); videoCancelled(signal);
+  if(file!==RM.file||loadId!==RM.loadId) throw Object.assign(new Error("Une autre vidéo a été chargée."),{code:"cancelled"});
+  RM.dur=r.dur; RM.scenes=r.scenes; RM.frames=r.frames; RM.an=r.an; RM.localReady=true; rmThumbs(); rmRefresh();
 }
 function rmThumbs(){
   const host=$("rm-thumbs"); host.innerHTML="";
@@ -5816,6 +5834,13 @@ function rmThumbs(){
 }
 function rmTimeline(){
   const base=PLAN_SEC[$("rm-outil").value]||8, dur=RM.dur;
+  if(RM.full&&Array.isArray(RM.full.shots)&&RM.full.shots.length){
+    const cues=RM.textDirty?(RM.cues&&RM.cues.length?RM.cues:(RM.plain?cuesFromText(RM.plain,RM.an,dur):[])):(RM.cues&&RM.cues.length?RM.cues:(RM.full.transcript||[]).map(c=>({start:Number(c.t0),end:Number(c.t1),text:String(c.text||"")})));
+    let maxLen=base, parts=splitFullVideoShots(RM.full.shots,maxLen,dur);
+    for(let guard=0;parts.length>MAX_PLANS&&guard<12;guard++){ const before=parts.length; maxLen*=1.3; const next=splitFullVideoShots(RM.full.shots,maxLen,dur); parts=next; if(next.length>=before||next.length<=RM.full.shots.length) break; }
+    RM.stretch=Math.max(1,Math.ceil(parts.reduce((m,p)=>Math.max(m,p.t1-p.t0),0)/base-0.01));
+    return parts.map((p,i)=>{ const s=p.original_shot, a=p.t0, b=p.t1; return {n:i+1,t0:a,t1:b,debut:fmtT(a),fin:fmtT(b),duree:Math.round((b-a)*10)/10,texte:cuesTextInRange(cues,a,b),source:clip([s.description,s.action,s.performance,s.framing&&`cadrage : ${s.framing}`,s.angle&&`angle : ${s.angle}`,s.lens&&`focale : ${s.lens}`,s.camera_movement&&`caméra : ${s.camera_movement}`,s.focus&&`mise au point : ${s.focus}`,s.lighting&&`lumière : ${s.lighting}`,s.color&&`couleur : ${s.color}`,s.dialogue&&`dialogue : ${s.dialogue}`,s.music&&`musique : ${s.music}`,s.sfx&&`SFX : ${s.sfx}`,s.ambience&&`ambiance : ${s.ambience}`,s.continuity_in&&`état entrant : ${s.continuity_in}`,s.continuity_out&&`état sortant : ${s.continuity_out}`,s.object_state&&`objets : ${s.object_state}`,s.reconstruction_note&&`reconstruction : ${s.reconstruction_note}`].filter(Boolean).join(" ; "),1600),energie:"moyenne",section:s.scene_id||p.source_index+1,coupe:p.segment_index?"continuation technique":s.transition_in||"plan",source_shot_id:s.shot_id||`P${String(p.source_index+1).padStart(2,"0")}`,source_segment:`${p.segment_index+1}/${p.segment_count}`,original_shot:s}; });
+  }
   const cues = RM.cues&&RM.cues.length ? RM.cues : (RM.plain ? cuesFromText(RM.plain, RM.an, dur) : []);
   let maxLen=base, tl=[];
   for(let guard=0;guard<10;guard++){
@@ -5830,41 +5855,84 @@ function rmTimeline(){
   return tl.map((p,i)=>({n:i+1, t0:Math.round(p.t0*100)/100, t1:Math.round(p.t1*100)/100, debut:fmtT(p.t0), fin:fmtT(p.t1), duree:Math.round((p.t1-p.t0)*10)/10,
     texte:cues.length?cuesInRange(cues,p.t0,p.t1):"", source:descAt((p.t0+p.t1)/2), energie:"moyenne", section:p.scene+1, coupe:p.sceneCut?"plan":"pause"}));
 }
+function splitFullVideoShots(shots,maxLen,dur){
+  const out=[];
+  (shots||[]).forEach((s,source_index)=>{
+    const t0=Math.max(0,Number(s.t0)||0); if(!(dur>0)||t0>=dur-.01) return;
+    const t1=Math.min(dur,Math.max(t0+.1,Number(s.t1)||t0+Math.min(5,maxLen))); if(t1<=t0) return;
+    const count=Math.max(1,Math.ceil((t1-t0)/maxLen-0.01));
+    for(let segment_index=0;segment_index<count;segment_index++) out.push({t0:t0+(t1-t0)*segment_index/count,t1:t0+(t1-t0)*(segment_index+1)/count,source_index,segment_index,segment_count:count,original_shot:s});
+  });
+  return out;
+}
+function cuesTextInRange(cues,a,b){
+  return (cues||[]).filter(c=>Number(c.start)<b-0.01&&Number(c.end)>a+0.01).map(c=>{
+    const words=String(c.text||"").split(/\s+/).filter(Boolean), start=Number(c.start)||0, end=Math.max(start+.01,Number(c.end)||start+.01);
+    if(!words.length||a<=start+.01&&b>=end-.01) return words.join(" ");
+    const from=Math.max(0,Math.min(words.length,Math.round((Math.max(a,start)-start)/(end-start)*words.length)));
+    const to=Math.max(from,Math.min(words.length,Math.round((Math.min(b,end)-start)/(end-start)*words.length)));
+    return words.slice(from,to).join(" ");
+  }).filter(Boolean).join(" ");
+}
 function rmRefresh(){
   if(!RM.dur){ $("rm-info").hidden=true; return; }
   const tl=rmTimeline();
-  const facts=[["Durée",fmtD(RM.dur)],["Scènes détectées",String(RM.scenes.length)],["Images clés",String(RM.frames.length)],["Voix",RM.an?`${RM.an.pauses.length} pauses`:"non analysée"],["Plans IA prévus",String(tl.length)]];
+  const facts=[["Durée",fmtD(RM.dur)],["Scènes détectées",String(RM.scenes.length)],["Analyse",RM.full?"vidéo complète + audio":"captures locales"],["Voix",RM.full&&RM.full.transcript?`${RM.full.transcript.length} segments transcrits`:RM.an?`${RM.an.pauses.length} pauses`:"non analysée"],["Plans IA prévus",String(tl.length)]]; if(RM.full) facts.splice(3,0,["Fichier distant",RM.full.source_deleted?"supprimé après analyse":"suppression non confirmée"]);
   $("rm-facts").innerHTML=facts.map(([k,v])=>`<div><span class="label">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
   $("rm-info").hidden=false;
 }
 $("rm-file").addEventListener("change", async e=>{
   const file=e.target.files&&e.target.files[0]; if(!file) return;
-  RM.file=file; RM.desc=null; RM.caps=false; RM.dur=0; $("rm-info").hidden=true; $("rm-go").disabled=true;
+  const loadId=++RM.loadId; RM.file=file; RM.desc=null; RM.full=null; RM.caps=false; RM.dur=0; RM.scenes=[]; RM.frames=[]; RM.an=null; RM.localReady=false; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value=""; $("rm-thumbs").innerHTML=""; $("rm-info").hidden=true; $("rm-go").disabled=true;
   try{
-    const r=await readVideo(file); Object.assign(RM,r);
-    $("rm-status").hidden=true; rmThumbs(); rmRefresh();
+    const dur=await readVideoDuration(file); if(loadId!==RM.loadId||file!==RM.file) return; RM.dur=dur; RM.scenes=[{t0:0,t1:dur}]; $("rm-status").hidden=true; rmRefresh();
   }catch(err){
-    RM.dur=0; $("rm-info").hidden=true;
-    showStatus("rm-","Cette vidéo ne peut pas être lue ici (format non pris en charge). Exporte-la en MP4 depuis CapCut, ou ajoute plutôt des captures ci-dessous avec la durée.",true);
-    $("rm-capbox").hidden=false;
-  }finally{ $("rm-go").disabled=false; }
+    if(loadId!==RM.loadId||file!==RM.file) return; RM.dur=0; showStatus("rm-","Aperçu local indisponible : Gemini essaiera quand même de lire la vidéo complète. Si cela échoue, convertis-la en MP4 H.264.",false,2); $("rm-capbox").hidden=false;
+  }finally{ if(loadId===RM.loadId&&file===RM.file) $("rm-go").disabled=false; }
 });
 $("rm-caps").addEventListener("change", async e=>{
   const fs=[...(e.target.files||[])].slice(0,40); if(!fs.length) return;
   const dur=parseDur($("rm-capdur").value)||fs.length*8;
-  RM.file={name:"captures"}; RM.dur=dur; RM.an=null; RM.caps=true; RM.desc=null;
+  ++RM.loadId; RM.file={name:"captures"}; RM.dur=dur; RM.an=null; RM.caps=true; RM.desc=null; RM.full=null; RM.localReady=true; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value="";
   RM.scenes=fs.map((f,i)=>({t0:i*dur/fs.length, t1:(i+1)*dur/fs.length}));
   RM.frames=fs.map((f,i)=>({t:(i+0.5)*dur/fs.length, scene:i, blob:f, canvas:null}));
   $("rm-thumbs").innerHTML=""; rmRefresh();
 });
 $("rm-capdur").addEventListener("change",()=>{ if(RM.caps){ const fs=RM.frames.length, dur=parseDur($("rm-capdur").value)||fs*8; RM.dur=dur; RM.scenes=RM.frames.map((f,i)=>({t0:i*dur/fs,t1:(i+1)*dur/fs})); RM.frames.forEach((f,i)=>f.t=(i+0.5)*dur/fs); rmRefresh(); } });
-function rmReadText(){ const t=$("rm-text").value, c=parseSrt(t); RM.cues=c.length?c:null; RM.plain=c.length?"":t.trim(); if(RM.dur) rmRefresh(); }
-$("rm-text").addEventListener("input",()=>{ clearTimeout(rmReadText._t); rmReadText._t=setTimeout(rmReadText,350); });
-$("rm-srt").addEventListener("change",async e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; try{ $("rm-text").value=await f.text(); rmReadText(); toast("Sous-titres chargés."); }catch(err){ toast("Fichier illisible."); } });
+function rmReadText(manual){ const t=$("rm-text").value, c=parseSrt(t); RM.cues=c.length?c:null; RM.plain=c.length?"":t.trim(); if(manual) RM.textDirty=true; if(RM.dur) rmRefresh(); }
+$("rm-text").addEventListener("input",()=>{ RM.textDirty=true; clearTimeout(rmReadText._t); rmReadText._t=setTimeout(()=>rmReadText(true),350); });
+$("rm-srt").addEventListener("change",async e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; try{ $("rm-text").value=await f.text(); rmReadText(true); toast("Sous-titres chargés."); }catch(err){ toast("Fichier illisible."); } });
 
 /* Filet de sécurité : retire toute phrase qui parle d'un logo de plateforme, d'un @pseudo ou de sous-titres incrustés */
 const OVERLAY_RE = /\b(tik ?tok|youtube|instagram|facebook|snapchat|capcut|filigrane|watermark|logo de la plateforme|sous-titres? incrust\w*|barre de lecture)\b|@[\w.]+/i;
 function noOverlay(t){ return String(t||"").split(/(?<=[.;!?])\s+/).filter(x=>!OVERLAY_RE.test(x)).join(" ").trim(); }
+function normalizeFullVideo(x,durHint){
+  x=x&&typeof x==="object"?x:{}; x.overview=x.overview&&typeof x.overview==="object"?x.overview:{};
+  const raw=[...(Array.isArray(x.transcript)?x.transcript:[]),...(Array.isArray(x.scenes)?x.scenes:[]),...(Array.isArray(x.shots)?x.shots:[])], inferred=Math.max(0,Number(durHint)||0,Number(x.overview.duration)||0,...raw.map(v=>Number(v&&v.t1)||0)); x.duration=inferred;
+  const range=v=>{ if(!v) return null; const t0=Math.max(0,Number(v.t0)||0); if(inferred&&t0>=inferred-.01) return null; const t1=Math.min(inferred||Infinity,Number(v.t1)||0); return t1>t0?Object.assign({},v,{t0,t1}):null; };
+  x.transcript=(Array.isArray(x.transcript)?x.transcript:[]).map(range).filter(c=>c&&String(c.text||"").trim()).map(c=>Object.assign(c,{speaker:String(c.speaker||""),text:String(c.text).trim(),language:String(c.language||"")})).sort((a,b)=>a.t0-b.t0);
+  x.scenes=(Array.isArray(x.scenes)?x.scenes:[]).map(range).filter(Boolean).sort((a,b)=>a.t0-b.t0);
+  x.shots=(Array.isArray(x.shots)?x.shots:[]).map(range).filter(Boolean).map((s,i)=>Object.assign(s,{shot_id:String(s.shot_id||`P${String(i+1).padStart(2,"0")}`),description:String(s.description||s.action||s.framing||"Plan source analysé")})).sort((a,b)=>a.t0-b.t0);
+  let timingRepairs=0;
+  if(inferred&&x.shots.length&&inferred>=x.shots.length*.05){ let cursor=0; x.shots.forEach((s,i)=>{ const old0=s.t0,old1=s.t1, remaining=x.shots.length-i-1, nominal=i===x.shots.length-1?inferred:(s.t1+x.shots[i+1].t0)/2, end=Math.max(cursor+.05,Math.min(inferred-remaining*.05,nominal)); s.t0=cursor; s.t1=end; cursor=end; if(Math.abs(old0-s.t0)>.2||Math.abs(old1-s.t1)>.2) timingRepairs++; }); }
+  const chars=new Map(); (Array.isArray(x.characters)?x.characters:[]).filter(Boolean).forEach((c,i)=>{ const id=String(c.id||`C${String(i+1).padStart(2,"0")}`), nom=String(c.nom||id), fiche=String(c.fiche_en||c.fiche_fr||"").trim(); chars.set(id,{id,nom,fiche_fr:String(c.fiche_fr||""),fiche_en:fiche||`Fictional recurring character ${nom}, with a consistent non-identifiable face, age, hairstyle, body shape, clothing and accessories based on the source-video role.`,rappel_en:String(c.rappel_en||fiche||`Fictional recurring character ${nom}, consistent appearance and wardrobe.`)}); });
+  const refs=new Set(); [...x.scenes,...x.shots].forEach(v=>(Array.isArray(v.characters)?v.characters:[]).forEach(id=>{ if(id) refs.add(String(id)); })); refs.forEach(id=>{ if(!chars.has(id)) chars.set(id,{id,nom:id,fiche_fr:"Personnage récurrent détecté dans la vidéo source.",fiche_en:`Fictional recurring character ${id}, with a consistent non-identifiable face, age, hairstyle, body shape, clothing and accessories based on the source-video role.`,rappel_en:`Fictional recurring character ${id}, consistent appearance and wardrobe.`}); }); x.characters=[...chars.values()];
+  x.locations=Array.isArray(x.locations)?x.locations:[]; x.defects=(Array.isArray(x.defects)?x.defects:[]).map(range).filter(Boolean); x.reconstruction=x.reconstruction&&typeof x.reconstruction==="object"?x.reconstruction:{}; x.timing_repairs=timingRepairs; return x;
+}
+async function analyzeFullVideo(signal){
+  if(!RM.file||RM.caps) return null;
+  showStatus("rm-","Gemini lit la vidéo complète : images, audio, paroles, plans et caméra…",false,5);
+  let res,out;
+  try{ res=await fetch("/api/video/analyze",{method:"POST",headers:{"Content-Type":RM.file.type||"video/mp4","X-Video-Mime":RM.file.type||"video/mp4","X-Video-Name":encodeURIComponent(RM.file.name||"video"),"X-Video-Duration":String(RM.dur||0)},body:RM.file,signal}); out=await res.json().catch(()=>({})); }
+  catch(err){ if((signal&&signal.aborted)||(err&&err.name==="AbortError")) throw Object.assign(new Error("Analyse annulée."),{code:"cancelled"}); throw err; }
+  if(!res.ok) throw Object.assign(new Error(out.message||`Erreur ${res.status}`),{code:out.code||"server_error"});
+  const x=normalizeFullVideo(out,RM.dur); if(!x.shots.length||!x.duration) throw Object.assign(new Error("Aucun plan exploitable détecté dans l'analyse complète."),{code:"invalid_json"});
+  if(!RM.dur) RM.dur=x.duration;
+  RM.full=x; RM.desc=x.shots.map(s=>({t:(Number(s.t0)+Number(s.t1))/2,description:noOverlay([s.description,s.action,s.performance].filter(Boolean).join(" ; ")),cadrage:noOverlay([s.framing,s.angle,s.lens,s.camera_movement].filter(Boolean).join(" ; ")),lumiere:noOverlay([s.lighting,s.color].filter(Boolean).join(" ; ")),defauts:""}));
+  if(x.scenes.length) RM.scenes=x.scenes.map(s=>({t0:Number(s.t0),t1:Number(s.t1)}));
+  if(x.transcript.length&&!RM.textDirty){ RM.cues=x.transcript.map(c=>({start:c.t0,end:c.t1,text:c.text})); RM.plain=""; $("rm-text").value=toSrt(x.transcript.map(c=>({t0:c.t0,t1:c.t1,texte:c.text}))); }
+  rmRefresh(); return x;
+}
 async function describeFrames(signal){
   if(!imgOK || !RM.frames.length) return null;
   const B=Math.max(1,Math.min(imgMax||1,8)), out=[];
@@ -5884,20 +5952,26 @@ let rmctl=null;
 $("rm-form").addEventListener("submit", async e=>{
   e.preventDefault();
   if(!sample){ showStatus("rm-","Ouvre cette page dans Claude, connecté.",true); return; }
-  if(!RM.dur){ showStatus("rm-","Charge d'abord ta vidéo (ou des captures avec la durée).",true); return; }
+  if(!RM.file||(RM.caps&&!RM.dur)){ showStatus("rm-","Charge d'abord ta vidéo (ou des captures avec la durée).",true); return; }
   const src=$("rm-src").value, amb=src==="autre"?"reinvente":$("rm-ambition").value, nz=nicheById($("rm-niche").value);
   rmctl=new AbortController(); $("rm-go").disabled=true; $("rm-stop").hidden=false;
   try{
+    rmReadText(false);
+    let fullErr=null;
+    if(!RM.full&&!RM.caps){ try{ await analyzeFullVideo(rmctl.signal); }catch(err){ if(err&&err.code==="cancelled") throw err; fullErr=err; showStatus("rm-","Analyse complète indisponible : les images clés prennent automatiquement le relais…",false,18); } }
+    if(!RM.full&&!RM.caps&&!RM.localReady){ try{ await ensureLocalVideo(rmctl.signal); }catch(err){ if(err&&err.code==="cancelled") throw err; if(fullErr) throw fullErr; throw err; } }
     if(!RM.desc) RM.desc = await describeFrames(rmctl.signal);
+    if(!RM.dur) throw fullErr||Object.assign(new Error("La durée de cette vidéo n'a pas pu être déterminée."),{code:"bad_request"});
     const tl=rmTimeline();
     const fullTxt = RM.cues&&RM.cues.length ? RM.cues.map(c=>c.text).join(" ") : RM.plain;
     const note=$("rm-note").value.trim();
-    const idee=[`REMAKE en version IA d'une vraie vidéo (« ${RM.file.name} », ${fmtD(RM.dur)}, ${RM.scenes.length} scènes).`,
+    const idee=[`REMAKE en version IA d'une vraie vidéo (« ${RM.file.name} », ${fmtD(RM.dur)}, ${RM.scenes.length} scènes).`, RM.full?`Le fichier vidéo complet et sa piste audio ont été analysés ensemble. Synopsis : ${RM.full.overview.summary||RM.full.overview.story||""}. Style image : ${RM.full.overview.visual_style||""}. Montage : ${RM.full.overview.editing_style||""}. Son : ${RM.full.overview.audio_style||""}.`:`Analyse de secours fondée sur les images clés et la piste audio locale.`,
       `Ambition : ${AMBITION[amb]}.`, note?`Ce que l'utilisateur veut améliorer : ${note}`:"",
-      fullTxt?`Ce qui est dit dans la vidéo d'origine : """${clip(fullTxt,6000)}"""`:"Aucune transcription fournie : déduis le propos des images et écris une voix off utile et sobre.",
+      fullTxt?(src==="autre"?`TRANSCRIPTION DE CONTEXTE d'une source tierce : comprends sa fonction mais ne recopie aucune phrase : """${clip(fullTxt,12000)}"""`:`PAROLES EXACTES de la vidéo d'origine, avec orthographe et langue verrouillées : """${clip(fullTxt,12000)}"""`):"Aucune transcription exploitable : n'invente pas de citation attribuée à la vidéo.",
+      RM.full?`Diagnostic de reconstruction : ${JSON.stringify(RM.full.reconstruction)}. Défauts observés : ${JSON.stringify(RM.full.defects.slice(0,30))}.`:"",
       !RM.desc?"Les images de la vidéo n'ont pas pu être analysées : appuie-toi sur le texte et sur la description de l'utilisateur.":""].filter(Boolean).join("\n");
     const params=Object.assign({}, form, {vcat:$("rm-vcat").value, vtype:$("rm-vtype").value, style:$("rm-style").value, format:$("rm-format").value, outil:$("rm-outil").value, langue:$("rm-langue").value,
-      duree:String(Math.round(RM.dur)), audio:"montage", pays:$("rm-pays").value, niche:nz?nz.docId:"", nicheNom:nz?nz.nom:"", persos:[],
+      duree:String(Math.round(RM.dur)), audio:"montage", pays:$("rm-pays").value, niche:nz?nz.docId:"", nicheNom:nz?nz.nom:"", persos:RM.full&&src!=="autre"?RM.full.characters:[], fullVideoAnalysis:RM.full||null,
       timeline:tl, audioKind:"remake", audioName:RM.file.name, stretch:RM.stretch, remakeSrc:src, ambition:amb});
     const res=await generateProject(idee, params, "rm-", rmctl.signal);
     res.plans=res.plans.map((p,i)=>Object.assign(p,{n:i+1}));
