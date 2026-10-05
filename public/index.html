@@ -1054,7 +1054,7 @@ const OPTS = {
   style:[["serie","Série africaine (cinéma)"],["vrai","Réaliste naturel (pas l'air IA)"],["realiste","Réaliste cinéma"],["hybride3d","Personnage 3D, décor réel"],["fruits","Fruits et légumes personnages"],["anim3d","Animation 3D (conte, film d'animation)"],["anim2d","Dessin 2D"],["motion","Motion design"]],
   format:[["16:9","16:9 YouTube"],["9:16","9:16 Shorts"]],
   duree:[["30","30 s"],["60","1 min"],["90","1 min 30"],["120","2 min"],["180","3 min"],["300","5 min"],["480","8 min"],["600","10 min"],["900","15 min"]],
-  langue:[["fr","Français"],["wo","Wolof"],["wofr","Wolof-français"],["en","Anglais"],["ff","Pulaar"]],
+  langue:[["fr","Français"],["wo","Wolof"],["wofr","Wolof-français"],["en","Anglais"],["ff","Pulaar"],["de","Allemand"],["es","Espagnol"],["it","Italien"],["pt","Portugais"],["ar","Arabe"],["nl","Néerlandais"]],
   outil:[["veo","Veo 3.1 (Gemini, Flow)"],["runway","Runway Gen-4"],["wan","Wan 3.0 / WanGP"]],
   qualite:[["default","Standard"],["complex","Maximale"]],
   public:[["famille","Famille"],["enfants","Enfants"],["ados","Adolescents"],["adultes","Adultes"]],
@@ -1145,7 +1145,7 @@ const TYPE_PROFILE_OVERRIDES = {
 function videoProfile(v,p){ const id=v==="ambiance"?"ambiance":LEGACY_VTYPE[v]||v||"cinematic", cat=categoryOf(id), c=CATEGORY_PROFILES[cat], d=CREATIVE_PROFILE_DIMENSIONS[cat], o=TYPE_PROFILE_OVERRIDES[id]||{}; return Object.assign({},c,d,{id,category:cat,label:label("vtype",id),platform:(p&&p.format)==="9:16"?"TikTok, Reels ou YouTube Shorts":"YouTube ou diffusion 16:9",directive:id==="ambiance"?"plans contemplatifs en boucle pour concentration ou relaxation":TYPE_DIRECTIVES[id]||""},o); }
 const PLAN_SEC = {veo:8, runway:5, wan:5};
 function nPlans(duree, outil){ const secs = Number(duree)||90; return Math.max(3, Math.round(secs/(PLAN_SEC[outil]||8))); }
-const LANG_NAME = {fr:"français",wo:"wolof",wofr:"wolof mêlé de français (comme on parle à Dakar)",en:"anglais",ff:"pulaar"};
+const LANG_NAME = {fr:"français",wo:"wolof",wofr:"wolof mêlé de français (comme on parle à Dakar)",en:"anglais",ff:"pulaar",de:"allemand",es:"espagnol",it:"italien",pt:"portugais",ar:"arabe",nl:"néerlandais"};
 const label = (k,v)=> { if(k==="vtype" && v==="ambiance") return "Ambiance / relaxation"; if(k==="vtype" && LEGACY_VTYPE[v]) v=LEGACY_VTYPE[v]; return ((OPTS[k]||[]).find(o=>o[0]===v)||[v,v])[1]; };
 function fillSelect(sel, key, current, onChange){
   if(!sel) return;
@@ -3133,6 +3133,11 @@ function renderProject(){
     <details class="fix" ${sample?"":"hidden"}><summary>Améliorer ce projet (colle une critique, par exemple celle de ChatGPT)</summary><div class="fix-body">
       <label class="hint" for="improve-txt">Ce qu'il faut améliorer : histoire, révélation, fin, rythme, durée, dialogues… L'agent garde ce qui marche et réécrit tout le reste. L'ancienne version reste dans Projets.</label>
       <textarea id="improve-txt"></textarea><div class="actions"><button type="button" class="btn small primary" id="improve-go">Créer la version améliorée</button><span class="hint" id="improve-msg"></span></div></div></details>
+    <details class="fix" ${sample?"":"hidden"}><summary>Adapter pour un autre pays (même histoire, autre public)</summary><div class="fix-body">
+      <p class="hint">Mêmes scènes, mêmes plans et mêmes durées ; l'agent adapte les dialogues dans la langue du pays (à la bonne longueur pour chaque plan), les prénoms, les lieux, les références, l'humour, les titres et la publication. L'original reste dans Projets.</p>
+      <div class="opts"><div class="field"><label for="adapt-pays">Pays visé</label><div class="sel"><select id="adapt-pays">${COUNTRIES.filter(c=>c[0]!=="monde"&&c[0]!==(proj.params&&proj.params.pays)).map(([c,l])=>`<option value="${c}"${c==="us"?" selected":""}>${esc(l)}</option>`).join("")}</select></div></div>
+      <div class="field"><label for="adapt-chars">Personnages</label><div class="sel"><select id="adapt-chars"><option value="garder">Garder leur apparence (mêmes photos de référence)</option><option value="adapter">Les adapter au pays (nouvelles photos à créer)</option></select></div></div></div>
+      <div class="actions"><button type="button" class="btn small primary" id="adapt-go">Créer la version adaptée</button><span class="hint" id="adapt-msg"></span></div></div></details>
     ${v.outil==="wan"?`<div class="block"><h4>WanGP · tous les plans d'un coup</h4><p class="hint">Colle dans la case des prompts de WanGP (modèle Text2video) : chaque paragraphe donne une vidéo, donc tous tes plans se génèrent à la suite. Colle le prompt négatif dans « Mode avancé ».</p>
       <div class="actions"><button type="button" class="btn small primary" data-copy="wan-batch">Copier les ${plans.length} prompts texte → vidéo</button><button type="button" class="btn small" data-copy="wan-neg">Copier le prompt négatif</button></div></div>`:""}</div>`;
   copyMap.set("wan-batch", plans.map(p=>t2vPrompt(r,p,v)).join("\n\n"));
@@ -3179,7 +3184,8 @@ function renderProject(){
   const pad2 = n => String(n).padStart(2,"0"), vw = vidWhere(v), vm = vmodeOf(v);
   const pgNav = `<div class="pg-nav"><button type="button" class="btn small" data-plan-step="-1">‹ Précédent</button><button type="button" class="btn small" data-plan-step="1">Suivant ›</button></div>`;
   const scs = scenesOf(r), sceneIdx = plans.map(p=>scs?scs.findIndex(sc=>sc.plans.includes(p.n)):-1);
-  h += `</section><section class="section" id="s-plans">${weakAlert(r)}<h3>${scs?`2. Les scènes et leurs plans <span class="hint">· ${scs.length} scènes, ${plans.length} plans</span>`:"2. Les plans"}</h3>
+  const ad = r.adaptation;
+  h += `</section><section class="section" id="s-plans">${weakAlert(r)}${ad?`<div class="note-box"><b>Version adaptée pour ${esc(label("pays",ad.vers))}</b> (${esc(label("langue",ad.langue))}, personnages ${esc(ad.personnages)})${ad.manquants?` · ${esc(ad.manquants)} plan(s) non adapté(s)`:""}${(ad.changements||[]).length?`<ul class="plain">${ad.changements.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}${ad.publication&&(ad.publication.heure||ad.publication.conseil)?`<p class="hint">Publication : ${esc([ad.publication.heure, (ad.publication.plateformes||[]).join(", "), ad.publication.conseil].filter(Boolean).join(" · "))}</p>`:""}${ad.personnages==="adaptés"?`<p class="hint">Personnages adaptés : crée leurs nouvelles photos de référence (onglet Personnages) avant les plans.</p>`:""}</div>`:""}<h3>${scs?`2. Les scènes et leurs plans <span class="hint">· ${scs.length} scènes, ${plans.length} plans</span>`:"2. Les plans"}</h3>
     <div class="howto"><b>Pour chaque plan :</b><ol>${vm==="t2v"
       ? `<li>${ktag("video")}<span><b>Colle le prompt vidéo</b> dans ${esc(vw)}. Rien à joindre.</span></li>`
       : vm==="ingr"
@@ -3443,6 +3449,57 @@ $("desk").addEventListener("submit", async e=>{
 $("stop").addEventListener("click",()=>{ if(ctl) ctl.abort(); });
 
 /* Version améliorée d'un projet : l'agent reçoit le projet actuel et la critique, puis réécrit le projet complet */
+/* =================== ADAPTER POUR UN AUTRE PAYS : même structure, autre public =================== */
+const PAYS_LANGUE = c => EN_COUNTRIES.has(c)||["ng","gh","ke","za","in"].includes(c) ? "en" : ({de:"de",at:"de",es:"es",it:"it",br:"pt",sa:"ar",ae:"ar",nl:"nl"})[c] || (["no","se","dk"].includes(c) ? "en" : "fr");
+const ADAPT_CHUNK = 25;
+function adaptPrompt(proj, target, lang, keep, plans, first, known){
+  const r = proj.result, pays = label("pays", target), from = label("pays", (proj.params&&proj.params.pays)||"sn");
+  return `Tu es l'adaptateur international d'un studio de vidéos IA réalistes. Tu adaptes une vidéo déjà réalisée (public d'origine : ${from}) pour le public de ${pays}, qui regarde en ${LANG_NAME[lang]||lang} (${COUNTRY_LANG[target]||LANG_NAME[lang]||lang}). Le but : qu'elle semble faite par une chaîne de ce pays, pour ce public.
+GARDE : les scènes, les plans, leur ordre, leurs durées, les actions et la mise en scène. ADAPTE : la langue des répliques et de la voix off (naturelle, comme parlent vraiment les gens de ce pays, jamais du mot à mot), les prénoms, les lieux et décors, les objets, la monnaie, la nourriture, les références culturelles et l'humour.
+PERSONNAGES : ${keep ? "garde exactement leur apparence (ne renvoie pas fiche_en) ; adapte seulement le prénom si c'est utile pour ce public." : "adapte leur apparence au pays : fiche_en et rappel_en réécrites en anglais, précises et réalistes ; garde l'âge, le rôle et le caractère."}
+LONGUEUR : chaque texte dit (voix_off ou répliques réunies) tient dans son plan : au plus max_mots mots, indiqué pour chaque plan. voix_off_fr = la traduction française de ce qui est dit (vide si c'est déjà du français).
+RÈGLES : pas de personne réelle ni de célébrité, pas de marque en vedette, pas de faux témoignage, aucun texte ni logo dans l'image.
+${first ? `PROJET : ${JSON.stringify({titre:r.titre, logline:r.logline, personnages:(r.personnages||[]).map(c=>({id:c.id, nom:c.nom, fiche_en:c.fiche_en})), lieux:(r.lieux||[]).map(l=>({id:l.id, nom:l.nom, description_en:l.description_en})), youtube:r.youtube})}` : `SUITE D'UNE ADAPTATION DÉJÀ COMMENCÉE : garde exactement ces choix : ${JSON.stringify(known)}`}
+PLANS À ADAPTER : ${JSON.stringify(plans.map(p=>({n:p.n, duree:Math.round(planSecs(p)), max_mots:maxWords(p), intention:p.intention, voix_off:p.voix_off, repliques:p.repliques, decor_en:p.decor_en, action_en:p.action_en, texte_ecran:p.texte_ecran})))}
+RÉPONDS UNIQUEMENT avec ce JSON : ${first ? `{"titre":"","logline":"","personnages":[{"id":"","nom":""${keep?"":`,"fiche_en":"","rappel_en":"","fiche_fr":""`}}],"lieux":[{"id":"","nom":"","description_en":""}],"plans":[{"n":1,"intention":"","voix_off":"","voix_off_fr":"","repliques":[{"locuteur":"","texte":"","ton_en":""}],"decor_en":"","action_en":"","texte_ecran":""}],"youtube":{"titres":["","",""],"description":"","texte_miniature":"","miniature_scene_en":""},"publication":{"heure":"","plateformes":[""],"conseil":""},"changements":[""]}` : `{"plans":[{"n":1,"intention":"","voix_off":"","voix_off_fr":"","repliques":[{"locuteur":"","texte":"","ton_en":""}],"decor_en":"","action_en":"","texte_ecran":""}]}`}`;
+}
+async function adaptProject(){
+  if(!sample || !current) return;
+  const target = $("adapt-pays").value, keep = $("adapt-chars").value!=="adapter", msg = $("adapt-msg"), btn = $("adapt-go");
+  const lang = PAYS_LANGUE(target), src = current, r0 = src.result, plans0 = r0.plans||[];
+  const res = JSON.parse(JSON.stringify(r0)), opts = {modelTier:"default", engine:"best", cache:false};
+  btn.disabled = true;
+  try{
+    let known = null, changes = [], pub = null;
+    for(let i=0;i<plans0.length;i+=ADAPT_CHUNK){
+      const part = plans0.slice(i, i+ADAPT_CHUNK), first = i===0;
+      msg.textContent = plans0.length>ADAPT_CHUNK ? `Adaptation pour ${label("pays",target)} : plans ${i+1} à ${i+part.length} sur ${plans0.length}…` : `Adaptation pour ${label("pays",target)}…`;
+      const x = await sample.json(adaptPrompt(src, target, lang, keep, part, first, known), opts);
+      if(first){
+        if(x.titre) res.titre = String(x.titre); if(x.logline) res.logline = String(x.logline);
+        (Array.isArray(x.personnages)?x.personnages:[]).forEach(c=>{ const o=(res.personnages||[]).find(y=>y.id===c.id); if(!o) return; if(c.nom) o.nom=String(c.nom); if(!keep && c.fiche_en){ o.fiche_en=String(c.fiche_en); o.rappel_en=String(c.rappel_en||c.fiche_en); if(c.fiche_fr) o.fiche_fr=String(c.fiche_fr); } });
+        (Array.isArray(x.lieux)?x.lieux:[]).forEach(l=>{ const o=(res.lieux||[]).find(y=>y.id===l.id); if(o){ if(l.nom) o.nom=String(l.nom); if(l.description_en) o.description_en=String(l.description_en); } });
+        if(x.youtube && typeof x.youtube==="object") res.youtube = Object.assign({}, res.youtube, Object.fromEntries(Object.entries(x.youtube).filter(([,v])=>v&&(!Array.isArray(v)||v.some(Boolean)))));
+        changes = (Array.isArray(x.changements)?x.changements:[]).map(String).filter(Boolean).slice(0,12); pub = x.publication && typeof x.publication==="object" ? x.publication : null;
+        known = {personnages:(res.personnages||[]).map(c=>({id:c.id, nom:c.nom})), lieux:(res.lieux||[]).map(l=>({id:l.id, nom:l.nom}))};
+      }
+      (Array.isArray(x.plans)?x.plans:[]).forEach(q=>{ const p=res.plans.find(y=>Number(y.n)===Number(q.n)); if(!p) return;
+        ["intention","voix_off","voix_off_fr","decor_en","action_en","texte_ecran"].forEach(k=>{ if(q[k]!=null && String(q[k]).trim()!=="") p[k]=String(q[k]); else if(k==="voix_off_fr") p[k]=""; });
+        if(Array.isArray(q.repliques)) p.repliques = q.repliques.filter(y=>y&&String(y.texte||"").trim()).slice(0,3).map(y=>({locuteur:String(y.locuteur||""), texte:String(y.texte).trim(), ton_en:String(y.ton_en||"")}));
+        if(p.repliques&&p.repliques.length) p.voix_off = p.repliques.map(y=>y.texte).join(" ");
+        p.adapte = true; });
+    }
+    const missing = res.plans.filter(p=>!p.adapte).length;
+    res.plans.forEach(p=>{ delete p.adapte; delete p.video_tests; delete p.learned; });
+    const params = Object.assign({}, src.params, {pays:target, langue:lang});
+    normalize(res);
+    try{ await shortenLines(res, params, null); }catch(e){}   /* répliques trop longues pour leur plan : raccourcies */
+    res.adaptation = {de:(src.params&&src.params.pays)||"", vers:target, langue:lang, personnages:keep?"gardés":"adaptés", changements:changes, publication:pub, manquants:missing, at:Date.now()};
+    const proj = {id:null, isExample:false, idee:`${src.idee||r0.titre} (version ${label("pays",target)})`, params, result:res, createdAt:Date.now(), updatedAt:Date.now()};
+    openProject(proj); await saveProject(proj);
+    toast(`Version ${label("pays",target)} créée${missing?` (${missing} plan${missing>1?"s":""} non adapté${missing>1?"s":""})`:""}. L'original reste dans Projets.`);
+  }catch(err){ msg.textContent = errText(err); btn.disabled = false; }
+}
 async function improveProject(){
   if(!sample || !current) return;
   const crit = $("improve-txt").value.trim(), msg = $("improve-msg"), btn = $("improve-go");
@@ -5469,6 +5526,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.openseries){ const d=docs.find(x=>x.id===t.dataset.openseries); if(d&&d.data.set){ lastSeries={f:d.data.set.f, r:d.data.set.r, savedId:d.id}; setView("chaine"); renderSeries(lastSeries); requestAnimationFrame(()=>$("ch-res").scrollIntoView({block:"start"})); } return; }
   if(t.dataset.srt){ const proj=sndSource($("snd-src").value); if(proj&&downloads){ try{ await downloads.save({filename:"sous-titres-"+slug(proj.result.titre)+(t.dataset.srt==="fr"?"-fr":"")+".txt", data:buildSrt(proj, t.dataset.srt==="fr")}); toast("Fichier enregistré : renomme-le en .srt."); }catch(err){ if(!err||err.code!=="declined") toast("Le téléchargement n'est pas disponible ici."); } } return; }
   if(t.id==="improve-go" && current){ improveProject(); return; }
+  if(t.id==="adapt-go" && current){ adaptProject(); return; }
   if(t.id==="copy-all" && current){ const txt=fullText(current,view); try{ await navigator.clipboard.writeText(txt); toast("Tout le projet est copié."); }catch(err){ toast("Copie impossible ici : utilise « Télécharger .txt »."); } return; }
   if(t.id==="dl-txt" && current && downloads){ try{ await downloads.save({filename:slug(current.result.titre)+".txt", data:fullText(current,view)}); toast("Fichier enregistré."); }catch(err){ if(!err||err.code!=="declined") toast("Le téléchargement n'est pas disponible ici."); } return; }
 });
