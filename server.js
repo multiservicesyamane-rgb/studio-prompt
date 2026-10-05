@@ -226,7 +226,7 @@ async function handleManusTask(req,res){
   if(!prompt) return sendJson(res,400,{code:"bad_request",message:"Le prompt est obligatoire."});
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);   /* Manus ne répond pas : on n'attend pas indéfiniment */
   try {
-    const resp = await fetch("https://api.manus.ai/v2/task.create", {
+    const resp = await fetch(`${(process.env.MANUS_BASE_URL || "https://api.manus.ai").replace(/\/$/, "")}/v2/task.create`, {   /* MANUS_BASE_URL : faux Manus pour les tests */
       method: "POST", signal: ctl.signal,
       headers: {
         "Content-Type": "application/json",
@@ -239,7 +239,8 @@ async function handleManusTask(req,res){
     });
     const data = await resp.json().catch(() => ({}));
     if(!resp.ok){
-      const errM = (data && data.error && data.error.message) || `Erreur Manus (${resp.status})`;
+      const raw = (data && data.error && data.error.message) || data.message || "";
+      const errM = /at most \d+ estimated tokens|too long|too many tokens/i.test(raw) ? "Demande trop longue pour Manus : envoie moins de plans à la fois." : resp.status === 401 || resp.status === 403 ? "Clé Manus refusée : vérifie MANUS_API_KEY dans le fichier .env." : /credit|quota|insufficient/i.test(raw) ? "Plus assez de crédits Manus pour cette tâche." : raw || `Erreur Manus (${resp.status})`;
       return sendJson(res, resp.status, {code:"manus_error", message: errM});
     }
     const taskId = data.task_id || data.id || data.data?.task_id || data.data?.id;

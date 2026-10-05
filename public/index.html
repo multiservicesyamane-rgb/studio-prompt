@@ -6983,6 +6983,23 @@ async function copyText(text, el, btn){
   toast(ok ? "Copié." : (el ? "Texte sélectionné : copie-le avec ton appareil." : "Copie impossible ici."));
 }
 function slug(s){ return (s||"projet").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"projet"; }
+/* Manus : seulement l'essentiel (fiches des personnages une fois, puis le prompt d'image de chaque plan), découpé en plusieurs tâches
+   pour rester sous la limite de Manus (5 000 « tokens » par message, environ 15 000 caractères ; on garde de la marge) */
+function manusBoardPrompts(r, v, max){
+  const MAX=max||10000, pad2=n=>String(n).padStart(2,"0");
+  const chars=(r.personnages||[]).map(c=>`- ${c.nom} : ${clip(c.fiche_en||c.rappel_en||"",600)}`).join("\n");
+  const head=(k,n)=>`Tu es le directeur artistique de ma vidéo « ${r.titre||"Sans titre"} »${n>1?` (partie ${k} sur ${n})`:""}.
+Crée une image réelle (fichier PNG ou JPEG) pour CHAQUE plan ci-dessous, une image par plan, et nomme chaque fichier avec le numéro du plan (P01.png, P02.png…).
+RÈGLES : chaque personnage garde exactement le même visage, la même coiffure, la même morphologie et les mêmes vêtements sur toutes les images ; format ${v.format} ; style ${label("style",v.style)} ; une seule image propre par plan, jamais une planche ni un collage ; aucun texte, sous-titre, logo ni filigrane dans l'image.
+${chars?`PERSONNAGES (identiques sur toutes les images) :\n${chars}\n`:""}
+PLANS :
+`;
+  const items=(r.plans||[]).map(p=>`P${pad2(p.n)} : ${clip(keyframePrompt(r,p,v),2500)}`), groups=[]; let cur=[], size=0;
+  const base=head(9,9).length;
+  items.forEach(it=>{ if(cur.length && base+size+it.length+2>MAX){ groups.push(cur); cur=[]; size=0; } cur.push(it); size+=it.length+2; });
+  if(cur.length) groups.push(cur);
+  return groups.map((g,k)=>head(k+1,groups.length)+g.join("\n\n"));
+}
 let boardCtl=null;
 async function boardPart(file){ const u=new Uint8Array(await file.arrayBuffer()); let bin=""; for(let i=0;i<u.length;i+=0x8000) bin+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return {mime:file.type||"image/jpeg",data:btoa(bin)}; }
 async function generateBoardImages(onlyMissing,oneIndex){
@@ -7011,20 +7028,23 @@ document.addEventListener("click", async e=>{
   if(t.id==="board-generate"){ await generateBoardImages(false); return; }
   if(t.id==="board-manus"){
     if(!current) return;
-    const proj=current, r=proj.result, v=view, msgs=boardMessages(proj,v);
+    const proj=current, r=proj.result, v=view; let size=10000, tasks=manusBoardPrompts(r,v,size);
     const st=$("board-status"), stTxt=$("board-status-text"), bar=$("board-status-bar");
-    if(st) st.hidden=false; if(stTxt) stTxt.textContent="Envoi des scènes du storyboard à Manus AI…"; if(bar) bar.style.width="35%";
-    t.disabled=true;
+    if(st) st.hidden=false; t.disabled=true; const links=[];
     try{
-      const promptManus=`Tu es le directeur artistique de ma vidéo "${r.titre}".\nGénère directement les images visuelles réelles (fichiers PNG/JPEG) pour le storyboard de cette vidéo, scène par scène.\nRÈGLES :\n- Garde chaque personnage strictement identique sur chaque image (même visage, même coiffure, mêmes vêtements).\n- Format ${v.format}, style ${label("style",v.style)}, sans texte ni logo.\n\nVoici les images à créer :\n` + msgs.map((m,k)=>`\n=== SCÈNE ${k+1} : ${m.label} ===\n${m.text}`).join("\n\n");
-      const res=await fetch("/api/manus/task",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:promptManus,locale:"fr"})});
-      const rawTxt=await res.text(); let data;
-      try{ data=JSON.parse(rawTxt); }catch(e){ data={ok:false, message:res.status===404||res.status===405?"Le serveur local doit être redémarré (ferme la fenêtre noire et relance 'Lancer Studio Prompt.bat').":`Réponse inattendue (${res.status}).`}; }
-      if(!res.ok||!data.ok) throw new Error(data.message||"Erreur Manus");
+      for(let k=0;k<tasks.length;k++){ const prompt=tasks[k];
+        if(stTxt) stTxt.textContent=tasks.length>1?`Envoi à Manus AI : partie ${k+1} sur ${tasks.length}…`:"Envoi des plans du storyboard à Manus AI…"; if(bar) bar.style.width=`${Math.round(100*(k+0.5)/tasks.length)}%`;
+        const res=await fetch("/api/manus/task",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,locale:"fr"})});
+        const rawTxt=await res.text(); let data;
+        try{ data=JSON.parse(rawTxt); }catch(e){ data={ok:false, message:res.status===404||res.status===405?"Le serveur local doit être redémarré (ferme la fenêtre noire et relance 'Lancer Studio Prompt.bat').":`Réponse inattendue (${res.status}).`}; }
+        if(!res.ok&&!links.length&&/trop longue/.test(data.message||"")&&size>2500){ size=Math.round(size/2); tasks=manusBoardPrompts(r,v,size); k=-1; continue; }   /* Manus trouve encore trop long : parties deux fois plus petites */
+        if(!res.ok||!data.ok) throw new Error(`${tasks.length>1?`partie ${k+1} : `:""}${data.message||"Erreur Manus"}`);
+        links.push(data);
+      }
       if(bar) bar.style.width="100%";
-      if(stTxt) stTxt.innerHTML=`🚀 <b>Tâche Manus créée !</b> (ID: ${esc(data.task_id)}) · <a href="${esc(data.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700;text-decoration:underline">Ouvrir Manus pour voir les images →</a>`;
-      toast("Tâche Manus lancée avec succès !");
-    }catch(err){ if(stTxt) stTxt.textContent="Erreur Manus : "+(err.message||String(err)); toast("Erreur lors de l'envoi à Manus."); }
+      if(stTxt) stTxt.innerHTML=`🚀 <b>${links.length>1?`${links.length} tâches Manus créées`:"Tâche Manus créée"}</b> : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700;text-decoration:underline">${links.length>1?`partie ${k+1}`:"ouvrir Manus"} →</a>`).join(" · ")}<br><span class="hint">Quand les images sont prêtes, télécharge-les (elles sont nommées P01, P02…) puis dépose-les toutes dans « Importer mes images » ci-dessus : chacune ira dans son plan.</span>`;
+      toast(links.length>1?`${links.length} tâches Manus lancées.`:"Tâche Manus lancée avec succès !");
+    }catch(err){ if(stTxt) stTxt.innerHTML=`Erreur Manus : ${esc(err.message||String(err))}${links.length?` · déjà envoyées : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">partie ${k+1}</a>`).join(" · ")}`:""}`; toast("Erreur lors de l'envoi à Manus."); }
     finally{ t.disabled=false; }
     return;
   }

@@ -209,6 +209,7 @@ Règle des paroles :
 ### 4.3 Manus AI (ajouté par l'autre assistant, relu le 5 octobre)
 - `POST /api/manus/task` (`handleManusTask`) crée une tâche Manus (API v2, `x-manus-api-key`, clé `MANUS_API_KEY` dans `.env`, délai maximum de 30 s) et renvoie `task_url`.
 - Boutons « 🤖 Créer avec Manus AI » (Storyboard, toutes les scènes) et « 🤖 Générer le visuel avec Manus » (page Images).
+- Limite de Manus : 5 000 « tokens » par message. `manusBoardPrompts` envoie seulement les fiches des personnages et le prompt d'image de chaque plan (P01…), en tâches de 10 000 caractères au plus. Si Manus refuse encore, les parties sont deux fois plus petites et l'envoi recommence. Les images sont demandées nommées P01.png, P02.png…, pour l'import automatique. Test : `manus-test.js` (faux Manus, `MANUS_BASE_URL`).
 - Les images restent sur le site de Manus : l'utilisateur les télécharge puis les dépose avec « Importer mes images » (`genImportFiles`).
 - Les crédits Manus ne sont pas comptés dans le budget de sécurité de la fabrication.
 - `manus-mcp.js` : serveur MCP séparé, pour les agents d'Antigravity ; il n'est pas utilisé par l'application.
