@@ -224,7 +224,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     const content = {type:"text", text:j.text}; if(j.style) content.annotations = [{type:"speech_metadata", style:j.style}];
     let r, tries = 0;
     for(;;){
-      r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model:TTS_MODEL, input:[{type:"user_input", content:[content]}], response_format:{type:"audio", mime_type:"audio/wav", sample_rate:24000}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 120000);
+      r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model:TTS_MODEL, input:[{type:"user_input", content:[content]}], response_format:{type:"audio", mime_type:"audio/wav", sample_rate:24000}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 300000);   /* une revue entière peut tenir en une seule demande */
       if(r.status === 404){   /* ancien format, si l'API interactions n'est pas ouverte sur ce compte */
         r = await call(`${GEMINI_BASE}/models/${TTS_MODEL}:generateContent`, post(gHead(), {contents:[{parts:[{text:j.style ? `Say in a ${j.style} way: ${j.text}` : j.text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:j.voice || "Kore"}}}}}), 120000);
       }

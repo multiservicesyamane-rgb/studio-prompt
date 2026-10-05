@@ -218,6 +218,40 @@ async function handleImageGenerate(req,res){
   const file=path.join(dir,`${shot}.png`); fs.writeFileSync(file,Buffer.from(image.data,"base64"));
   return sendJson(res,200,{ok:true,shotId:shot,url:`/generated/${encodeURIComponent(project)}/${encodeURIComponent(shot)}.png`,model:body.model,references:refs.length});
 }
+async function handleManusTask(req,res){
+  const key = process.env.MANUS_API_KEY ? process.env.MANUS_API_KEY.trim() : "";
+  if(!key) return sendJson(res,400,{code:"no_key",message:"La clé MANUS_API_KEY est manquante dans votre fichier .env."});
+  let input; try{ input=JSON.parse(await readBody(req,1e6)); }catch(e){ return sendJson(res,400,{code:"bad_request",message:"Requête JSON invalide."}); }
+  const prompt=String(input.prompt||input.content||"").trim();
+  if(!prompt) return sendJson(res,400,{code:"bad_request",message:"Le prompt est obligatoire."});
+  try {
+    const resp = await fetch("https://api.manus.ai/v2/task.create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-manus-api-key": key
+      },
+      body: JSON.stringify({
+        message: { content: prompt },
+        locale: input.locale || "fr"
+      })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if(!resp.ok){
+      const errM = (data && data.error && data.error.message) || `Erreur Manus (${resp.status})`;
+      return sendJson(res, resp.status, {code:"manus_error", message: errM});
+    }
+    const taskId = data.task_id || data.id || data.data?.task_id || data.data?.id;
+    return sendJson(res, 200, {
+      ok: true,
+      task_id: taskId,
+      url: taskId ? `https://manus.im/app/task/${taskId}` : null,
+      data
+    });
+  } catch(err){
+    return sendJson(res, 502, {code:"network", message:`Impossible de joindre Manus: ${err.message}`});
+  }
+}
 function codeFor(status){ return status === 429 ? "rate_limited" : status === 401 || status === 403 ? "bad_key" : status === 400 ? "bad_request" : "server_error"; }
 /* Crédits ou quota épuisés : message clair en français (OpenAI répond en anglais) */
 const NO_CREDIT = /no credits|insufficient_quota|exceeded your current quota|billing/i;
@@ -311,7 +345,41 @@ async function handleNewsRead(req, res){
   const paras = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(m => htmlDecode(m[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim()).filter(x => x.length > 40 && !/cookies?|abonnez-vous|newsletter|tous droits réservés|javascript/i.test(x));
   const text = paras.join("\n").slice(0, 15000);
   if(text.length < 200) return sendJson(res, 422, {code:"bad_request", message:"Impossible d'extraire le texte de cet article (site protégé ou réservé aux abonnés) : copie le texte à la main."});
-  sendJson(res, 200, {url:url.href, site:url.hostname.replace(/^www\./, ""), title, text, published:meta("article:published_time")});
+  sendJson(res, 200, {url:url.href, site:url.hostname.replace(/^www\./, ""), site_name:htmlDecode(meta("og:site_name")).trim().slice(0, 80), title, text, published:meta("article:published_time")});
+}
+
+/* ---------- Photos réelles libres de droits (Openverse + Wikimedia Commons) : seulement les licences qui permettent un usage commercial ---------- */
+const OPENVERSE_BASE = (process.env.OPENVERSE_BASE || "https://api.openverse.org").replace(/\/$/, ""), COMMONS_BASE = (process.env.COMMONS_BASE || "https://commons.wikimedia.org").replace(/\/$/, "");
+const FREE_LICENSE = l => { l = String(l || "").trim(); return !!l && !/\bNC\b|\bND\b|non.?commercial|no.?deriv|fair use|copyright/i.test(l) && /^(cc0|cc[- ]?by|pdm|public domain|pd\b|domaine public)/i.test(l); };
+async function fetchJson(url, ms){ const t = await fetchText(url, ms || 12000); try{ return JSON.parse(t); }catch(e){ return null; } }
+async function handlePhotos(req, res){
+  const u = new URL(req.url, "http://x"), q = String(u.searchParams.get("q") || "").replace(/[<>"]/g, " ").trim().slice(0, 120), n = Math.min(12, Math.max(1, Number(u.searchParams.get("n")) || 8));
+  if(!q) return sendJson(res, 400, {code:"bad_request", message:"Mots de recherche manquants."});
+  const [ov, cm] = await Promise.all([
+    fetchJson(`${OPENVERSE_BASE}/v1/images/?q=${encodeURIComponent(q)}&license_type=commercial,modification&page_size=${n + 4}&mature=false`),
+    fetchJson(`${COMMONS_BASE}/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&gsrlimit=${n + 4}&prop=imageinfo&iiprop=url|extmetadata|size|mime&iiurlwidth=1280&format=json`)
+  ]);
+  const out = [], seen = new Set(), add = x => { const k = String(x.url || "").split("?")[0]; if(!k || seen.has(k) || !FREE_LICENSE(x.license) || (x.w && x.w < 600)) return; seen.add(k); out.push(x); };
+  ((ov && ov.results) || []).forEach(r => add({title:String(r.title || "").slice(0, 120), url:r.url, thumb:r.thumbnail || r.url, w:r.width, h:r.height, creator:String(r.creator || "").slice(0, 80),
+    license:`${r.license === "cc0" ? "CC0" : r.license === "pdm" ? "Domaine public" : "CC " + String(r.license || "").toUpperCase()}${r.license_version && !/cc0|pdm/.test(r.license) ? " " + r.license_version : ""}`, source:r.source === "wikimedia" ? "Wikimedia Commons" : r.source === "flickr" ? "Flickr" : String(r.source || "Openverse"), page:r.foreign_landing_url || ""}));
+  Object.values((cm && cm.query && cm.query.pages) || {}).sort((a, b) => (a.index || 0) - (b.index || 0)).forEach(p => { const i = (p.imageinfo || [])[0] || {}, m = i.extmetadata || {}, val = k => String((m[k] || {}).value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if(!/^image\/(jpeg|png|webp)$/.test(i.mime || "")) return;
+    add({title:String(p.title || "").replace(/^File:|\.\w+$/g, "").slice(0, 120), url:i.thumburl || i.url, thumb:i.thumburl || i.url, w:i.thumbwidth || i.width, h:i.thumbheight || i.height, creator:val("Artist").slice(0, 80), license:val("LicenseShortName"), source:"Wikimedia Commons", page:i.descriptionurl || ""}); });
+  sendJson(res, 200, {q, photos:out.slice(0, n)});
+}
+/* Import d'une photo choisie dans le projet (dossier des médias) : indispensable pour la monter en vidéo */
+async function handlePhotoImport(req, res){
+  let input; try{ input = JSON.parse(await readBody(req, 20000)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible."}); }
+  let url; try{ url = new URL(String(input.url || "")); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Adresse d'image invalide."}); }
+  if(!/^https?:$/.test(url.protocol) || (privateHost(url.hostname) && !process.env.NEWS_ALLOW_LOCAL)) return sendJson(res, 400, {code:"bad_request", message:"Cette image ne peut pas être importée."});
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000); let r, buf;
+  try{ r = await fetch(url, {signal:ctl.signal, redirect:"follow", headers:{"User-Agent":"StudioPrompt/1.0 (revue de presse)"}}); buf = Buffer.from(await r.arrayBuffer()); }
+  catch(e){ return sendJson(res, 502, {code:"network", message:"Image injoignable : choisis-en une autre."}); } finally{ clearTimeout(t); }
+  const type = String(r.headers.get("content-type") || "").split(";")[0], ext = {"image/jpeg":"jpg", "image/png":"png", "image/webp":"webp"}[type];
+  if(!r.ok || !ext || buf.length < 2000 || buf.length > 15e6) return sendJson(res, 422, {code:"bad_request", message:"Ce fichier n'est pas une image utilisable : choisis-en une autre."});
+  const project = safePart(input.project, "presse"), base = safePart(input.base, "photo"), dir = path.join(GENERATED, project); fs.mkdirSync(dir, {recursive:true});
+  const name = `${base}-${Date.now().toString(36)}.${ext}`; fs.writeFileSync(path.join(dir, name), buf);
+  sendJson(res, 200, {url:`/generated/${project}/${name}`});
 }
 
 /* ---------- appel du modèle, réponse en flux (une ligne JSON par morceau) ---------- */
@@ -531,9 +599,12 @@ http.createServer((req, res) => {
   if(req.method === "GET" && req.url.startsWith("/api/status")) return handleStatus(res).catch(() => sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model:""}));
   if(gen.handle(req, res)) return;
   if(req.method === "GET" && req.url.startsWith("/api/news?")) return handleNews(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Actualités indisponibles pour le moment."}); });
+  if(req.method === "GET" && req.url.startsWith("/api/photos?")) return handlePhotos(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Recherche de photos indisponible."}); });
+  if(req.method === "POST" && req.url.startsWith("/api/photos/import")) return handlePhotoImport(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Import de la photo impossible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/news/read")) return handleNewsRead(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de l'article impossible."}); });   /* /api/gen/* (vidéos, voix, imports, budget) et lecture des fichiers de /generated/ */
   if(req.method === "POST" && req.url.startsWith("/api/video/analyze")) return handleVideoAnalyze(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant l'analyse vidéo."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/images/generate")) return handleImageGenerate(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant la génération de l'image."}); else res.end(); });
+  if(req.method === "POST" && req.url.startsWith("/api/manus/task")) return handleManusTask(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Erreur interne pendant l'appel Manus."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/sample")) return handleSample(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Erreur interne du serveur."}); else res.end(); });
   if(req.method === "GET" || req.method === "HEAD") return serveStatic(req, res);
   res.writeHead(405); res.end();

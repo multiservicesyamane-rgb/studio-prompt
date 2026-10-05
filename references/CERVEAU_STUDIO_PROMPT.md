@@ -177,11 +177,34 @@ Règle des paroles :
    - rester au niveau du titre quand on n'a que le titre ;
    - aucune rumeur ni accusation présentée comme un fait, aucun parti pris.
    La longueur suit la durée (2,4 mots par seconde). La revue fournit aussi la publication et les points `a_verifier`. Le texte est modifiable.
+   **Format signature** (`prRules`) :
+   - nom de l'émission (`pr-nom`, gardé dans `sp-prefs.presseNom` ; inventé par l'IA la première fois) ;
+   - ouverture, sommaire, sujets, « Le chiffre du jour » sourcé, « Ce qu'il faut retenir », fin signée avec rendez-vous.
+   **Journaux dits à voix haute**, demandés à l'IA puis **contrôlés par le code** (`prNameSources`) : si un sujet ou le chiffre du jour ne nomme pas son journal, l'application ajoute « C'est ce que rapporte… » dans la langue de la revue. `prSourceName` donne le nom tel qu'on le dit. Pour un article lu par lien, le serveur renvoie `og:site_name`.
+   **« Rendre la revue encore plus forte »** (`prImprovePrompt`) : le directeur de l'information relit et réécrit, toujours à partir de la seule matière (`PR.matiere`).
 3. **Voix d'or** :
-   - `prParts` coupe la revue en parties de 800 caractères au plus ;
-   - `prVoice` les envoie à la fabrication avec le style `PR_STYLE` (présentateur d'exception) et la voix choisie ;
-   - `prPlayAll` les lit d'un trait, `prDownload` les met bout à bout en un seul WAV.
-4. La dernière revue est gardée dans le navigateur (`sp-presse`). « En faire une vidéo » envoie le texte dans « Depuis une idée ».
+   - `prParts` découpe dans l'ordre de l'émission, en parties de 800 caractères au plus ;
+   - `prVoice` les envoie avec le style `PR_STYLE` et la voix choisie ;
+   - `prPlayAll` les lit d'un trait, `prDownload` les met bout à bout (voix seule).
+4. **Fusion finale** (`prMix`, `OfflineAudioContext`, stéréo 44,1 kHz, entièrement dans le navigateur et gratuite) :
+   - jingle d'ouverture : souffle, accord, impact grave ;
+   - transition sonore seulement quand le sujet change ;
+   - musique de fond `prBed` qui baisse sous la voix et remonte entre les sujets ;
+   - fin signée, puis compression et normalisation.
+   - Ambiances `PR_MOODS` : journal, inspirant, énergique, sobre. Jingle et musique de l'utilisateur possibles (libres de droits).
+   **Quota des voix** : l'offre gratuite de Google accepte peu de voix par jour (environ 12 le 5 octobre 2026). `prChunks` regroupe donc toute la revue en blocs de 2 400 caractères au plus, avec une ligne vide entre les parties, soit une ou deux demandes par revue. La fusion recoupe chaque bloc aux pauses les plus proches des frontières attendues (`prSplit`) ; si c'est impossible, le bloc reste entier et les images suivent la longueur des textes.
+5. **Images réelles** (`/api/photos`, `prPhotoSearch`, `prPhotoPick`) :
+   - Openverse (`license_type=commercial,modification`) et Wikimedia Commons ;
+   - `FREE_LICENSE` exclut les licences NC et ND ainsi que l'usage équitable (fair use) ; seules les photos de 600 px de large au moins sont gardées ;
+   - mots-clés `image_en` écrits par l'IA pour chaque sujet ;
+   - l'image choisie est importée dans le projet (`/api/photos/import`) avec son crédit ; l'utilisateur peut mettre sa propre photo ;
+   - les photos des journaux et des agences ne sont jamais reprises.
+6. **Vidéo de la revue** (`prVideo`) :
+   - canevas en 9:16 ou 16:9 enregistré en temps réel (MediaRecorder) sur la fusion. Le son est décodé et lancé par le moteur audio dès le clic, sinon le navigateur bloque la lecture automatique ;
+   - images avec mouvement lent et fondus ;
+   - bandeau avec le nom de l'émission et la date, carte d'ouverture, titre du sujet et « Source : … », carte « Le chiffre du jour », carte « Ce qu'il faut retenir » ;
+   - sous-titres et crédit photo. Le plan vient de `PR.mixPlan`, calculé par `prMix`.
+7. La dernière revue est gardée dans le navigateur (`sp-presse`, photos comprises). « En faire une vidéo » envoie le texte dans « Depuis une idée ».
 
 ### 4.3 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
