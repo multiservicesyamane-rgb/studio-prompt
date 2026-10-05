@@ -313,6 +313,15 @@ dl.kv dd{margin:0;font-size:15px}
 .shot.done .shot-n{color:var(--good)}
 .desk-only{display:none}
 @media (min-width:960px){ .desk-only{display:inline} }
+.monet-quick{display:flex;flex-direction:column;gap:10px}
+.mq{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;font-size:14px}
+.mq .chip{white-space:nowrap}
+.monet-res{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.monet-plat{display:flex;flex-direction:column;gap:6px}
+.monet-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.monet-pts li{margin-bottom:6px;font-size:14px}
+.chip.crit{background:var(--crit-soft);color:var(--crit)}
+.linklike{background:none;border:0;padding:0;color:var(--link);font-weight:600;text-decoration:underline;cursor:pointer}
 .learn{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border:1px dashed var(--line-strong);border-radius:var(--r-sm);background:var(--sunken)}
 .learn-q{font-size:14px;font-weight:600}
 .learn-btns{display:flex;gap:8px}
@@ -3241,9 +3250,9 @@ function renderProject(){
     ${pblock("thumb","Miniature",thumbPrompt(r,v),{kind:"image",where:IMG_WHERE,join:""})}
     ${y.texte_miniature?`<p class="hint">Texte à ajouter sur la miniature au montage : <b>${esc(y.texte_miniature)}</b></p>`:""}
     ${pblock("desc","Description de la vidéo",y.description||"",{kind:"texte",where:"YouTube, case « Description »"})}
-    ${v.style==="realiste"?`<p class="hint">Vidéo réaliste : active l'option « contenu modifié ou synthétique » au moment de l'envoi sur YouTube.</p>`:""}</div></section>`;
+    ${v.style==="realiste"?`<p class="hint">Vidéo réaliste : active l'option « contenu modifié ou synthétique » au moment de l'envoi sur YouTube.</p>`:""}</div></section>${monetHtml(proj)}`;
   $res.innerHTML = h;
-  const TAB_OF_SECTION = {"s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-yt":"yt"};
+  const TAB_OF_SECTION = {"s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-yt":"yt","s-monet":"yt"};
   $res.querySelectorAll("section.section[id]").forEach(s=>{ if(TAB_OF_SECTION[s.id]) s.dataset.tab = TAB_OF_SECTION[s.id]; });
   applyProjView();
   fillSelect($("v-outil"),"outil",view.outil,val=>{ view.outil=val; savePrefs({outil:val}); rerender("v-outil"); });
@@ -3449,6 +3458,71 @@ $("desk").addEventListener("submit", async e=>{
 $("stop").addEventListener("click",()=>{ if(ctl) ctl.abort(); });
 
 /* Version améliorée d'un projet : l'agent reçoit le projet actuel et la critique, puis réécrit le projet complet */
+/* =================== CONTRÔLE MONÉTISATION AVANT PUBLICATION =================== */
+const MONET_PLAT = [["youtube","YouTube"],["tiktok","TikTok"],["facebook","Facebook"]];
+OPTS.plat = MONET_PLAT;
+const MONET_CLS = {"obligatoire":"crit","risque élevé":"crit","à vérifier":"mid","conseillé":"","à savoir":""};
+/* Contrôles immédiats, faits par l'application à partir du projet (sans IA) */
+function monetQuick(proj){
+  const p=proj.params||{}, r=proj.result||{}, real=["realiste","vrai","serie"].includes(p.style), out=[], plans=r.plans||[];
+  const add=(niveau, regle, constat, action)=>out.push({niveau, regle, constat, action});
+  add(real?"obligatoire":"conseillé", "Étiquette « contenu synthétique »", real?"Vidéo réaliste faite avec l'IA : YouTube, TikTok et Facebook exigent de le déclarer.":"Style animé, clairement irréel : la déclaration n'est pas obligatoire, mais reste conseillée.", "YouTube Studio › Détails › « Contenu modifié ou synthétique » : Oui. TikTok : active « Contenu généré par l'IA ». Facebook : étiquette « Infos IA ».");
+  if(p.public==="enfants") add("obligatoire","Contenu pour enfants (loi COPPA)","Le public visé est les enfants.","Déclare la vidéo « conçue pour les enfants » : publicités non personnalisées (revenu par vue plus bas), commentaires fermés. Compense par le volume et des compilations longues.");
+  if(p.audioKind==="remake" && p.remakeSrc==="autre") add("risque élevé","Contenu réutilisé","Version refaite d'une vidéo qui appartient à quelqu'un d'autre.","L'histoire, les personnages, les phrases et les images doivent être nouveaux ; ne garde que le type de sujet.");
+  if(r.audio && (r.audio.musique_en || r.audio.musique)) add("à vérifier","Musique","Le projet prévoit une musique.","Uniquement une musique dont tu as les droits commerciaux : Suno (abonnement payant), Bibliothèque audio YouTube, Pixabay Music. Jamais un morceau connu.");
+  const secs = plans.length ? tc(plans[plans.length-1].fin) : Number(p.duree)||0;
+  if(secs && secs<=60) add("à savoir","TikTok Creator Rewards",`Vidéo de ${Math.round(secs)} s.`,"Les récompenses TikTok ne comptent que les vidéos de plus d'une minute, et seulement pour les comptes de pays éligibles.");
+  add("à savoir","Éligibilité de ta chaîne","Le revenu publicitaire dépend du pays des spectateurs, mais l'accès aux programmes dépend du pays de la chaîne.","À la mi-2026, le Sénégal n'est pas éligible au Programme Partenaire YouTube ni aux récompenses TikTok (à vérifier sur les pages officielles). Revenus possibles partout : sponsors, affiliation, produits, dons, LIVE. Ne déclare jamais un faux pays.");
+  add("à savoir","Contenu « inauthentique » (2026)","Les séries de vidéos IA génériques ou répétitives sont démonétisées.","Varie les formats, garde une voix propre, une vraie histoire et une valeur ajoutée dans chaque vidéo.");
+  return out;
+}
+function monetPrompt(proj, plats){
+  const r=proj.result||{}, p=proj.params||{}, y=r.youtube||{};
+  const resume = {titre:r.titre, logline:r.logline, public:label("public",p.public||"famille"), pays_vise:label("pays",p.pays||"sn"), style:label("style",p.style), format:p.format, langue:label("langue",p.langue||"fr"),
+    plans:(r.plans||[]).map(x=>({n:x.n, intention:x.intention, dit:[x.voix_off, ...(x.repliques||[]).map(q=>q.texte)].filter(Boolean).join(" / ").slice(0,300), action:String(x.action_en||"").slice(0,220), ecran:x.texte_ecran||""})),
+    publication:{titres:y.titres, description:String(y.description||"").slice(0,900), texte_miniature:y.texte_miniature, miniature:y.miniature_scene_en}};
+  return `Tu es le responsable conformité et monétisation d'une agence de chaînes YouTube et TikTok. Tu contrôles ce projet de vidéo AVANT sa publication sur : ${plats.map(k=>label("plat",k)||k).join(", ")}.
+${VERIFIED}
+
+À CONTRÔLER : règles publicitaires (violence et sang, armes, drogues, contenu sexuel ou suggestif, grossièretés et insultes dans toutes les langues y compris le wolof, tragédies et sujets sensibles, haine et stéréotypes ethniques ou religieux, enfants en danger) ; personnes réelles, célébrités et marques ; titre, description ou miniature trompeurs (promesse non tenue par la vidéo) ; affirmations médicales, financières ou juridiques ; contenu « inauthentique » ou répétitif ; contenu réutilisé ; droits d'auteur (musique, personnages connus).
+Pour chaque plateforme : verdict "OK", "À CORRIGER" ou "RISQUE ÉLEVÉ", et les points à corriger, chacun avec le numéro du plan concerné (0 pour le projet entier), le constat précis et une correction concrète. Ne signale jamais un faux problème : si tout est conforme, dis-le.
+PROJET : ${JSON.stringify(resume)}
+RÉPONDS UNIQUEMENT avec ce JSON : {"resume":"","plateformes":[{"id":"youtube|tiktok|facebook","verdict":"OK|À CORRIGER|RISQUE ÉLEVÉ","limite_age":false,"publicite_limitee":false,"points":[{"plan":0,"regle":"","constat":"","correction":""}]}],"titres_conformes":[""]}`;
+}
+function monetResHtml(m){
+  if(!m || !Array.isArray(m.plateformes)) return "";
+  const cls = v => /RISQUE/.test(v)?"crit":/CORRIGER/.test(v)?"mid":"ok";
+  return `<div class="monet-res"><p><b>Contrôle complet</b> · ${esc(fmtDate(m.at))}${m.resume?` : ${esc(m.resume)}`:""}</p>
+    ${m.plateformes.map(x=>`<div class="monet-plat"><div class="monet-h"><b>${esc(label("plat",x.id)||x.id)}</b><span class="chip ${cls(x.verdict)}">${esc(x.verdict||"?")}</span>${x.limite_age?`<span class="chip mid">limite d'âge probable</span>`:""}${x.publicite_limitee?`<span class="chip mid">publicité limitée probable</span>`:""}</div>
+      ${(x.points||[]).length?`<ul class="plain monet-pts">${x.points.map(q=>`<li><b>${esc(q.regle||"Règle")}</b>${Number(q.plan)>0?` · <button type="button" class="linklike" data-monet-plan="${esc(q.plan)}">plan ${esc(q.plan)}</button>`:""} — ${esc(q.constat||"")}<br><span class="hint">Correction : ${esc(q.correction||"")}</span></li>`).join("")}</ul>`:`<p class="hint">Rien à corriger pour cette plateforme.</p>`}</div>`).join("")}
+    ${(m.titres_conformes||[]).filter(Boolean).length?`<div><span class="label">Titres conformes proposés</span><ol class="plain">${m.titres_conformes.filter(Boolean).map(t=>`<li>${esc(t)}</li>`).join("")}</ol></div>`:""}</div>`;
+}
+function monetHtml(proj){
+  const r=proj.result||{}, q=monetQuick(proj);
+  return `<section class="section" id="s-monet"><h3>6. Contrôle monétisation avant publication</h3><p class="hint">Les règles de YouTube, TikTok et Facebook : les premiers points sont vérifiés tout de suite ; le contrôle complet relit chaque plan, les titres et la miniature.</p>
+    <div class="card"><div class="monet-quick">${q.map(x=>`<div class="mq"><span class="chip ${MONET_CLS[x.niveau]||""}">${esc(x.niveau)}</span><div><b>${esc(x.regle)}</b> — ${esc(x.constat)}<br><span class="hint">${esc(x.action)}</span></div></div>`).join("")}</div>
+    <div class="pick" id="monet-plats">${MONET_PLAT.map(([k,l])=>`<label><input type="checkbox" value="${k}"${k!=="facebook"?" checked":""}> ${l}</label>`).join("")}</div>
+    <div class="actions"><button type="button" class="btn small primary" id="monet-go"${sample?"":" disabled"}>Lancer le contrôle complet</button><span class="hint" id="monet-msg"></span></div>
+    <div id="monet-res">${monetResHtml(r.monetisation)}</div></div></section>`;
+}
+async function runMonet(){
+  if(!sample || !current) return;
+  const plats=[...document.querySelectorAll("#monet-plats input:checked")].map(x=>x.value), msg=$("monet-msg"), btn=$("monet-go");
+  if(!plats.length){ msg.textContent="Choisis au moins une plateforme."; return; }
+  btn.disabled=true; msg.textContent="Contrôle de chaque plan, des titres et de la miniature…";
+  try{
+    const x = await sample.json(monetPrompt(current, plats), {modelTier:"default", engine:"best", cache:false});
+    const m = {at:Date.now(), resume:String(x.resume||""), titres_conformes:(Array.isArray(x.titres_conformes)?x.titres_conformes:[]).map(String).slice(0,5),
+      plateformes:(Array.isArray(x.plateformes)?x.plateformes:[]).filter(y=>y&&y.id).map(y=>({id:String(y.id).toLowerCase(), verdict:String(y.verdict||"").toUpperCase(), limite_age:!!y.limite_age, publicite_limitee:!!y.publicite_limitee,
+        points:(Array.isArray(y.points)?y.points:[]).filter(q=>q&&(q.constat||q.correction)).slice(0,15).map(q=>({plan:Number(q.plan)||0, regle:String(q.regle||""), constat:String(q.constat||""), correction:String(q.correction||"")}))}))};
+    if(!m.plateformes.length) throw {code:"invalid_json"};
+    current.result.monetisation = m; current.updatedAt = Date.now();
+    $("monet-res").innerHTML = monetResHtml(m); msg.textContent = "";
+    if(!current.isExample) await saveProject(current);
+  }catch(err){ msg.textContent = errText(err); }
+  finally{ btn.disabled=false; }
+}
+
 /* =================== ADAPTER POUR UN AUTRE PAYS : même structure, autre public =================== */
 const PAYS_LANGUE = c => EN_COUNTRIES.has(c)||["ng","gh","ke","za","in"].includes(c) ? "en" : ({de:"de",at:"de",es:"es",it:"it",br:"pt",sa:"ar",ae:"ar",nl:"nl"})[c] || (["no","se","dk"].includes(c) ? "en" : "fr");
 const ADAPT_CHUNK = 25;
@@ -5527,6 +5601,8 @@ document.addEventListener("click", async e=>{
   if(t.dataset.srt){ const proj=sndSource($("snd-src").value); if(proj&&downloads){ try{ await downloads.save({filename:"sous-titres-"+slug(proj.result.titre)+(t.dataset.srt==="fr"?"-fr":"")+".txt", data:buildSrt(proj, t.dataset.srt==="fr")}); toast("Fichier enregistré : renomme-le en .srt."); }catch(err){ if(!err||err.code!=="declined") toast("Le téléchargement n'est pas disponible ici."); } } return; }
   if(t.id==="improve-go" && current){ improveProject(); return; }
   if(t.id==="adapt-go" && current){ adaptProject(); return; }
+  if(t.id==="monet-go" && current){ runMonet(); return; }
+  if(t.dataset.monetPlan && current){ const i=(current.result.plans||[]).findIndex(x=>Number(x.n)===Number(t.dataset.monetPlan)); if(i>=0){ projTab("plans", true); showPlan(i); } return; }
   if(t.id==="copy-all" && current){ const txt=fullText(current,view); try{ await navigator.clipboard.writeText(txt); toast("Tout le projet est copié."); }catch(err){ toast("Copie impossible ici : utilise « Télécharger .txt »."); } return; }
   if(t.id==="dl-txt" && current && downloads){ try{ await downloads.save({filename:slug(current.result.titre)+".txt", data:fullText(current,view)}); toast("Fichier enregistré."); }catch(err){ if(!err||err.code!=="declined") toast("Le téléchargement n'est pas disponible ici."); } return; }
 });
