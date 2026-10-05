@@ -314,6 +314,17 @@ dl.kv dd{margin:0;font-size:15px}
 .desk-only{display:none}
 @media (min-width:960px){ .desk-only{display:inline} }
 #stats-panel{margin-bottom:18px}
+.paroles{display:flex;flex-direction:column;gap:10px}
+.par-scene{font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-top:8px}
+.par-plan{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
+.par-h{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+.par-count{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.par-count.over{color:var(--crit);font-weight:700}
+.par-body{display:flex;flex-direction:column;gap:6px}
+.par-rep{display:grid;grid-template-columns:180px minmax(0,1fr) 140px auto;gap:6px;align-items:center}
+.par-fr{font-size:13.5px}
+.par-foot{display:flex}
+@media (max-width:640px){ .par-rep{grid-template-columns:1fr auto} .par-rep .sel{grid-column:1 / -1} .par-rep .par-ton{grid-column:1} }
 .pm-opts{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
 .pm-table td .sel{min-width:200px}
 .pm-video{width:100%;max-height:420px;border-radius:var(--r-sm);background:#000}
@@ -3034,7 +3045,7 @@ function showPlan(i){
   const pg = $("pager"); if(pg && pg.getBoundingClientRect().top<0) pg.scrollIntoView({block:"start"});
 }
 function projTab(k, scroll){
-  pv.tab = k; applyProjView();
+  pv.tab = k; applyProjView(); if(k==="paroles"||k==="tout") parCountAll();
   const a = $("ptabs-anchor"); if(!a) return;
   const y = a.getBoundingClientRect().top; if(scroll || y<0) window.scrollBy(0, y);
 }
@@ -3185,10 +3196,11 @@ function renderProject(){
       <details class="fix"><summary>Tout en un seul texte (pour une autre IA ou pour garder)</summary><div class="fix-body"><div class="actions"><button type="button" class="btn small" data-copy="board-all">Copier les ${msgs.length} messages</button></div><div class="pb"><pre id="pre-board-all">${esc(allMsgs)}</pre></div></div></details>
     </div></section>`;
   const specHtml = specialHtml(proj), cutHtml = audioCutHtml(proj);
-  const tabs = [["plans","Plans"],["board","Storyboard"],["perso","Personnages"],cutHtml&&["cut","Coupes"],specHtml&&["special","Dossier expert"],["brief","Brief"],["audio","Audio"],["montage","Montage"],["yt","YouTube"],["tout","Tout"]].filter(Boolean);
+  const tabs = [["plans","Plans"],["paroles","Paroles"],["board","Storyboard"],["perso","Personnages"],cutHtml&&["cut","Coupes"],specHtml&&["special","Dossier expert"],["brief","Brief"],["audio","Audio"],["montage","Montage"],["yt","YouTube"],["tout","Tout"]].filter(Boolean);
   if(!tabs.some(t=>t[0]===pv.tab)) pv.tab = "plans";
   h += `<div id="ptabs-anchor"></div><nav class="ptabs" aria-label="Parties du projet"><div class="ptabs-in" role="tablist">${tabs.map(([k,l])=>`<button type="button" role="tab" data-ptab="${k}">${l}</button>`).join("")}</div></nav>`;
   h += boardHtml;
+  h += parolesHtml(proj);
   h += specHtml;
   h += cutHtml;
   h += `<section class="section" id="s-brief"><h3>Brief</h3><div class="facts">
@@ -3275,7 +3287,7 @@ function renderProject(){
     ${pblock("desc","Description de la vidéo",y.description||"",{kind:"texte",where:"YouTube, case « Description »"})}
     ${v.style==="realiste"?`<p class="hint">Vidéo réaliste : active l'option « contenu modifié ou synthétique » au moment de l'envoi sur YouTube.</p>`:""}</div></section>${monetHtml(proj)}`;
   $res.innerHTML = h;
-  const TAB_OF_SECTION = {"s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-premont":"montage","s-yt":"yt","s-monet":"yt"};
+  const TAB_OF_SECTION = {"s-paroles":"paroles","s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-premont":"montage","s-yt":"yt","s-monet":"yt"};
   $res.querySelectorAll("section.section[id]").forEach(s=>{ if(TAB_OF_SECTION[s.id]) s.dataset.tab = TAB_OF_SECTION[s.id]; });
   applyProjView();
   fillSelect($("v-outil"),"outil",view.outil,val=>{ view.outil=val; savePrefs({outil:val}); rerender("v-outil"); });
@@ -3481,6 +3493,55 @@ $("desk").addEventListener("submit", async e=>{
 $("stop").addEventListener("click",()=>{ if(ctl) ctl.abort(); });
 
 /* Version améliorée d'un projet : l'agent reçoit le projet actuel et la critique, puis réécrit le projet complet */
+/* =================== ONGLET PAROLES : voix off et répliques modifiables, plan par plan =================== */
+const nWordsOf = t => String(t||"").trim().split(/\s+/).filter(Boolean).length;
+function parRepRow(r, x){
+  const chars = r.personnages||[];
+  return `<div class="par-rep"><div class="sel"><select class="par-who" aria-label="Qui parle"><option value="">Voix hors champ</option>${chars.map(c=>`<option value="${esc(c.id)}"${x.locuteur===c.id?" selected":""}>${esc(c.nom)}</option>`).join("")}</select></div><input type="text" class="par-txt" value="${esc(x.texte||"")}" placeholder="Réplique exacte" aria-label="Réplique"><input type="text" class="par-ton" value="${esc(x.ton_en||"")}" placeholder="ton (ex. calm)" aria-label="Ton de la voix, en anglais"><button type="button" class="btn small quiet" data-par-del="1" aria-label="Retirer cette réplique">×</button></div>`;
+}
+function parVoHtml(p){ return `<textarea class="par-vo" rows="2" placeholder="Voix off (laisse vide s'il n'y a rien à dire)" aria-label="Voix off du plan ${esc(p.n)}">${esc(p.voix_off||"")}</textarea>`; }
+function parolesHtml(proj){
+  const r=proj.result||{}, plans=r.plans||[], scs=scenesOf(r), lang=(proj.params&&proj.params.langue)||"fr", locked=audioLockedOf(proj.params||{});
+  if(!plans.length) return "";
+  let h=`<section class="section" id="s-paroles"><h3>Paroles</h3><p class="hint">Toutes les paroles de la vidéo${scs?", scène par scène":""}. Modifie un mot, une réplique ou qui parle, puis enregistre : les prompts vidéo se mettent à jour. Le compteur devient rouge quand un texte est trop long pour être dit en entier dans son plan.${locked?" Projet construit sur ton audio : le son ne change pas, corrige seulement les mots mal transcrits.":""}</p><div class="paroles">`;
+  plans.forEach((p,i)=>{
+    const k=scs?scs.findIndex(sc=>sc.plans.includes(p.n)):-1, sc=k>=0?scs[k]:null;
+    if(sc && sc.plans[0]===p.n) h+=`<div class="par-scene">Scène ${k+1} · ${esc(sceneSlug(sc)||sc.titre||"")}</div>`;
+    const reps=(p.repliques||[]).filter(x=>x&&x.texte), dialog=reps.length>1 || (reps.length===1 && reps[0].locuteur);
+    h+=`<div class="par-plan" data-par="${i}"><div class="par-h"><b>P${String(p.n).padStart(2,"0")}</b><span class="hint">${esc(p.debut)}–${esc(p.fin)} · ${esc(clip(p.intention,70))}</span><span class="par-count" data-par-count="${i}"></span></div>
+      <div class="par-body">${dialog ? reps.map(x=>parRepRow(r,x)).join("") : parVoHtml(p)}</div>
+      <div class="par-foot"><button type="button" class="linklike" data-par-add="${i}">+ ${dialog?"Ajouter une réplique":"Transformer en dialogue"}</button></div>
+      ${lang!=="fr"||p.voix_off_fr?`<textarea class="par-fr" rows="1" placeholder="Traduction française (pour toi)" aria-label="Traduction française">${esc(p.voix_off_fr||"")}</textarea>`:""}</div>`;
+  });
+  return h+`</div><div class="actions"><button type="button" class="btn primary" id="par-save">Enregistrer les paroles</button><button type="button" class="btn" id="par-reset">Annuler les changements</button><span class="hint" id="par-msg"></span></div></section>`;
+}
+function parCount(box){
+  if(!box||!current) return; const p=current.result.plans[Number(box.dataset.par)]; if(!p) return;
+  const reps=[...box.querySelectorAll(".par-txt")], txt=reps.length?reps.map(x=>x.value).join(" "):((box.querySelector(".par-vo")||{}).value||""), n=nWordsOf(txt), mx=maxWords(p), el=box.querySelector(".par-count");
+  if(el){ el.textContent = n ? `${n} / ${mx} mots` : "rien à dire"; el.classList.toggle("over", n>mx); }
+}
+function parCountAll(){ document.querySelectorAll("#s-paroles [data-par]").forEach(parCount); }
+async function saveParoles(){
+  if(!current) return; const plans=current.result.plans||[]; let changed=0, over=0;
+  document.querySelectorAll("#s-paroles [data-par]").forEach(box=>{
+    const p=plans[Number(box.dataset.par)]; if(!p) return;
+    const before=JSON.stringify([p.voix_off||"", p.voix_off_fr||"", p.repliques||[]]), rows=[...box.querySelectorAll(".par-rep")];
+    if(rows.length){
+      p.repliques=rows.map(x=>({locuteur:x.querySelector(".par-who").value, texte:x.querySelector(".par-txt").value.trim(), ton_en:x.querySelector(".par-ton").value.trim()})).filter(x=>x.texte).slice(0,3);
+      p.voix_off=p.repliques.map(x=>x.texte).join(" "); p.locuteur=(p.repliques[0]&&p.repliques[0].locuteur)||"";
+    } else { const ta=box.querySelector(".par-vo"); p.voix_off=ta?ta.value.trim():""; p.repliques=[]; }
+    const fr=box.querySelector(".par-fr"); if(fr) p.voix_off_fr=fr.value.trim();
+    if(p.voix_off_fr && p.voix_off_fr===p.voix_off) p.voix_off_fr="";
+    if(nWordsOf(p.voix_off)>maxWords(p)) over++;
+    if(JSON.stringify([p.voix_off||"", p.voix_off_fr||"", p.repliques||[]])!==before){ changed++; p.paroles_modifiees=Date.now(); }
+  });
+  if(!changed){ $("par-msg").textContent="Aucun changement."; return; }
+  current.updatedAt=Date.now(); renderProject(); projTab("paroles");
+  if(!current.isExample) await saveProject(current);
+  toast(`${changed} plan${changed>1?"s":""} modifié${changed>1?"s":""} : les prompts sont à jour${over?` (${over} texte${over>1?"s":""} trop long${over>1?"s":""}, à raccourcir)`:""}.${current.isExample?" Exemple : non enregistré.":""}`);
+}
+document.addEventListener("input", e=>{ const box=e.target&&e.target.closest&&e.target.closest("#s-paroles [data-par]"); if(box) parCount(box); });
+
 /* =================== PRÉ-MONTAGE AUTOMATIQUE : les clips dans l'ordre, coupés à la durée de leur plan, avec le son (dans le navigateur) =================== */
 const PM = {key:"", clips:[], map:[], stop:false, running:false};
 const planDur = p => { const d=tc(p.fin)-tc(p.debut); return d>0.2 ? d : 4; };
@@ -5835,6 +5896,16 @@ document.addEventListener("click", async e=>{
   if(t.id==="adapt-go" && current){ adaptProject(); return; }
   if(t.id==="monet-go" && current){ runMonet(); return; }
   if(t.id==="pm-go" && current){ runPremontage(); return; }
+  if(t.id==="par-save" && current){ saveParoles(); return; }
+  if(t.id==="par-reset" && current){ renderProject(); projTab("paroles"); toast("Changements annulés."); return; }
+  if(t.dataset.parAdd!=null && current){ const box=t.closest("[data-par]"), body=box.querySelector(".par-body"), r=current.result, vo=body.querySelector(".par-vo");
+    if(vo){ body.innerHTML=parRepRow(r,{locuteur:"", texte:vo.value.trim(), ton_en:""}); t.textContent="+ Ajouter une réplique"; }
+    else if(body.querySelectorAll(".par-rep").length<3) body.insertAdjacentHTML("beforeend", parRepRow(r,{locuteur:"", texte:"", ton_en:""}));
+    else toast("3 répliques au maximum par plan : au-delà, Veo ne peut pas tout dire.");
+    parCount(box); return; }
+  if(t.dataset.parDel && current){ const box=t.closest("[data-par]"), body=box.querySelector(".par-body"); t.closest(".par-rep").remove();
+    if(!body.querySelector(".par-rep")){ body.innerHTML=parVoHtml({n:"", voix_off:""}); box.querySelector("[data-par-add]").textContent="+ Transformer en dialogue"; }
+    parCount(box); return; }
   if(t.id==="pm-stop"){ PM.stop=true; return; }
   if(t.id==="pm-dl" && PM.result){ const name=`${slug(current?current.result.titre:"video")}-premontage.${PM.result.ext}`; if(downloads){ try{ await downloads.save({filename:name, data:PM.result.blob}); toast("Vidéo enregistrée."); }catch(e){ toast("Téléchargement impossible."); } } return; }
   if(t.id==="stats-keep" && lastStats && lastStats.ia && db && uid){
