@@ -350,6 +350,53 @@ dl.kv dd{margin:0;font-size:15px}
 .learn-ok{color:var(--good)}
 .lesson.off .t{text-decoration:line-through;opacity:.6}
 #view-memoire .sub-h{margin:18px 0 8px}
+/* suivi des étapes */
+.gen-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.gs{display:flex;flex-direction:column;gap:3px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:13px;min-width:0;color:var(--ink)}
+.gs-dot{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;border:2px solid var(--line-strong);color:transparent;box-sizing:border-box}
+.gs.done .gs-dot{background:var(--good);border-color:var(--good);color:#fff}
+.gs.fail .gs-dot{background:var(--crit);border-color:var(--crit);color:#fff}
+.gs.on{border-color:var(--accent);background:var(--accent-soft)}
+.gs.on .gs-dot{border-color:var(--accent);border-top-color:transparent;animation:gs-spin .9s linear infinite}
+.gs.na{opacity:.5}
+.gs-l{font-weight:700}
+.gs-m{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes gs-spin{to{transform:rotate(360deg)}}
+@media (max-width:560px){ .gen-steps{gap:4px} .gs{padding:6px 5px;align-items:center;text-align:center} .gs-l{font-size:10.5px} .gs-m{display:none} }
+/* en-tête du projet */
+.proj-hero{padding:clamp(18px,3vw,26px);border-radius:22px;background:radial-gradient(circle at 100% 0%,rgba(224,124,80,.28),transparent 42%),linear-gradient(135deg,var(--side),#251a15);color:#F4F1EC;gap:8px;box-shadow:0 18px 40px -26px rgba(20,12,8,.8)}
+.proj-hero .label{color:#F09A6E}
+.proj-hero h2{color:#fff}
+.proj-hero .logline{color:#D7D2CB}
+.proj-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-top:8px}
+.proj-stats div{display:flex;flex-direction:column;gap:1px;padding:9px 12px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);min-width:0}
+.proj-stats b{font-size:17px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-stats span{font-size:12px;color:#C9CCD9}
+@media (max-width:560px){ .proj-hero{padding:16px;gap:6px} .proj-hero h2{font-size:24px} .proj-hero .logline{font-size:14px} .proj-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px} .proj-stats div{padding:7px 9px} .proj-stats b{font-size:15px} .proj-stats span{font-size:11px} }
+/* accueil : reprendre */
+.home-recent{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.home-recent:empty{display:none}
+.home-recent-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+.home-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.home-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);text-align:left;color:var(--ink)}
+.hc-t{font-weight:700;font-size:15.5px}
+.hc-m{font-size:13px;color:var(--muted)}
+.hc-go{margin-top:auto;font-size:13px;font-weight:700;color:var(--accent)}
+/* finitions */
+.card,.shot,.idea,.panel,.par-plan,.home-card{box-shadow:0 1px 2px rgba(24,18,14,.04),0 10px 26px -20px rgba(24,18,14,.35)}
+.home-card,.link-card,.welcome-action,.hub button{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.home-card:hover,.link-card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 16px 34px -20px rgba(24,18,14,.5)}
+.welcome-action:hover{transform:translateY(-2px)}
+:where(button,a,select,input,textarea,summary):focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+.page-head .kicker{display:inline-flex;align-items:center;gap:8px}
+.page-head .kicker::before{content:"";width:18px;height:2px;border-radius:2px;background:currentColor;opacity:.8}
+.page-head h1{letter-spacing:-.02em}
+::selection{background:var(--accent-soft)}
+@media (prefers-reduced-motion:no-preference){
+  section[data-view]:not([hidden]){animation:sp-rise .28s ease both}
+  .shot:not([hidden]),.scene-h:not([hidden]){animation:sp-rise .22s ease both}
+  @keyframes sp-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
 .scene-h{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px 14px;padding:14px 16px;border-radius:var(--r);background:var(--side);color:#F4F1EC;margin-top:6px}
 .scene-h:first-child{margin-top:0}
 .scene-n{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#F09A6E;white-space:nowrap}
@@ -471,7 +518,7 @@ input[type=text].plain-in{background:var(--surface)}
 @media (max-width:560px){ .strat-tabs{align-self:stretch} .strat-tabs button{padding:8px 11px;font-size:13px} }
 /* accueil */
 .welcome-btns{display:flex;flex-wrap:nowrap;gap:8px;flex:none}
-.welcome-foot > span:first-child{flex:1 1 240px}
+.welcome-foot > span:first-child{flex:1 1 auto}
 @media (max-width:560px){ .welcome-btns{flex-wrap:wrap} }
 .home-more{flex-wrap:wrap}
 #au-form{gap:0}
@@ -610,6 +657,7 @@ input[type=text].plain-in{background:var(--surface)}
             </div>
             <div class="welcome-foot"><span>Pas encore d’idée ? Regarde ce qui marche aujourd’hui, ou laisse l’agent en trouver une.</span><span class="welcome-btns"><button type="button" class="btn small" data-go-inline="tendances">Veille du jour</button><button type="button" class="btn small" data-go-inline="idees">Trouver une idée</button></span></div>
           </div>
+          <div class="home-recent" id="home-recent" aria-live="polite"></div>
           <div class="home-more"><span>Aussi :</span><button type="button" data-go-inline="images">Images</button><button type="button" data-go-inline="persos">Personnages</button><button type="button" data-go-inline="strategie">Niches, pays et chaîne</button></div>
         </div>
       </section>
@@ -2038,7 +2086,7 @@ const AI_STEP = /ENGINE|MASTER|COMPILER|DIALOGUE/;
 const weakModel = m => /lite/i.test(String(m||""));   /* modèles de secours : plus rapides, nettement moins bons */
 const pipeNow = () => (typeof performance!=="undefined" && performance.now) ? performance.now() : Date.now();
 function pipeStart(){ PIPE = []; lastModel = ""; return PIPE; }
-function pipeStep(etape, statut, t0, resume){ if(PIPE) PIPE.push({etape, statut, s:Math.round((pipeNow()-t0)/100)/10, resume:String(resume||"").slice(0,260), model:AI_STEP.test(etape)?lastModel:""}); }
+function pipeStep(etape, statut, t0, resume){ if(PIPE) PIPE.push({etape, statut, s:Math.round((pipeNow()-t0)/100)/10, resume:String(resume||"").slice(0,260), model:AI_STEP.test(etape)?lastModel:""}); renderGenSteps(); }
 /* INPUT ROUTER : reconnaît idée, texte, scénario, audio ou vidéo (aucune règle propre à une langue ou à une histoire) */
 function routeInput(idee, p){
   if(p && p.audioKind==="remake") return {type:"VIDEO", detail:"vidéo réelle analysée"};
@@ -2530,10 +2578,25 @@ const prefs0 = loadPrefs();
 /* =================== SMALL UI HELPERS =================== */
 const $ = id => document.getElementById(id);
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>{t.hidden=true;},2400); }
+/* Étapes visibles pendant la génération : Concept → Scènes → Réalisation → Dialogues → Prompts */
+const GEN_STEPS = [["concept","Concept",/IDEA_ENGINE/,/Idea Engine|refuse une proposition/],["scenes","Scènes",/SCENE_ENGINE/,/Scene (Engine|Critic)/],["real","Réalisation",/MASTER_PLAN/,/Réalisation|Director Critic/],["dial","Dialogues",/DIALOGUE_DOCTOR/,/Docteur des dialogues/],["prompts","Prompts",/PROMPT_COMPILER/,/Compilation|Adaptation technique|Master Video Plan validé/]];
+let GEN = null;
+const shortModel = m => { m=String(m||""); return /lite/i.test(m)?"Flash-Lite":/gemini-(\d(?:\.\d)?)-flash/i.test(m)?"Gemini "+m.match(/gemini-(\d(?:\.\d)?)/i)[1]+" Flash":/gemini-(\d(?:\.\d)?)-pro/i.test(m)?"Gemini Pro":/luna/i.test(m)?"Luna":/sol/i.test(m)?"Sol":/astra/i.test(m)?"Astra":m; };
+function genStart(prefix){ GEN={prefix, active:"concept", running:true}; renderGenSteps(); }
+function genEnd(){ if(GEN){ GEN.running=false; GEN.active=""; renderGenSteps(); } }
+function renderGenSteps(){
+  if(!GEN) return; const box=$(GEN.prefix+"status"); if(!box) return;
+  let host=box.querySelector(".gen-steps"); if(!host){ host=document.createElement("div"); host.className="gen-steps"; host.setAttribute("aria-label","Étapes de l'agent"); box.prepend(host); }
+  host.innerHTML = GEN_STEPS.map(st=>{ const d=(PIPE||[]).find(x=>st[2].test(x.etape)), on=!d && GEN.running && GEN.active===st[0];
+    const cls = d ? (/FAIL/.test(d.statut)?"fail":/SKIP/.test(d.statut)?"na":"done") : on ? "on" : GEN.running ? "" : "na";
+    return `<div class="gs ${cls}"><span class="gs-dot" aria-hidden="true">${cls==="done"?"✓":cls==="fail"?"!":""}</span><span class="gs-l">${st[1]}</span><span class="gs-m">${d?`${String(d.s).replace(".",",")} s${d.model?" · "+esc(shortModel(d.model)):""}`:on?"en cours…":cls==="na"?"non nécessaire":""}</span></div>`; }).join("");
+}
 function showStatus(prefix, text, isErr, pct){
   const box=$(prefix+"status"), bar=$(prefix+"status-bar");
+  if(GEN && GEN.prefix===prefix){ const st=GEN_STEPS.find(x=>x[3].test(text)); if(GEN.running && st) GEN.active=st[0]; if(isErr) GEN.running=false; if(!GEN.running && !isErr && !st){ const h=box&&box.querySelector(".gen-steps"); if(h) h.remove(); GEN=null; } }
   box.hidden=false; box.classList.toggle("err",!!isErr); $(prefix+"status-text").textContent=text;
   bar.parentElement.hidden = !!isErr || pct==null; if(pct!=null) bar.style.width=Math.max(4,Math.min(100,pct))+"%";
+  if(GEN && GEN.prefix===prefix) renderGenSteps();
 }
 const ERR = {
   not_granted:"Tu as refusé l'accès à Claude pour cette page. Recharge la page pour qu'il te soit redemandé.",
@@ -3209,9 +3272,11 @@ function renderProject(){
   const proj = current, r = proj.result, v = view;
   const plans = r.plans||[];
   const total = plans.length ? plans[plans.length-1].fin : "";
-  let h = `<div class="res-head">`;
+  let h = `<div class="res-head proj-hero">`;
   if(proj.isExample) h += `<span class="tag-ex">Exemple</span>`;
-  h += `<span class="label">${esc((proj.params.vtype&&proj.params.vtype!=="histoire")?label("vtype",proj.params.vtype):label("genre",proj.params.genre))} · ${plans.length} plans · ${esc(total)}${proj.params.pays?" · "+esc(label("pays",proj.params.pays)):""}${proj.params.nicheNom?" · "+esc(proj.params.nicheNom):""}</span><h2>${esc(r.titre)}</h2><p class="logline">${esc(r.logline)}</p></div>`;
+  const nSc = (scenesOf(r)||[]).length;
+  h += `<span class="label">${esc((proj.params.vtype&&proj.params.vtype!=="histoire")?label("vtype",proj.params.vtype):label("genre",proj.params.genre))}${proj.params.pays?" · "+esc(label("pays",proj.params.pays)):""}${proj.params.nicheNom?" · "+esc(proj.params.nicheNom):""}${proj.params.langue?" · "+esc(label("langue",proj.params.langue)):""}</span><h2>${esc(r.titre)}</h2><p class="logline">${esc(r.logline)}</p>
+    <div class="proj-stats">${[[nSc||"—","scènes"],[plans.length,"plans"],[total?fmtD(tc(total)):"—","durée"],[(r.personnages||[]).length,"personnages"],[String(label("outil",v.outil)).replace(/\s*\(.*\)\s*$/,""),"outil"],[v.format,"format"]].map(([b,l])=>`<div><b>${esc(b)}</b><span>${l}</span></div>`).join("")}</div></div>`;
   h += `<div class="card"><div class="toolbar" role="group" aria-label="Adapter les prompts">
     <div class="field"><label for="v-outil">Outil</label><div class="sel"><select id="v-outil"></select></div></div>
     <div class="field"><label for="v-format">Format</label><div class="sel"><select id="v-format"></select></div></div>
@@ -5498,7 +5563,7 @@ function contPrompt(idee, params, slice, base, prev){
 RÉPONDS UNIQUEMENT avec un objet JSON valide : {"plans":[${planSchema}]} contenant exactement ${slice.length} plans, numérotés de ${slice[0].n} à ${slice[slice.length-1].n}. Mêmes règles, même exigence ; vérifie chaque plan avant de répondre.`;
 }
 async function generateProject(idee, params, prefix, signal){
-  pipeStart(); const tIn=pipeNow(), route=routeInput(idee, params);
+  pipeStart(); genStart(prefix); const tIn=pipeNow(), route=routeInput(idee, params);
   params = Object.assign({}, params, {inputType:route.type});
   pipeStep("INPUT_ROUTER","DONE",tIn,`${route.type} · ${route.detail}`);
   const nLes = activeLessons(params).length, nSt = activeLessons(params,"strategie").length;
@@ -5539,6 +5604,7 @@ async function generateProject(idee, params, prefix, signal){
   pipeStep("GENERATION","READY",pipeNow(),"prompts prêts à coller dans l'outil vidéo");
   res.pipeline.execution = (PIPE||[]).slice();
   res.pipeline.weak_model = res.pipeline.execution.some(x=>weakModel(x.model));
+  genEnd();
   (params.persos||[]).forEach(lib=>{ const c=(res.personnages||[]).find(x=>x.id===lib.id||x.nom===lib.nom); if(c) Object.assign(c,{nom:lib.nom,fiche_en:lib.fiche_en,rappel_en:lib.rappel_en,fiche_fr:lib.fiche_fr}); });
   return res;
 }
@@ -5983,8 +6049,16 @@ const savedSeries = ()=>docs.filter(d=>d.data.kind==="series");
 const savedImages = ()=>docs.filter(d=>d.data.kind==="image");
 const savedIdeas = ()=>docs.filter(d=>d.data.kind==="idea");
 function fmtDate(t){ try{ return new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
+function renderHome(){
+  const host=$("home-recent"); if(!host) return;
+  const all=savedProjects(), ps=all.slice(0,3), les=savedLessons().filter(d=>d.data.lesson.actif!==false).length;
+  if(!ps.length){ host.innerHTML=""; return; }
+  host.innerHTML=`<div class="home-recent-h"><h2 class="sub-h">Reprendre</h2><span class="hint">${all.length} projet${all.length>1?"s":""}${les?` · ${les} leçon${les>1?"s":""} apprise${les>1?"s":""}`:""}</span></div>
+    <div class="home-cards">${ps.map(d=>{ const x=d.data, r=x.result||{}, pl=(r.plans||[]).length, sc=(scenesOf(r)||[]).length; return `<button type="button" class="home-card" data-open="${esc(d.id)}"><span class="hc-t">${esc(x.titre||"Sans titre")}</span><span class="hc-m">${sc?`${sc} scènes · `:""}${pl} plans · ${esc(fmtDate(x.updatedAt))}</span><span class="hc-go">Ouvrir →</span></button>`; }).join("")}</div>`;
+}
 function renderLists(){
   try{ renderLessons(); }catch(e){}
+  try{ renderHome(); }catch(e){}
   const lp=$("list-projects"), li=$("list-ideas"), lim=$("list-images");
   if(!db||!uid){
     const msg = `<p class="empty">Tes projets et tes idées s'enregistrent ici quand tu ouvres cette page dans Claude, connecté à ton compte.</p>`;
