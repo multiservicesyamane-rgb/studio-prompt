@@ -1258,41 +1258,41 @@ const STYLES = {
      On décrit donc une vraie prise de vue : téléphone ou caméra documentaire, lumière disponible, peau réelle, gestes ordinaires. */
   vrai:{
     ref:"Candid full-body photo of",
-    img:p=>`Natural real-life photo at eye level, natural available light, true-to-life colors (${p}), real skin texture with pores and small imperfections, real everyday location, unposed natural moment, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
-    vid:p=>`Realistic footage with a natural real-life look, steady camera, natural available light, true-to-life colors (${p}), real skin texture with pores and small imperfections, unposed natural behavior, real everyday location, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    img:p=>`Natural real-life photo, lighting motivated only by the real light sources of the location and time of day, true-to-life colors (${p}), real skin texture with pores and small imperfections, real everyday location, unposed natural moment, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    vid:p=>`Realistic footage with a natural real-life look, lighting motivated only by the real light sources of the location and time of day, true-to-life colors (${p}), real skin texture with pores and small imperfections, unposed natural behavior, real everyday location, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
     avoid:["cinematic color grading","perfect symmetrical faces","glossy plastic skin","glowing studio lighting","oversaturated colors","slow motion","fantasy look","3D render","CGI look"]
   },
   /* Tes références (vraies séries tournées à Dakar, séries africaines IA) : rendu caméra de cinéma, flou d'arrière-plan, peaux riches */
   serie:{
     ref:"Full-body photorealistic portrait of",
-    img:p=>`Photorealistic still from a modern African drama series, shot on a full-frame cinema camera with fast prime lenses, shallow depth of field with creamy background blur, soft key light on the faces, warm practical lamps and colored LED accents in the background, rich dark skin tones with natural sheen, ${p} color grade, crisp sharp focus on the eyes, clean noise-free image, fine micro-detail`,
-    vid:p=>`Photorealistic modern African drama series, shot on a full-frame cinema camera with fast prime lenses, shallow depth of field with creamy background blur, soft key light on the faces, warm practical lamps and colored LED accents in the background, rich dark skin tones with natural sheen, natural acting with subtle micro-expressions, natural blinking and breathing, catchlights in the eyes, subtle handheld camera micro-movement, background extras moving naturally out of focus, ${p} color grade, crisp sharp focus on the eyes, clean noise-free image, fine micro-detail`,
+    img:p=>`Photorealistic still from a modern African drama series, full-frame cinema camera look with natural lens rendering, lighting motivated only by the real light sources of the location and time of day, rich dark skin tones with natural sheen, ${p} color grade, crisp sharp focus on the eyes, clean noise-free image, fine micro-detail`,
+    vid:p=>`Photorealistic modern African drama series, full-frame cinema camera look with natural lens rendering, lighting motivated only by the real light sources of the location and time of day, rich dark skin tones with natural sheen, understated natural acting with subtle micro-expressions, natural blinking and breathing, ${p} color grade, crisp sharp focus on the eyes, clean noise-free image, fine micro-detail`,
     avoid:["plastic skin","oversaturated colors","cartoon look","flat lighting","grainy footage"]
   },
   /* Tes références (vidéos de cuisine et histoires IA) : personnage 3D façon film d'animation, monde et nourriture photoréalistes, très net */
   hybride3d:{
     ref:"Full-body 3D animated character design of",
-    img:p=>`Stylized 3D animated character with large expressive eyes and finely detailed skin, hair and fabric textures, placed in a photorealistic real-world environment, warm soft lighting from visible practical sources, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
-    vid:p=>`Stylized 3D animated character with large expressive eyes, finely detailed skin, hair and fabric textures and smooth expressive acting, in a photorealistic real-world environment with photorealistic food and objects, warm soft lighting from visible practical sources, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    img:p=>`Stylized 3D animated character with large expressive eyes and finely detailed skin, hair and fabric textures, placed in a photorealistic real-world environment, lighting motivated only by the real light sources of the location and time of day, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    vid:p=>`Stylized 3D animated character with large expressive eyes, finely detailed skin, hair and fabric textures and smooth expressive acting, in a photorealistic real-world environment with photorealistic food and objects, lighting motivated only by the real light sources of the location and time of day, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
     avoid:["flat cartoon shading","low-poly look","plastic toy look","blurry textures","grainy footage"]
   },
   /* Histoires IA virales : humains à tête de fruit, de légume ou de noix, dans des décors photoréalistes */
   fruits:{
     ref:"Full-body 3D character design of",
-    img:p=>`Anthropomorphic fruit and vegetable characters with human bodies and clothes and a realistic fruit or vegetable for a head, large expressive cartoon eyes and mouth, highly detailed natural fruit skin with pores, spots and small imperfections, in a photorealistic real-world environment, soft dramatic lighting, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
-    vid:p=>`Anthropomorphic fruit and vegetable characters with human bodies and clothes and a realistic fruit or vegetable for a head, large expressive cartoon eyes and mouth, highly detailed natural fruit skin, expressive emotional acting, in a photorealistic real-world environment, soft dramatic lighting, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    img:p=>`Anthropomorphic fruit and vegetable characters with human bodies and clothes and a realistic fruit or vegetable for a head, large expressive cartoon eyes and mouth, highly detailed natural fruit skin with pores, spots and small imperfections, in a photorealistic real-world environment, lighting motivated only by the real light sources of the location and time of day, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    vid:p=>`Anthropomorphic fruit and vegetable characters with human bodies and clothes and a realistic fruit or vegetable for a head, large expressive cartoon eyes and mouth, highly detailed natural fruit skin, expressive emotional acting, in a photorealistic real-world environment, lighting motivated only by the real light sources of the location and time of day, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
     avoid:["human faces","flat cartoon look","blurry textures","grainy footage"]
   },
   realiste:{
     ref:"Full-body cinematic photograph of",
-    img:p=>`Cinematic photorealistic film still, shot on ARRI Alexa, 35mm anamorphic lens, natural skin texture, realistic lighting, shallow depth of field, ${p} color grading, crisp sharp focus on the subject, fine micro-detail`,
-    vid:p=>`Cinematic photorealistic film, shot on ARRI Alexa, anamorphic lens, natural skin texture, realistic natural motion, ${p} color grading, crisp sharp focus on the subject, fine micro-detail`,
+    img:p=>`Cinematic photorealistic film still, ARRI Alexa look, natural skin texture, lighting motivated only by the real light sources of the location and time of day, ${p} color grading, crisp sharp focus on the subject, fine micro-detail`,
+    vid:p=>`Cinematic photorealistic film, ARRI Alexa look, natural skin texture, lighting motivated only by the real light sources of the location and time of day, realistic natural motion, ${p} color grading, crisp sharp focus on the subject, fine micro-detail`,
     avoid:["cartoon","3D render","CGI look","plastic skin","oversaturated colors"]
   },
   anim3d:{
     ref:"Full-body character reference render of",
-    img:p=>`High-end 3D animated feature film still, characters with large expressive eyes and finely detailed skin, hair and fabric, richly detailed lived-in environment, warm cinematic lighting with soft global illumination, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
-    vid:p=>`High-end 3D animated feature film style, characters with large expressive eyes and finely detailed skin, hair and fabric, richly detailed lived-in environment, warm cinematic lighting with soft global illumination, smooth expressive acting, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    img:p=>`High-end 3D animated feature film still, characters with large expressive eyes and finely detailed skin, hair and fabric, richly detailed lived-in environment, soft global illumination with lighting motivated only by the real light sources of the location and time of day, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
+    vid:p=>`High-end 3D animated feature film style, characters with large expressive eyes and finely detailed skin, hair and fabric, richly detailed lived-in environment, soft global illumination with lighting motivated only by the real light sources of the location and time of day, smooth expressive acting, ${p} palette, crisp sharp focus on the subject, clean noise-free image, fine micro-detail`,
     avoid:["photorealistic style","live action","grainy footage"]
   },
   anim2d:{
@@ -1489,17 +1489,44 @@ const MASTER_AGENT_GUIDE = `ARCHITECTURE DU RÉALISATEUR : Intent Analyzer → V
 - Mets en scène premier plan et arrière-plan, entrées de cadre, matière, interface, gestes, regards, objets, réactions ou transformations selon ce que le format rend pertinent.
 - Si plusieurs secondes passent sans changement utile d'objectif, étape, information, émotion, matière, son, relation ou état visuel, réécris la séquence.
 - La documentation du modèle décide COMMENT lui parler ; le réalisateur décide QUOI montrer et POURQUOI le spectateur veut voir la suite.`;
-const VRAI_RULES = `- RÉALISME NATUREL (la vidéo ne doit pas avoir l'air faite par une IA, mais rester nette et propre) : des gens ordinaires aux traits naturels (pas de mannequins, pas de visages parfaitement symétriques), vêtements portés, décors réels et vécus (objets du quotidien, usure crédible), lumière naturelle (soleil, fenêtre, lampes) qui éclaire bien les visages, gestes ordinaires à vitesse réelle, petites imperfections de peau. Caméra stable (posée ou mouvement lent), objectif 35 à 50 mm, cadrage à hauteur d'œil, mise au point nette sur le visage ; gros plans sur les réactions pour l'émotion et l'humour. N'écris jamais « cinematic », « epic », « 4K », « masterpiece », « hyper-detailed », ni de ralenti.`;
+const VRAI_RULES = `- RÉALISME NATUREL (la vidéo ne doit pas avoir l'air faite par une IA, mais rester nette et propre) : des gens ordinaires aux traits naturels (pas de mannequins, pas de visages parfaitement symétriques), vêtements portés, décors réels et vécus (objets du quotidien, usure crédible), lumière naturelle (soleil, fenêtre, lampes) qui éclaire bien les visages, gestes ordinaires à vitesse réelle, petites imperfections de peau. Caméra posée, ou un seul mouvement quand l'événement le demande ; valeur de plan, angle et focale choisis selon ce qu'il faut voir (pas toujours 35–50 mm ni hauteur d'œil) ; mise au point nette sur le visage ; gros plans sur les réactions pour l'émotion et l'humour. N'écris jamais « cinematic », « epic », « 4K », « masterpiece », « hyper-detailed », ni de ralenti.`;
 const FRUITS_RULES = `- PERSONNAGES FRUITS ET LÉGUMES (format viral des « histoires IA ») : chaque personnage est un humain dont la tête est un fruit, un légume ou une noix choisi pour son caractère (mangue généreuse, cerise fragile, piment colérique, amande travailleuse, pistache riche et arrogante…). fiche_en = le fruit exact (variété, couleur, taches, tige, feuille), ses grands yeux et sa bouche expressifs, puis le corps, l'âge apparent, la tenue avec couleurs et matières, un accessoire ; le même fruit et la même tenue dans tous les plans (si l'histoire impose une nouvelle tenue, décris-la dans action_en). Décors photoréalistes et précis (rue, marché, chantier, palais, mine…). Émotions très lisibles en gros plan : larmes, sourire, colère. Histoire morale courte : injustice ou pauvreté, effort, retournement, récompense. 1 à 3 personnages par plan, jamais de foule de fruits.`;
-const HYBRID_RULES = `- PERSONNAGE 3D DANS UN MONDE RÉEL (le style des vidéos de cuisine et d'histoires IA les plus nettes) : personnages 3D façon film d'animation (grands yeux expressifs, peau, cheveux et tissus très détaillés), décors, objets et nourriture photoréalistes. Lumière chaude et douce de sources visibles (rubans LED sous les meubles, fenêtre au coucher du soleil, lampes). Alterne les plans du personnage (plan moyen, gros plan expressif) et des inserts photoréalistes en très gros plan (mains seules, vapeur, bulles, sauce, textures). Mise au point nette sur le sujet, arrière-plan légèrement flou.`;
-const SERIE_RULES = `- SÉRIE AFRICAINE (rendu des vraies séries tournées à Dakar et des meilleures séries africaines IA) : personnages africains modernes (tresses, coiffures soignées, wax, boubous, costumes, uniformes scolaires), traits naturels et peaux riches bien éclairées. Lieux précis et crédibles : appartement moderne de Dakar, villa avec escalier et salon crème, école, hôpital, bureau, rue de nuit. Lumière de série : visages en lumière douce, lampes chaudes et touches de LED colorées en arrière-plan, nuit et pluie bien éclairées. Mise en scène : gros plans et plans rapprochés sur les réactions, champ-contrechamp en over-the-shoulder pour les dialogues, un plan large pour situer chaque lieu. Thèmes qui marchent : riche et pauvre, belle-mère ou patron injuste, secret de famille, réussite scolaire, trahison, mariage. Si l'histoire est un épisode, termine sur un suspense pour la partie suivante. Montage : un plan toutes les 2 à 3 secondes, comme les vraies séries.`;
-const REAL_SHOOT = `- RÉALISME DE TOURNAGE (ce qui distingue un vrai tournage d'une vidéo IA) : caméra jamais parfaitement immobile ni flottante (léger mouvement d'épaule ou de stabilisateur), mise au point sur les yeux, bascule de mise au point d'un personnage à l'autre ; reflets de lumière dans les yeux, clignements et respiration naturels, micro-expressions, petites pauses avant de répondre ; peau avec pores et léger brillant, un peu de sueur s'il fait chaud ; vêtements froissés aux plis ; mains occupées par de vrais objets (téléphone, tasse, sac) mais rarement en gros plan ; décor vécu et précis (carrelage, murs crépis, voitures, vendeurs, enfants au loin), figurants flous qui bougent naturellement en arrière-plan. Son : le son de la pièce (room tone), la réverbération du lieu, la rue au loin selon le lieu et l'heure (circulation, voix, sons propres au lieu), le froissement des vêtements ; pas de musique dans le clip.`;
+const HYBRID_RULES = `- PERSONNAGE 3D DANS UN MONDE RÉEL (le style des vidéos de cuisine et d'histoires IA les plus nettes) : personnages 3D façon film d'animation (grands yeux expressifs, peau, cheveux et tissus très détaillés), décors, objets et nourriture photoréalistes. Lumière douce motivée par les sources réellement présentes dans le décor (fenêtre, lampes de la pièce si elle en a). Alterne les plans du personnage (plan moyen, gros plan expressif) et des inserts photoréalistes en très gros plan (mains seules, vapeur, bulles, sauce, textures). Mise au point nette sur le sujet, arrière-plan légèrement flou.`;
+const SERIE_RULES = `- SÉRIE AFRICAINE (rendu des vraies séries tournées à Dakar et des meilleures séries africaines IA) : personnages africains modernes (tresses, coiffures soignées, wax, boubous, costumes, uniformes scolaires), traits naturels et peaux riches bien éclairées. Lieux précis et crédibles du pays de l'histoire : appartement moderne, villa avec escalier et salon, école, hôpital, bureau, rue. Lumière de série : motivée par les vraies sources du lieu et de l'heure (soleil, fenêtre, lampes réellement présentes), visages lisibles, nuit et pluie bien exposées. Mise en scène : gros plans et plans rapprochés sur les réactions, champ-contrechamp en over-the-shoulder pour les dialogues, un plan large pour situer chaque lieu. Thèmes qui marchent : riche et pauvre, belle-mère ou patron injuste, secret de famille, réussite scolaire, trahison, mariage. Si l'histoire est un épisode, termine sur un suspense pour la partie suivante. Montage : serré là où l'action l'exige (inserts et réactions courts), plans plus longs pour l'émotion ; jamais un découpage régulier.`;
+const REAL_SHOOT = `- RÉALISME DE TOURNAGE (ce qui distingue un vrai tournage d'une vidéo IA) : caméra choisie selon l'événement : fixe quand rien ne justifie un mouvement, sinon un seul mouvement motivé, jamais flottante ; mise au point sur les yeux, bascule de mise au point d'un personnage à l'autre ; reflets de lumière dans les yeux, clignements et respiration naturels, micro-expressions, petites pauses avant de répondre ; peau avec pores et léger brillant, un peu de sueur s'il fait chaud ; vêtements froissés aux plis ; mains occupées par de vrais objets (téléphone, tasse, sac) mais rarement en gros plan ; décor vécu et précis, propre au lieu de la scène ; figurants seulement si le lieu en a vraiment (marché, rue, bureau), jamais par défaut. Son : le son de la pièce (room tone), la réverbération du lieu, la rue au loin selon le lieu et l'heure (circulation, voix, sons propres au lieu), le froissement des vêtements ; pas de musique dans le clip.`;
 const ANIM3D_RULES = `- CONTE EN 3D (style long métrage d'animation, comme les contes moraux viraux) : personnages très expressifs (grands yeux, sourcils mobiles), adaptés au pays (familles africaines, marché, commissariat, maison, mosquée, école), décors très détaillés et vivants, lumière chaude de cinéma. Émotions fortes et lisibles en gros plan. Histoire morale claire : épreuve, choix, retournement, leçon. Sous-titres en grandes lettres au montage.`;
+/* DIRECTOR ENGINE V4 (spécification complète : references/DIRECTOR_ENGINE_V4.md) */
+const DIRECTOR_V4 = `DIRECTOR ENGINE V4 — RÈGLES OBLIGATOIRES :
+1. La durée vient de l'action, jamais l'inverse : aucun découpage en tranches régulières, aucune durée identique par défaut, jamais un plan par phrase ou par micro-geste, jamais de plan de remplissage.
+2. TEST D'EXISTENCE : un plan n'existe que s'il apporte un événement, une information, une perception, une réaction, une décision, une réponse, une complication, un renversement, une révélation, un changement émotionnel ou un payoff ; sinon fusionne-le ou supprime-le.
+3. COMPRESSION : si deux ou trois plans racontent la même chose, fusionne-les ; vise la plus petite suite d'images qui produit le plus grand effet (clarté × émotion × rétention / nombre de plans).
+4. CAUSALITÉ : ÉVÉNEMENT → PERCEPTION → RÉACTION → RÉPONSE → CHANGEMENT ; entre personnages : action → réaction → contre-action → conséquence. Une suite de jolies images n'est pas une scène.
+5. QUESTION DRAMATIQUE : chaque séquence pose une question, donne une information, fait réinterpréter la situation, puis pose une nouvelle question ; ne réponds pas tout de suite à tout.
+6. SCÈNE = UNITÉ DRAMATIQUE : nouvelle scène quand l'objectif, la phase dramatique, le temps, le lieu, le rapport de force, l'information ou l'enjeu change ; jamais une seule scène de 30 plans.
+7. CAMÉRA : chaque choix répond à « pourquoi cette caméra ici ? » ; varie plan d'établissement, large, moyen, deux personnages, gros plan, insert, POV, amorce, réaction, révélation ; un seul mouvement dominant par plan ; si aucun mouvement ne sert l'histoire, caméra fixe ; jamais « close-up + slow zoom + 50mm » par défaut, jamais caméra fixe et caméra à l'épaule ensemble.
+8. LUMIÈRE CONTEXTUELLE : la lumière vient du lieu réel (intérieur ou extérieur, heure, météo, sources présentes) ; jamais de lampes, LED, néons ou contre-jour décoratif s'ils n'existent pas dans le lieu (extérieur désert à midi = soleil dur, rebonds du sol, ombres cohérentes).
+9. ENVIRONNEMENT : aucun figurant ni élément décoratif qui ne sert pas la narration, le réalisme, la profondeur ou l'action ; décor stable pour la continuité.
+10. CRÉDIBILITÉ TEMPORELLE : une conséquence impossible dans le temps montré exige une ellipse (time-lapse, « des jours plus tard », montage de progression), jamais une magie instantanée.
+11. PERFORMANCE : regard, respiration, hésitation, mâchoire, posture, silence, immobilité ; jamais de colère caricaturale, de sourire publicitaire, de pleurs automatiques ni de pose héroïque.
+12. UNE GÉNÉRATION = UNE INTENTION DOMINANTE ; le prompt image → vidéo décrit surtout CE QUI CHANGE (état de départ → action dominante → réaction → état de fin) sans redécrire l'image.
+13. PAS DE FAUSSE NOTE : avant génération, seulement un RISQUE (faible, moyen, élevé) et sa raison ; jamais une note sur 10 de qualité.
+14. TEST DE SUPPRESSION : « si je supprime ce plan, l'histoire perd-elle une information, une émotion, une cause, une conséquence ou une révélation ? » Non → supprime-le.`;
+/* Ce que la rédaction des prompts doit respecter (version courte de V4 pour le compilateur) */
+const PROMPT_V4 = `RÈGLES DE RÉDACTION V4 : caméra = un seul mouvement dominant ou caméra fixe, choisi pour l'événement du plan (jamais une formule répétée, jamais « slow zoom » ni « handheld » ajoutés pour faire cinéma) ; lumière = seulement les sources réelles du lieu et de l'heure (aucune lampe, LED ou néon inventé) ; aucun figurant ajouté par défaut ; décris surtout ce qui change pendant le clip et l'état de fin ; avant génération, indique uniquement risk_level = LOW, MEDIUM ou HIGH et explique dans risque ce qui peut rater (mains, objet, interaction). N'attribue aucune note de qualité.`;
 const STYLE_RULES = {serie:SERIE_RULES+"\n"+REAL_SHOOT, vrai:VRAI_RULES+"\n"+REAL_SHOOT, fruits:FRUITS_RULES, hybride3d:HYBRID_RULES, anim3d:ANIM3D_RULES};
 const VEO_CLEAN ="Clean frame with no on-screen text, subtitles, captions, logos or watermarks; natural anatomy with well-formed hands and faces; the same faces, bodies and clothes in every frame; stable, flicker-free image";
 const isVeo = v => v.outil==="veo";
 const isRunway = v => v.outil==="runway";
-function shotLine(p){ const a=[p.cadrage_en, p.camera_en].map(x=>String(x||"").trim().replace(/[\s.;,]+$/,"")).filter(Boolean); return a.map((x,i)=>i?lc(x):x).join(", "); }
+/* V4 : un seul mouvement de caméra dominant ; « fixe » et « à l'épaule » jamais ensemble */
+const CAM_MOVE = /\b(dolly|push[- ]?in|pull[- ]?(back|out)|pan(s|ning)?|tilt(s|ing)?|track(ing)?|truck(ing)?|arc(s|ing)?|orbit(ing)?|zoom(s|ing)?|crane|handheld|hand-held|steadicam|follow(s|ing)?|whip)\b/i;
+const CAM_STATIC = /\b(static|locked|lock-off|fixed|tripod|still camera|no camera movement)\b/i;
+function cameraOne(t){
+  let parts = String(t||"").split(/\s*[,;]\s*|\s+(?:and|then|while)\s+/i).map(x=>x.trim()).filter(Boolean), seen = false;
+  const isStatic = parts.some(x=>CAM_STATIC.test(x));
+  parts = parts.filter(x=>{ if(CAM_MOVE.test(x)){ if(isStatic && /handheld|hand-held|micro-?movement|shake/i.test(x)) return false; if(seen) return false; seen = true; } return !/micro-?movement|camera shake/i.test(x); });
+  return parts.join(", ");
+}
+function shotLine(p){ const a=[p.cadrage_en, cameraOne(p.camera_en)].map(x=>String(x||"").trim().replace(/[\s.;,]+$/,"")).filter(Boolean); return a.map((x,i)=>i?lc(x):x).join(", "); }
 /* fiche au milieu d'une phrase : « Idrissa is a lean young man… » → « Idrissa, a lean young man… » */
 function ficheMid(c){ const f=String(c.fiche_en||"").trim(), n=String(c.nom||""); return lc(n && f.startsWith(n+" is ") ? n+", "+f.slice(n.length+4) : f); }
 function beatsOf(p){ return (Array.isArray(p.beats_en)?p.beats_en:[]).map(x=>String(x||"").trim()).filter(Boolean).slice(0,4); }
@@ -1568,7 +1595,7 @@ function videoPrompt(res, p, v){
     parts.push(p.cadrage_en ? p.cadrage_en+": "+String(p.action_en||"").replace(/^./,m=>m.toLowerCase()) : p.action_en);
     if(p.decor_en) parts.push("Setting: "+p.decor_en);
   }
-  parts.push("Camera: "+p.camera_en);
+  parts.push("Camera: "+(cameraOne(p.camera_en)||"locked camera, no camera movement"));
   parts.push(p.lumiere_en);
   parts.push(p.ambiance_en);
   if(p.son_en) parts.push("Sound of "+String(p.son_en).replace(/^sound of /i,""));
@@ -1615,20 +1642,22 @@ function i2vPrompt(r, p, v){
   if(isVeo(v)){
     const parts = ["Animate the attached image as the first frame of the shot"];
     if(cs.length) parts.push(`Keep ${cs.map(c=>c.nom).join(" and ")} exactly as in the image: same ${cs.length>1?"faces":"face"}, same hair, same clothes`);
-    if(p.camera_en) parts.push("Camera: "+p.camera_en);
     parts.push(actionLine(p, v));
+    parts.push("Camera: "+(cameraOne(p.camera_en)||"locked camera, no camera movement"));
+    if(p.fin_en) parts.push("End state of the clip: "+sent(p.fin_en).replace(/\.$/,""));
     if(p.ambiance_en) parts.push("Mood: "+p.ambiance_en);
     parts.push(`Keep the style, colors and lighting of the image, ${FMT(v.format)}, 24fps, 8 seconds`);
     return veoTail(r, p, v, parts);
   }
   if(isRunway(v)){
     const subject = sent(p.action_en);
-    return joinS([subject, p.camera_en ? "Camera: "+p.camera_en : "", motionLine(v,p), "Preserve the exact subject, composition, lighting and style of the input image"]);
+    return joinS([subject, "Camera: "+(cameraOne(p.camera_en)||"locked camera"), p.fin_en?"End state: "+p.fin_en:"", motionLine(v,p), "Preserve the exact subject, composition, lighting and style of the input image"]);
   }
   const parts = ["Animate the attached image as the first frame of the shot"];
   if(cs.length) parts.push(`Keep ${cs.map(c=>c.nom).join(" and ")} exactly as in the image: same ${cs.length>1?"faces":"face"}, same hair, same clothes`);
   parts.push(p.action_en);
-  parts.push("Camera: "+p.camera_en);
+  parts.push("Camera: "+(cameraOne(p.camera_en)||"locked camera, no camera movement"));
+  if(p.fin_en) parts.push("End state of the clip: "+sent(p.fin_en).replace(/\.$/,""));
   parts.push(p.lumiere_en);
   parts.push(p.ambiance_en);
   if(p.son_en) parts.push("Sound of "+String(p.son_en).replace(/^sound of /i,""));
@@ -1654,7 +1683,7 @@ function t2vPrompt(r, p, v){
     if(cs.length) parts.push(cs.map(ficheMid).join("; and "));
     parts.push(sent(p.action_en));
     if(decorOf(r,p)) parts.push("Setting: "+decorOf(r,p));
-    if(p.camera_en) parts.push("Camera: "+p.camera_en);
+    if(p.camera_en) parts.push("Camera: "+(cameraOne(p.camera_en)||"locked camera, no camera movement"));
     parts.push(motionLine(v,p));
     parts.push(`${S.vid(pal(r))}, ${FMT(v.format)}`);
     return joinS(parts);
@@ -1667,7 +1696,7 @@ function t2vPrompt(r, p, v){
     parts.push(p.cadrage_en ? p.cadrage_en+": "+String(p.action_en||"").replace(/^./,m=>m.toLowerCase()) : p.action_en);
   }
   if(decorOf(r,p)) parts.push("Setting: "+decorOf(r,p));
-  parts.push("Camera: "+p.camera_en);
+  parts.push("Camera: "+(cameraOne(p.camera_en)||"locked camera, no camera movement"));
   parts.push(p.lumiere_en);
   parts.push(p.ambiance_en);
   if(p.son_en) parts.push("Sound effects / BGM: "+String(p.son_en).replace(/^sound of /i,""));
@@ -1713,7 +1742,8 @@ function lintPlan(r, p, v){
   if(/\b(sign|signboard|written|writes?|letters?|reads? the|newspaper|book page|label|banner|screen shows)\b/.test(all)) w.push("Texte possible dans l'image : l'IA écrit mal. Ajoute le texte au montage.");
   if(/\b(hands?|fingers?|grabs?|types?|counts? (the )?(money|bills|coins)|plays? the (guitar|piano|kora|drum))\b/.test(a)) w.push("Mains en action : génère 4 versions et garde la meilleure.");
   if(/\b(crowd|dozens|hundreds|many people|huge audience)\b/.test(all)) w.push("Foule : visages souvent ratés. Limite à 8 personnes ou floute l'arrière-plan.");
-  if(!p.camera_en) w.push("Mouvement de caméra absent.");
+  /* V4 : sans caméra précisée, le prompt demande une caméra fixe (plus d'alerte « mouvement absent ») ; on signale plutôt plusieurs mouvements empilés */
+  if(p.camera_en && (String(p.camera_en).match(new RegExp(CAM_MOVE.source,"gi"))||[]).length>1) w.push("Plusieurs mouvements de caméra demandés : seul le premier est gardé dans le prompt. Choisis le mouvement qui sert l'événement du plan, ou caméra fixe.");
   if(!multiShot(p) && /\b(cuts?|cutting) (to|back)\b|\bthen cut\b|\breverse shot\b|\bjump cut\b/.test(String(p.cadrage_en||"")+" "+String(p.camera_en||"")+" "+a)) w.push("Plusieurs cadrages dans un seul plan (« cut to ») : le clip sera confus. Garde une seule prise continue ou divise en deux plans.");
   if(isVeo(v)){
     if(planSecs(p)>8.05) w.push(`Plan de ${planSecs(p).toFixed(1)} s : Veo fait 8 s au maximum. Dans Google Flow, prolonge le clip avec « Extend » (+7 s), ou coupe au montage.`);
@@ -1812,7 +1842,7 @@ function fullText(proj, v){
     if(p.texte_ecran) L.push(`Texte à l'écran (montage) : ${p.texte_ecran}`);
     if(p.montage) L.push(`Montage : ${p.montage}`);
     if(p.fin_en) L.push(`Fin du plan (raccord) : ${p.fin_en}`);
-    L.push(`Note : ${p.note}/10 · ${p.risque||""}`); L.push("");
+    L.push(`Risque à la génération : ${riskOf(p.note)[0]}${p.risque?" · "+p.risque:""}`); L.push("");
   });
   L.push("== AUDIO =="); if(r.audio){ L.push("Voix : "+(r.audio.voix||"")); L.push("Musique :"); L.push(musicPrompt(r)); L.push("Mixage : "+(r.audio.mixage||"")); } L.push("");
   L.push("== MONTAGE =="); (r.montage||[]).forEach(m=>L.push("- "+m)); L.push("");
@@ -2063,6 +2093,7 @@ PRINCIPE SUPRÊME : cherche d'abord une situation ou une expérience visuelle qu
  - TEST DU MODE MUET : la proposition reste compréhensible à au moins ${profile.silent} % sans voix off. Chaque étape raconte visuellement quelque chose. Avec personnages : DÉCLENCHEUR → ACTION → RÉACTION → CHANGEMENT. Sans personnages : ÉTAT INITIAL → GESTE OU ÉVÉNEMENT → EFFET VISIBLE → NOUVEL ÉTAT. La voix off ne doit jamais expliquer une image faible.
 - Supprime ou fusionne toute transition servant seulement à montrer qu'un personnage attend, réfléchit, continue, écoute, est déterminé ou que le temps passe. Remplace-la par un geste, objet, choix, erreur, conséquence ou interaction.
  - Si ce format utilise conflit ou escalade, ils arrivent physiquement devant nous. Si ce format utilise un reveal, prépare-le par 2 ou 3 indices subtils et loyaux. Sinon, chaque fin importante doit au minimum créer une attente, une continuité sensorielle ou le désir de voir l'étape suivante.
+- TEST DE PRÉVISIBILITÉ : si le spectateur peut deviner la fin dans les cinq premières secondes, réécris : ajoute un mystère informationnel (quelque chose qu'on ne comprend pas encore), un renversement qui fait réinterpréter ce qu'on a vu, et pour un épisode un cliffhanger (question → information → réaction → complication → nouvelle question). La leçon se comprend par l'image et les actes, jamais par une voix off qui récite la morale.
 - Refuse les histoires IA génériques : sagesse inattendue, destin exceptionnel, héritage sacré vague, regard déterminé, sourire de compréhension, coucher de soleil symbolique, élu soudain et morale longuement expliquée.
  - HUMAN BEHAVIOR : lorsqu'une personne est présente, traduis ses émotions en comportements visibles et jouables (regard, clignement, mâchoire, respiration, mains, recul, hésitation, geste interrompu). Deux personnages ne réagissent pas de manière identique au même moment. Le dialogue doit provoquer ou modifier une action.
 - RETENTION : utilise le moteur du profil — changement de situation, anticipation, information, étape, variation, matière, performance ou satisfaction sensorielle — jamais des zooms ou interruptions gratuits. La promesse du début doit être livrée, et les observations virales ne sont jamais présentées comme des causalités certaines.
@@ -2106,7 +2137,7 @@ function codeDefects(x, p){
   const durs = shots.map(s=>Math.round(Number(s.shot_design&&s.shot_design.duration)||0));
   if(!imposed){
     const bySc=new Map(); shots.forEach(s=>{ const k=String(s.scene_id||""); bySc.set(k,(bySc.get(k)||[]).concat([s])); });
-    const thin=[...bySc].filter(([,g])=>{ const T=g.reduce((a,s)=>a+(Number(s.shot_design&&s.shot_design.duration)||0),0); return T>=12 && g.length < Math.round(T/6); });
+    const thin=[...bySc].filter(([,g])=>{ const T=g.reduce((a,s)=>a+(Number(s.shot_design&&s.shot_design.duration)||0),0); return T>=20 && g.length===1; });   /* V4 : seulement une image figée trop longue, jamais un quota de plans */
     if(thin.length) add(`Scène${thin.length>1?"s":""} ${thin.map(([k,g])=>`${k||"?"} (${Math.round(g.reduce((a,s)=>a+(Number(s.shot_design&&s.shot_design.duration)||0),0))} s en ${g.length} plan${g.length>1?"s":""})`).join(", ")} : trop peu de plans pour sa durée.`, "Découpe chaque scène longue en plans plus courts : un plan qui situe, l'action, les réactions des personnages, les inserts sur les objets importants.");
   }
   if(shots.length >= 4 && new Set(durs).size === 1) add("Tous les plans ont la même durée : rythme mécanique.", "Varie les durées selon la fonction du plan : courts pour l'action, les réactions et les inserts, plus longs seulement pour l'émotion.");
@@ -2118,6 +2149,27 @@ function codeDefects(x, p){
       if(duo.length >= 2 && talk < Math.ceil(duo.length/2)) add(talk ? `Personnages ensemble dans ${duo.length} plans mais échange de paroles dans ${talk} seulement.` : "Des personnages partagent l'image mais ne se parlent jamais.", "Fais-les se répondre (question → réponse, reproche → excuse, interruption) avec des répliques courtes qui provoquent une réaction, dans au moins la moitié des plans où ils sont ensemble.");
     }
   }
+  if(shots.length >= 6){
+    const norm = t => String(t||"").toLowerCase().replace(/\d+\s*mm/g,"").replace(/[^a-zà-ÿ ]/g," ").replace(/\s+/g," ").trim();
+    const recipe = s => norm((s.shot_design&&s.shot_design.framing)||"")+" | "+norm((s.shot_design&&s.shot_design.camera_movement)||""), counts = new Map();
+    shots.forEach(s=>{ const k=recipe(s); if(k!==" | ") counts.set(k,(counts.get(k)||0)+1); });
+    const top=[...counts.values()].sort((a,b)=>b-a)[0]||0;
+    if(top/shots.length > 0.5) add(`Même cadrage et même mouvement de caméra sur ${top} plans sur ${shots.length} : formule répétée.`, "Choisis chaque cadrage pour l'événement du plan : établissement, large, deux personnages, gros plan, insert, POV, amorce, réaction, révélation.");
+    const moving = shots.filter(s=>{ const c=(s.shot_design&&s.shot_design.camera_movement)||""; return CAM_MOVE.test(c) && !CAM_STATIC.test(c); }).length;
+    if(moving/shots.length > 0.75) add(`Mouvement de caméra sur ${moving} plans sur ${shots.length} : mouvements décoratifs.`, "Caméra fixe quand aucun mouvement ne sert l'histoire ; un seul mouvement motivé sinon.");
+    const ds=shots.map(s=>Number(s.shot_design&&s.shot_design.duration)||0).filter(Boolean).sort((a,b)=>a-b), med=ds[Math.floor(ds.length/2)]||0;
+    if(med && ds.filter(d=>Math.abs(d-med)<=0.75).length/ds.length >= 0.7) add(`Durées presque toutes identiques (autour de ${Math.round(med)} s) : découpage mécanique.`, "Les durées suivent l'action : inserts et réactions de 1 à 3 s, interactions de 3 à 6 s, plans plus longs seulement pour l'émotion ou une révélation.");
+  }
+  if(!imposed){
+    const per=new Map(); shots.forEach(s=>{ const k=String(s.scene_id||""); per.set(k,(per.get(k)||0)+1); });
+    const big=[...per].filter(([,n])=>n>10);
+    if(big.length) add(`Scène ${big.map(([k,n])=>`${k||"?"} (${n} plans)`).join(", ")} trop chargée : plusieurs unités dramatiques ont été collées.`, "Découpe en scènes selon les changements d'objectif, de phase, de temps, de lieu, de rapport de force ou d'information, puis compresse les plans qui se répètent.");
+  }
+  const scenes=(x.scene_plan&&x.scene_plan.scenes)||[], dayExt=id=>{ const sc=scenes.find(v=>String(v.scene_id)===String(id)); return sc && /^EXT/i.test(String(sc.int_ext||"")) && !/nuit|night|soir|evening|dusk|crépuscule|aube|dawn/i.test(String(sc.moment||"")); };
+  const fakeLight=shots.filter(s=>dayExt(s.scene_id) && /\bLED\b|n[ée]on|practical lamp|lampe|lamp\b/i.test([(s.continuity&&s.continuity.light)||"", JSON.stringify(s.shot_design||{})].join(" ")));
+  if(fakeLight.length) add(`Lampes, LED ou néons dans une scène extérieure de jour (${fakeLight.map(s=>s.shot_id).join(", ")}).`, "En extérieur de jour, la lumière vient du soleil, du ciel et des rebonds du sol : retire toute source artificielle absente du lieu.");
+  const extras=shots.filter(s=>/background extras|extras moving|figurants? (flous|qui bougent)/i.test(String((s.blocking&&s.blocking.background)||"")));
+  if(extras.length >= Math.max(3, shots.length*0.5)) add(`Figurants ajoutés en arrière-plan sur ${extras.length} plans.`, "Aucun figurant par défaut : seulement si le lieu en a vraiment et que cela sert la scène.");
   return out;
 }
 async function developCreative(idee,p,prefix,signal){
@@ -2159,7 +2211,8 @@ ${nicheContext(nicheById(p.niche))}
 ${imposed.length?`UNITÉS TEMPORELLES IMPOSÉES PAR LE MÉDIA SOURCE : ${JSON.stringify(imposed)}. Crée exactement ${imposed.length} unités avec les mêmes n, debut et fin.`:`Durée cible : ${p.duree} s. Couvre entre ${Math.round((Number(p.duree)||60)*0.65)} et ${p.duree} s avec des unités réellement utiles : si l'idée paraît trop courte, enrichis-la (obstacle supplémentaire, réaction, conséquence, escalade, retournement) plutôt que de livrer une vidéo trop courte ; jamais de remplissage ni de plan d'attente. Une vidéo de fiction alterne action, réaction et conséquence ; les personnages se parlent plutôt qu'un narrateur ne raconte.`}
 ${previous?`VERSION REFUSÉE : ${JSON.stringify(previous)}. Corrige les gates sous 8 sans ajouter d'esthétique.`:""}
 
-SCÈNES PUIS PLANS : une scène est une unité de LIEU et de TEMPS continue (même lieu, même moment) portée par un enjeu ; au découpage, elle contiendra plusieurs plans (plan qui situe, action, réactions, inserts). Ne crée jamais une scène par plan : change de scène seulement quand le lieu, le moment ou l'enjeu change.${imposed.length?"":` NOMBRE DE SCÈNES : entre ${sceneRange(p.duree)[0]} et ${sceneRange(p.duree)[1]} selon l'histoire (une scène dure en général 10 à 40 s ; plus la vidéo est longue, plus elle a de scènes et de lieux).`} Pour chaque scène donne un titre court en français, int_ext (INT ou EXT), le lieu précis, le moment (heure et lumière du jour) et duree_s, sa durée estimée en secondes${imposed.length?"":` ; la somme des duree_s de toutes les scènes fait entre ${Math.round((Number(p.duree)||60)*0.65)} et ${Number(p.duree)||60} s`}.${imposed.length?" Ici les unités imposées sont des PLANS, dans l'ordre : chaque unité garde son source_n, et les unités consécutives qui se passent dans le même lieu et le même moment partagent le même scene_id, le même titre, le même lieu et le même moment.":""}
+${DIRECTOR_V4}
+SCÈNES PUIS PLANS : une scène est une UNITÉ DRAMATIQUE (objectif, obstacle, progression, changement, sortie), en général un lieu et un moment continus ; au découpage, elle contiendra plusieurs plans (plan qui situe, action, réactions, inserts). Ne crée jamais une scène par plan : change de scène quand l'objectif, la phase dramatique, le temps, le lieu, le rapport de force, l'information ou l'enjeu change.${imposed.length?"":` NOMBRE DE SCÈNES : entre ${sceneRange(p.duree)[0]} et ${sceneRange(p.duree)[1]} selon l'histoire (une scène dure en général 10 à 40 s ; plus la vidéo est longue, plus elle a de scènes et de lieux).`} Pour chaque scène donne un titre court en français, int_ext (INT ou EXT), le lieu précis, le moment (heure et lumière du jour) et duree_s, sa durée estimée en secondes${imposed.length?"":` ; la somme des duree_s de toutes les scènes fait entre ${Math.round((Number(p.duree)||60)*0.65)} et ${Number(p.duree)||60} s`}.${imposed.length?" Ici les unités imposées sont des PLANS, dans l'ordre : chaque unité garde son source_n, et les unités consécutives qui se passent dans le même lieu et le même moment partagent le même scene_id, le même titre, le même lieu et le même moment.":""}
 EVENT BEFORE AESTHETICS : chaque unité contient un événement, une information, une démonstration, une interaction ou une transformation correspondant à son objectif. Une belle image ne remplace rien.
 INTENTION → BEHAVIOR : toute intention humaine devient un comportement visible. Sans personne, décris l'effet matériel, visuel ou informatif observable.
 ACTION → PERCEPTION → REACTION → COUNTER-ACTION → CONSEQUENCE lorsqu'il y a plusieurs personnages. Une réaction importante influence la suite.
@@ -2198,7 +2251,7 @@ async function developScenes(idee,p,creative,prefix,signal){
   return d;
 }
 /* Plans visés pour une scène : environ un toutes les 4 s (entre 1 et 8) */
-const shotTarget = sc => Math.min(12, Math.max(1, Math.round((Number(sc&&sc.duree_s)||8)/4)));
+const shotTarget = sc => Math.min(8, Math.max(1, Math.round((Number(sc&&sc.duree_s)||8)/6)));   /* maximum indicatif, pas un quota */
 function executionPlanPrompt(idee,p,creative,scenePlan,previous,lot){
   const profile=videoProfile(p.vtype,p);
   const sourceAudio=(Array.isArray(p.timeline)?p.timeline:[]).filter(x=>x&&x.texte).map(x=>Object.assign({source_n:x.n,texte:x.texte},x.voix?{voix:x.voix}:{}));
@@ -2212,6 +2265,7 @@ ${audioLockedOf(p)?`AUDIO IMPORTÉ : l'audio existe déjà et ses ${p.timeline.l
 ${previous?`MASTER REFUSÉ : ${JSON.stringify(previous)}. "refus" liste les raisons exactes du refus ; "version_precedente" est le master refusé. Repars de cette version : garde ce qui fonctionne, corrige chaque raison de refus, divise tout plan trop complexe, et renvoie le master complet corrigé.`:""}
 ${nicheGuides(idee,p)}
 ${learningBlock(p)}
+${DIRECTOR_V4}
 ${BLOCKING_PERFORMANCE_DIRECTOR}
 ${SHOT_DIRECTOR}
 VISUAL INFORMATION CONTROL : utilise premier/arrière-plan, hors-champ, révélation partielle, réaction avant reveal, POV, rack focus, occlusion, entrée/sortie et object reveal seulement si cela distribue mieux l'information.
@@ -2222,8 +2276,8 @@ MODEL-INDEPENDENT : model_requirements décrit seulement les capacités nécessa
 
 DIRECTOR CRITIC : refuse avant adaptation tout plan sans événement lisible, blocking motivé, réaction causée, caméra motivée, état entrant/sortant ou séparation sonore claire. Tous les scores pertinents doivent atteindre 8. N'impose pas performance humaine, objet ou dialogue s'ils ne servent pas le format.
 
-DÉCOUPAGE SCÈNE PAR SCÈNE : ${audioLockedOf(p) ? "chaque unité de l'audio est un plan ; garde le scene_id de sa scène pour que les plans d'un même lieu et d'un même moment restent groupés." : `découpe chaque scène du SCENE PLAN, dans l'ordre, en plusieurs shots qui gardent son scene_id : en général un plan qui situe le lieu et les personnages, puis l'action, les réactions et les inserts utiles ; environ un shot toutes les 3 à 5 secondes de scène (action et réactions courtes, plans plus longs seulement pour l'émotion). DÉCOUPAGE CIBLE : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, duree_s:Number(sc.duree_s)||0, shots:shotTarget(sc)})))}.`}
-NOMBRE DE SHOTS : ${audioLockedOf(p) ? `exactement ${p.timeline.length}, un par unité (source_n 1 à ${p.timeline.length})` : (()=>{ const t=(scenePlan.scenes||[]).reduce((a,sc)=>a+shotTarget(sc),0)||1; return `environ ${t} (entre ${Math.max(1,Math.round(t*0.75))} et ${Math.round(t*1.3)}), répartis selon le DÉCOUPAGE CIBLE`; })()}. Le schéma ci-dessous montre UN SEUL shot pour l'exemple : ton tableau "shots" doit les contenir TOUS, chacun complet.
+DÉCOUPAGE SCÈNE PAR SCÈNE : ${audioLockedOf(p) ? "chaque unité de l'audio est un plan ; garde le scene_id de sa scène pour que les plans d'un même lieu et d'un même moment restent groupés." : `découpe chaque scène du SCENE PLAN, dans l'ordre, en plusieurs shots qui gardent son scene_id : en général un plan qui situe le lieu et les personnages, puis l'action, les réactions et les inserts utiles ; seulement les plans qui passent le TEST D'EXISTENCE, avec des durées qui suivent l'action (inserts et réactions courts, plans plus longs pour l'émotion) ; « shots » est un MAXIMUM, jamais un quota : COMPRESSION PASS avant de répondre. DÉCOUPAGE CIBLE (maximum par scène) : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, duree_s:Number(sc.duree_s)||0, shots:shotTarget(sc)})))}.`}
+NOMBRE DE SHOTS : ${audioLockedOf(p) ? `exactement ${p.timeline.length}, un par unité (source_n 1 à ${p.timeline.length})` : (()=>{ const t=(scenePlan.scenes||[]).reduce((a,sc)=>a+shotTarget(sc),0)||1; return `au plus ${t}, répartis selon le DÉCOUPAGE CIBLE ; moins si l'histoire est aussi claire et aussi forte avec moins de plans`; })()}. Le schéma ci-dessous montre UN SEUL shot pour l'exemple : ton tableau "shots" doit les contenir TOUS, chacun complet.
 
 RÉPONDS UNIQUEMENT avec ce JSON :
 {"version":"master-video-plan-1","shots":[{"shot_id":"SH01","scene_id":"S01","source_n":1,"purpose":"","change":"","characters":[""],"wants":[{"character":"","wants":""}],"obstacle":"","event":"","blocking":{"start_positions":"","end_positions":"","distance":"","movement":"","entry":"","exit":"","eye_lines":"","foreground":"","background":"","object_relationship":"","power_relationship":""},"performance":[{"character":"","intention":"","observable_behavior":"","cause":"","timing":"","intensity":""}],"objects":[{"id":"","owner":"","interaction":"","state_in":"","state_out":"","effect":""}],"causal_beats":[{"beat":1,"what_happens":"","caused_by":"","who_reacts":"","reaction":"","change":"","why_next":""}],"shot_design":{"must_notice":"","notice_when":"","hidden_information":"","revealed_information":"","moment_owner":"","framing":"","angle":"","lens":"","camera_position":"","camera_movement":"","focus":"","depth":"","duration":5,"start_frame":"","end_frame":"","cut_point":"","shot_mode":"ONE_SHOT|MULTIPLE_SHOTS","camera_reason":""},"sound":{"diegetic":"","ambience":"","dialogue":"","sfx":"","silence":"","voice_over":"","music":"","model_audio":"","post_audio":"","voice_over_dependency":"LOW|MEDIUM|HIGH"},"continuity":{"state_in":"","state_out":"","screen_direction":"","light":"","time_of_day":"","environment":"","emotional_state":"","object_state":"","damage_dirt_wetness":"","story_information":""},"complexity":{"characters":0,"important_actions":0,"physical_interactions":0,"object_interactions":0,"camera_movement":0,"environment_movement":0,"dialogue":0,"special_effects":0,"continuity_requirements":0,"model_difficulty":0,"total":0,"decision":"KEEP","split_reason":""},"model_requirements":{"mode":"t2v|i2v|either","reference_count":0,"character_consistency":false,"camera_control":false,"native_audio":false,"multi_shot":false,"start_end_frames":false,"editing":false,"motion_complexity":"low|medium|high"}}],"continuity_map":[{"from_shot":"SH01","to_shot":"SH02","state_out":"","required_state_in":"","match":true,"correction":""}],"editing_plan":{"shot_order":["SH01"],"reaction_shots":[""],"inserts":[""],"transitions":[""],"rhythm":""},"director_critic":{"decision":"APPROVED FOR ADAPTATION","scores":{"event":0,"causality":0,"blocking":0,"performance":0,"objects":0,"camera_motivation":0,"information_control":0,"continuity":0,"sound_editing":0,"feasibility":0},"defects":[{"shot_id":"","layer":"","problem":"","correction":"","expected_effect":""}]}}`;
@@ -2309,11 +2363,13 @@ function masterPlanFailures(x,p){
   return out;
 }
 function masterPlanPasses(x,p){ return !masterPlanFailures(x,p).length; }
-/* Réalisation par lots de scènes : un long projet (20 scènes, 100 plans) ne tient pas dans une seule réponse du modèle */
-const BATCH_SHOTS = 12;
+/* Réalisation par lots de scènes : le JSON d'un Master Plan est très détaillé.
+   Les unités audio sont volontairement regroupées par 4 : Flash-Lite tronque parfois
+   une réponse de 8 à 12 shots avant la fermeture du JSON, même avec une limite élevée. */
+const BATCH_SHOTS = 8, AUDIO_BATCH_SHOTS = 4;
 function sceneBatches(scenes, p){
-  const audio=audioLockedOf(p), out=[]; let cur=[], n=0;
-  (scenes||[]).forEach(sc=>{ const t=audio?1:shotTarget(sc); if(cur.length && n+t>BATCH_SHOTS){ out.push(cur); cur=[]; n=0; } cur.push(sc); n+=t; });
+  const audio=audioLockedOf(p), limit=audio?AUDIO_BATCH_SHOTS:BATCH_SHOTS, out=[]; let cur=[], n=0;
+  (scenes||[]).forEach(sc=>{ const t=audio?1:shotTarget(sc); if(cur.length && n+t>limit){ out.push(cur); cur=[]; n=0; } cur.push(sc); n+=t; });
   if(cur.length) out.push(cur);
   return out;
 }
@@ -2331,7 +2387,17 @@ async function directExecution(idee,p,creative,scenePlan,prefix,signal){
   showStatus(prefix,"Réalisation : blocking, performance, plans, son et continuité…",false,32);
   const opts={modelTier:p.qualite==="complex"?"complex":"default",engine:"best",signal,cache:false};
   const t0=pipeNow();
-  const got=[], ask=async (prev, sub, pb, lot)=>{ const raw=await sample.json(executionPlanPrompt(idee,pb||p,creative,sub||scenePlan,prev,lot),opts); got.push(Array.isArray(raw&&raw.shots)?raw.shots.length:0); try{ (window.__spDebug=window.__spDebug||{}).master=(window.__spDebug.master||[]).concat([raw]).slice(-3); }catch(e){} return normalizeMasterPlan(raw,sub||scenePlan,pb||p); };
+  const got=[], ask=async (prev, sub, pb, lot)=>{
+    const prompt=executionPlanPrompt(idee,pb||p,creative,sub||scenePlan,prev,lot); let raw;
+    try{ raw=await sample.json(prompt,opts); }
+    catch(err){
+      const transient=err&&["invalid_json","server_error","network","overloaded"].includes(err.code);
+      if(!transient || (signal&&signal.aborted)) throw err;
+      showStatus(prefix,"Réponse de réalisation interrompue : nouvelle tentative automatique…",false,35);
+      raw=await sample.json(prompt,opts);
+    }
+    got.push(Array.isArray(raw&&raw.shots)?raw.shots.length:0); try{ (window.__spDebug=window.__spDebug||{}).master=(window.__spDebug.master||[]).concat([raw]).slice(-3); }catch(e){} return normalizeMasterPlan(raw,sub||scenePlan,pb||p);
+  };
   const batches = sceneBatches(scenePlan.scenes, p);
   if(batches.length > 1) return finishMaster(await directByBatches(batches, ask, idee, p, scenePlan, prefix), p, scenePlan, t0, got, batches.length);
   let d=await ask(), cd=codeDefects(d,p), fl=masterPlanFailures(d,p), rewrites=0;
@@ -2492,7 +2558,7 @@ RÈGLES DE PROMPT (tous les champs qui finissent par _en sont en anglais, concre
 - personnages du plan : liste des id présents à l'image. Si la liste n'est pas vide, depart_en = la toute première image du plan, figée, avec la position de chaque personnage (sans recopier la fiche, l'application l'ajoute). Sinon depart_en = "".
 - Fiabilité : conserve même une caméra immobile, un silence ou un geste lent lorsqu'ils sont motivés dans le master. Ne change pas la réalisation pour contourner une limite : signale plutôt dans risque la capacité manquante, une éventuelle division déjà demandée ou l'élément à produire en postproduction. Aucun texte, logo ou écriture n'est généré dans l'image.
 - Interdits : personnes réelles, célébrités, marques, logos, personnages ou œuvres protégés, noms de réalisateurs ou de films, violence choquante.
-- note = ta note honnête de 1 à 10 sur la fiabilité du plan ; risque = en français, le point le plus risqué et quoi faire (ex. "Mains visibles : génère 5 versions").
+- risk_level = LOW, MEDIUM ou HIGH ; risque = en français, la cause concrète du risque et la parade (ex. "HIGH — interaction entre deux mains et une petite clé : utiliser une image de départ validée et prévoir plusieurs générations"). Aucun score numérique avant inspection du média généré.
 ${p.outil==="veo"?`${VEO_GUIDE}
 Applique cette connaissance à chaque plan : vocabulaire de caméra que Veo comprend, gros plans pour les émotions, sons précis, dialogues courts au bon ton, rien qui dépasse les limites connues de Veo.`:p.outil==="runway"?RUNWAY_GUIDE:WAN_GUIDE}
 ${wolof?`
@@ -2511,12 +2577,13 @@ YOUTUBE : 3 titres accrocheurs dans la langue du public ; miniature_personnage =
 
 CRITIQUE FINALE : les dimensions prioritaires de ce format sont ${profile.gates.join(", ")}. Elles doivent être solides. Dans critique, note honnêtement de 1 à 10 les dimensions pertinentes ; écris 0 pour narration, émotion ou retournement si elles ne s'appliquent pas, sans inventer un conflit ou un twist pour augmenter la note.
 
-GATE DE COMPILATION — POUR CHAQUE PLAN : vérifie que l'événement, le changement, la réaction ou l'effet, l'information nouvelle et la raison de continuer du master sont tous présents sans altération. Si une incompatibilité technique apparaît, ne réécris pas l'événement : conserve le master, explique précisément l'incompatibilité dans risque et baisse note.
+GATE DE COMPILATION — POUR CHAQUE PLAN : vérifie que l'événement, le changement, la réaction ou l'effet, l'information nouvelle et la raison de continuer du master sont tous présents sans altération. Si une incompatibilité technique apparaît, ne réécris pas l'événement : conserve le master, explique précisément l'incompatibilité dans risque et augmente risk_level.
 
+${PROMPT_V4}
 ${learningBlock(p)}
 RÉPONDS UNIQUEMENT avec un objet JSON valide, exactement de cette forme :
-{"titre":"","logline":"","lecon":"","public":"","genre_note":"","palette_en":"","structure":"","personnages":[],"lieux":[{"id":"","nom":"","description_en":""}],"plans":[{"n":1,"debut":"0:00","fin":"0:08","intention":"","voix_off":"","voix_off_fr":"","personnages":[],"cadrage_en":"","action_en":"","decor_en":"","camera_en":"","lumiere_en":"","ambiance_en":"","son_en":"","beats_en":["","",""],"voix_ton_en":"","repliques":[{"locuteur":"","texte":"","ton_en":""}],"lieu":"","depart_en":"","fin_en":"","locuteur":"","montage":"","texte_ecran":"","detail_type":"","risque":"","note":9}],"special":${TYPE_SPECIAL_SCHEMA[profile.id]||SPECIAL_SCHEMA[vt]||'{}'},"retention":{"accroche_visuelle":"","accroche_phrase":"","boucle_ouverte":"","relances":[{"temps":"0:10","technique":""}],"pic_emotionnel":{"temps":"","description":""},"derniere_image":""},"audio":{"voix":"","musique_en":"","mixage":""},"montage":[""],"youtube":{"titres":["","",""],"miniature_personnage":"","miniature_scene_en":"","texte_miniature":"","description":""},"critique":{"narration":0,"accroche":0,"emotion":0,"retournement":0,"coherence":0,"clarte":0,"originalite":0,"cinematographie":0,"continuite":0,"son":0,"rythme":0,"authenticite":0,"faisabilite_ia":0,"corrections":[""]},"langue_alertes":[]}
-Les champs en français (titre, logline, lecon, public, genre_note, intention, montage des plans, texte_ecran, detail_type, risque, fiche_fr, retention, special, audio.voix, audio.mixage, montage) sont en français, sauf les champs qui finissent par _en. texte_ecran = "" si aucun texte n'est ajouté au montage sur ce plan. La musique, l'étalonnage et le rythme suivent l'émotion choisie. palette_en = la palette de couleurs en quelques mots anglais, utilisée pour tout le projet. Avant de répondre, vérifie chaque plan : une action, fiches cohérentes, caméra nommée, lumière précise, risques réduits ; réécris tout plan que tu noterais sous 8.`;
+{"titre":"","logline":"","lecon":"","public":"","genre_note":"","palette_en":"","structure":"","personnages":[],"lieux":[{"id":"","nom":"","description_en":""}],"plans":[{"n":1,"debut":"0:00","fin":"0:08","intention":"","voix_off":"","voix_off_fr":"","personnages":[],"cadrage_en":"","action_en":"","decor_en":"","camera_en":"","lumiere_en":"","ambiance_en":"","son_en":"","beats_en":["","",""],"voix_ton_en":"","repliques":[{"locuteur":"","texte":"","ton_en":""}],"lieu":"","depart_en":"","fin_en":"","locuteur":"","montage":"","texte_ecran":"","detail_type":"","risk_level":"LOW|MEDIUM|HIGH","risque":""}],"special":${TYPE_SPECIAL_SCHEMA[profile.id]||SPECIAL_SCHEMA[vt]||'{}'},"retention":{"accroche_visuelle":"","accroche_phrase":"","boucle_ouverte":"","relances":[{"temps":"0:10","technique":""}],"pic_emotionnel":{"temps":"","description":""},"derniere_image":""},"audio":{"voix":"","musique_en":"","mixage":""},"montage":[""],"youtube":{"titres":["","",""],"miniature_personnage":"","miniature_scene_en":"","texte_miniature":"","description":""},"critique":{"narration":0,"accroche":0,"emotion":0,"retournement":0,"coherence":0,"clarte":0,"originalite":0,"cinematographie":0,"continuite":0,"son":0,"rythme":0,"authenticite":0,"faisabilite_ia":0,"corrections":[""]},"langue_alertes":[]}
+Les champs en français (titre, logline, lecon, public, genre_note, intention, montage des plans, texte_ecran, detail_type, risque, fiche_fr, retention, special, audio.voix, audio.mixage, montage) sont en français, sauf les champs qui finissent par _en. texte_ecran = "" si aucun texte n'est ajouté au montage sur ce plan. La musique, l'étalonnage et le rythme suivent l'émotion choisie. palette_en = la palette de couleurs en quelques mots anglais, utilisée pour tout le projet. Avant de répondre, vérifie chaque plan : une action, fiches cohérentes, caméra nommée, lumière précise et risque expliqué. Simplifie ou divise dans le Master Video Plan toute intention trop complexe ; ne masque jamais un risque résiduel.`;
 }
 
 /* Mode voix : Veo coupe une phrase trop longue pour le clip. Si l'agent a dépassé, une petite 2e demande raccourcit ces phrases-là. */
@@ -2546,7 +2613,7 @@ function validResult(r){
 function normalize(r){
   r.personnages = (r.personnages||[]).filter(c=>c&&c.id&&c.fiche_en).map(c=>({id:String(c.id),nom:String(c.nom||c.id),fiche_en:String(c.fiche_en),rappel_en:String(c.rappel_en||c.fiche_en),fiche_fr:String(c.fiche_fr||"")}));
   const ids = new Set(r.personnages.map(c=>c.id));
-  r.plans = r.plans.map((p,i)=>Object.assign({n:i+1,debut:"",fin:"",intention:"",voix_off:"",voix_off_fr:"",cadrage_en:"",decor_en:"",lumiere_en:"",ambiance_en:"",son_en:"",depart_en:"",beats_en:[],voix_ton_en:"",lieu:"",fin_en:"",locuteur:"",montage:"",texte_ecran:"",detail_type:"",risque:"",note:8},p,{personnages:(Array.isArray(p.personnages)?p.personnages:[]).map(String).filter(id=>ids.has(id))}));
+  r.plans = r.plans.map((p,i)=>{ const q=Object.assign({n:i+1,debut:"",fin:"",intention:"",voix_off:"",voix_off_fr:"",cadrage_en:"",decor_en:"",lumiere_en:"",ambiance_en:"",son_en:"",depart_en:"",beats_en:[],voix_ton_en:"",lieu:"",fin_en:"",locuteur:"",montage:"",texte_ecran:"",detail_type:"",risk_level:"",risque:""},p,{personnages:(Array.isArray(p.personnages)?p.personnages:[]).map(String).filter(id=>ids.has(id))}); q.risk_level=/^(LOW|MEDIUM|HIGH)$/i.test(String(q.risk_level||""))?String(q.risk_level).toUpperCase():(Number(q.note)>=8?"LOW":Number(q.note)>=6?"MEDIUM":"HIGH"); return q; });
   const rt = r.retention||{}; r.retention = {accroche_visuelle:String(rt.accroche_visuelle||""),accroche_phrase:String(rt.accroche_phrase||""),boucle_ouverte:String(rt.boucle_ouverte||""),relances:(Array.isArray(rt.relances)?rt.relances:[]).filter(x=>x&&x.technique).map(x=>({temps:String(x.temps||""),technique:String(x.technique)})),pic_emotionnel:Object.assign({temps:"",description:""},rt.pic_emotionnel||{}),derniere_image:String(rt.derniere_image||"")};
   r.lieux = (Array.isArray(r.lieux)?r.lieux:[]).filter(l=>l&&l.id&&l.description_en).map(l=>({id:String(l.id), nom:String(l.nom||l.id), description_en:String(l.description_en)}));
   const lids = new Set(r.lieux.map(l=>l.id));
@@ -3097,6 +3164,9 @@ $("f-vtype").addEventListener("change",()=>syncVtype(true));
 syncVtype(false);
 
 const $res = $("result");
+/* V4 : avant génération, un RISQUE expliqué, jamais une note sur 10 */
+function riskOf(v){ const s=String(v||"").toUpperCase(); if(s==="LOW") return ["faible",""]; if(s==="MEDIUM") return ["moyen","w"]; if(s==="HIGH") return ["élevé","c"]; const n=Number(v)||0; return n>=8?["faible",""]:n>=6?["moyen","w"]:["élevé","c"]; }
+function riskChip(level, why){ const [l,c]=riskOf(level); return `<span class="score ${c}" title="${esc(why||"Estimation avant génération, à confirmer par le Video Critic sur le clip généré")}">Risque ${l}</span>`; }
 function scoreClass(n){ n=Number(n)||0; return n>=9?"":(n>=8?"w":"c"); }
 /* Prompt kinds: the tag and colour tell at a glance what to do with the prompt. */
 const PB_KIND = {image:"Image", video:"Vidéo", audio:"Son", texte:"Texte", neg:"Négatif"};
@@ -3158,10 +3228,11 @@ function projTab(k, scroll){
   const a = $("ptabs-anchor"); if(!a) return;
   const y = a.getBoundingClientRect().top; if(scroll || y<0) window.scrollBy(0, y);
 }
-/* Onglet Brief : structure choisie, auto-critique de l'agent (notes sur 10) et bible des lieux */
+/* Onglet Brief : structure choisie, auto-critique de l'agent (points solides et à surveiller, sans note) et bible des lieux */
 function creativeHtml(r){
   const d=r.creative, s=d&&d.selection; if(!s) return "";
-  const scores=CREATIVE_SCORE_KEYS.map(([k,l])=>`<span class="chip ${Number(s.scores&&s.scores[k])>=9?"ok":Number(s.scores&&s.scores[k])>=8?"":"mid"}">${esc(l)} ${esc((s.scores&&s.scores[k])||0)}/10</span>`).join("");
+  const sv=CREATIVE_SCORE_KEYS.map(([k,l])=>[l,Number(s.scores&&s.scores[k])||0]).filter(([,n])=>n>0), solid=sv.filter(([,n])=>n>=8).map(([l])=>l), watch=sv.filter(([,n])=>n<8).map(([l])=>l);
+  const scores=(solid.length?`<span class="chip ok">Solide : ${esc(solid.join(", "))}</span>`:"")+(watch.length?`<span class="chip mid">À surveiller : ${esc(watch.join(", "))}</span>`:"");
   const prog=(Array.isArray(s.progression)?s.progression:[]).filter(x=>x&&(x.declencheur||x.action||x.etape));
   const defects=Array.isArray(s.defauts_bloquants)?s.defauts_bloquants.filter(x=>x&&x.probleme):[];
   return `<section class="section" id="s-creative"><h3>Cerveau créatif validé</h3><div class="card"><div><span class="label">Concept retenu parmi ${(d.concepts||[]).length||12} · ${esc(s.decision||"APPROVED FOR PRODUCTION")}</span><h4>${esc(s.titre||"")}</h4><p>${esc(s.raison||"")}</p></div><div class="chips">${scores}<span class="chip ${Number(s.comprehension_mode_muet)>=70?"ok":"mid"}">Mode muet ${esc(s.comprehension_mode_muet||0)} %</span></div>${kv([["Promesse spectateur",s.promesse_spectateur],["Hook silencieux",s.hook_silencieux],["Question centrale",s.question_centrale],["Objectif",s.objectif],["Obstacle",s.obstacle],["Objet narratif",s.objet_narratif],["Indices du reveal",asArr(s.indices_reveal).join(" · ")],["Climax",s.climax],["Reveal",s.reveal],["Payoff",s.payoff]])}${defects.length?`<div class="alert"><b>Notes du Director Critic</b><ul class="plain">${defects.map(x=>`<li><b>${esc(x.probleme)}</b> · ${esc(x.correction||"")} ${x.effet_attendu?`<span class="hint">${esc(x.effet_attendu)}</span>`:""}</li>`).join("")}</ul></div>`:""}${prog.length?`<div class="block"><h4>Progression visuelle</h4><ol class="plain">${prog.map(x=>`<li><b>${esc(x.etape||"")}</b> · ${esc([x.declencheur,x.action,x.reaction,x.consequence].filter(Boolean).join(" → "))}${x.changement?` → <b>${esc(x.changement)}</b>`:""}${x.information_nouvelle?` <span class="hint">Information : ${esc(x.information_nouvelle)}</span>`:""}${x.question_suivante?` <span class="hint">Question : ${esc(x.question_suivante)}</span>`:""}</li>`).join("")}</ol></div>`:""}</div></section>`;
@@ -3176,7 +3247,8 @@ function pipelineHtml(r){
   return `<section class="section" id="s-pipeline"><h3>Rapport d'exécution</h3><p class="hint">Chaque étape réellement exécutée par l'agent, avec son résultat, sa durée et le modèle qui l'a faite.</p>${weakAlert(r)}<div class="pb k-texte"><pre>${esc(lines)}</pre></div></section>`;
 }
 function realisationHtml(r){
-  const c = r.critique, notes = c && c.notes ? CRIT_KEYS.filter(([k])=>c.notes[k]).map(([k,l])=>`<span class="chip ${c.notes[k]>=9?"ok":c.notes[k]>=8?"":"mid"}">${esc(l)} ${c.notes[k]}/10</span>`).join("") : "";
+  const c = r.critique, cv = c && c.notes ? CRIT_KEYS.filter(([k])=>c.notes[k]).map(([k,l])=>[l,Number(c.notes[k])||0]) : [], cSolid=cv.filter(([,n])=>n>=8).map(([l])=>l), cWatch=cv.filter(([,n])=>n<8).map(([l])=>l);
+  const notes = (cSolid.length?`<span class="chip ok">Solide : ${esc(cSolid.join(", "))}</span>`:"")+(cWatch.length?`<span class="chip mid">À surveiller : ${esc(cWatch.join(", "))}</span>`:"");
   const L = Array.isArray(r.lieux) ? r.lieux : [];
   if(!r.structure && !notes && !L.length) return "";
   return `<section class="section" id="s-realisation"><h3>Réalisation</h3><div class="card">${r.structure?`<div><span class="label">Structure choisie</span><p>${esc(r.structure)}</p></div>`:""}${notes?`<div class="block"><h4>Auto-critique de l'agent</h4><div class="chips">${notes}</div>${(c.corrections||[]).length?`<ul class="plain">${c.corrections.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</div>`:""}${L.length?`<div class="block"><h4>Bible des lieux</h4>${kv(L.map(l=>[l.nom, l.description_en]))}</div>`:""}</div></section>`;
@@ -3362,7 +3434,7 @@ function renderProject(){
     }
     h += `<article class="shot" id="plan-${i}"${sc?` data-scene="${k}"`:""}><div class="shot-head"><span class="shot-n" aria-label="Plan ${esc(p.n)}">${pad2(p.n)}</span>
       <div class="shot-t">${sc?`<span class="shot-sc">Scène ${k+1} · plan ${inSc+1} sur ${sc.plans.length}</span>`:""}<b>${esc(p.intention)}</b><span class="tc">${esc(p.debut)} – ${esc(p.fin)}</span></div>
-      <span class="score ${scoreClass(p.note)}" title="Fiabilité estimée par l'agent">${esc(p.note)}/10</span></div>
+      ${riskChip(p.risk_level||p.note, p.risque)}</div>
       <div class="shot-body">
       ${(p.repliques||[]).length>1 && v.audio==="voice" && isVeo(v) ? `<div class="vo">${p.repliques.map(x=>`<span><b>${esc(((r.personnages||[]).find(c=>c.id===x.locuteur)||{}).nom||"Voix hors champ")} :</b> <q>${esc(x.texte)}</q></span>`).join("")}${p.voix_off_fr&&p.voix_off_fr!==p.voix_off?`<span class="tr">${esc(p.voix_off_fr)}</span>`:""}<span class="tr">Dialogue dit dans le clip Veo</span></div>` : p.voix_off?`<div class="vo"><q>${esc(p.voix_off)}</q>${p.voix_off_fr&&p.voix_off_fr!==p.voix_off?`<span class="tr">${esc(p.voix_off_fr)}</span>`:""}${v.audio==="voice"&&isVeo(v)?`<span class="tr">${esc(((r.personnages||[]).find(c=>c.id===p.locuteur)||{}).nom||"Voix hors champ")} · ${["enfants","clip"].includes(baseVtype(v.vtype))?"chanté":"dit"} dans le clip Veo</span>`:""}</div>`:""}
       <div class="chips">${cs.length?cs.map(c=>`<span class="chip">${esc(c.nom)}</span>`).join(""):`<span class="chip none">Sans personnage</span>`}</div>
@@ -4174,7 +4246,7 @@ function imgSetHtml(set, savedId){
     all.push(`${x.titre}\n${x.prompt}${x.negatif?`\nNégatif : ${x.negatif}`:""}${x.reglages?`\nRéglages : ${x.reglages}`:""}`);
     h += `<article class="shot"><div class="shot-head"><span class="shot-n">${String(i+1).padStart(2,"0")}</span>
       <div class="shot-t"><b>${esc(x.titre)}</b><span class="hint">${esc(x.idee)}</span></div>
-      <span class="score ${scoreClass(x.note)}" title="Fiabilité estimée par l'agent">${esc(x.note)}/10</span></div>
+      ${riskChip(x.note, "")}</div>
       <div class="shot-body">${pblock(pre+"v-"+i,"Prompt · "+esc(label("imodel",f.model)),x.prompt)}
       ${x.negatif?pblock(pre+"n-"+i,"Prompt négatif",x.negatif):""}
       ${x.reglages?`<p class="risk"><b class="edit">Réglages :</b> ${esc(x.reglages)}</p>`:""}
