@@ -3,8 +3,8 @@
 // Aucune suite n'appelle une vraie IA : les réponses sont simulées, donc aucun quota n'est consommé.
 const {spawnSync} = require("child_process"), path = require("path"), http = require("http");
 const {BASE, OUT} = require("./env");
-const CODE = ["gates-test.js", "audio-lock-test.js"];
-const NAV = ["ui-test.js", "menu-test.js", "v4-prompts-test.js", "long-mock-test.js", "adapt-test.js", "monet-test.js", "stats-test.js", "premont-test.js", "paroles-test.js", "paroles-voix-test.js"];
+const CODE = ["gates-test.js", "audio-lock-test.js", "video-analyze-test.js"];   // video-analyze lance son propre serveur avec un faux Google
+const NAV = ["ui-test.js", "menu-test.js", "v4-prompts-test.js", "long-mock-test.js", "adapt-test.js", "monet-test.js", "stats-test.js", "premont-test.js", "paroles-test.js", "paroles-voix-test.js", "remake-test.js"];
 const only = process.argv.slice(2);
 const up = () => new Promise(r => http.get(BASE + "/api/status", res => { res.resume(); r(res.statusCode === 200); }).on("error", () => r(false)));
 (async () => {

@@ -66,7 +66,7 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 |---|---|
 | `public/index.html` | Toute l'interface et toute la logique (≈ 6 200 lignes, ≈ 300 fonctions, dans une seule IIFE) : agents, prompts, pipeline, contrôles, rendu. |
 | `public/claude-shim.js` | Adaptateur qui recrée `window.claude` sur l'ordinateur. **Son interface est stable** : changer le moteur ou le stockage se fait dans l'adaptateur, jamais dans les appels de `index.html`. |
-| `server.js` | Serveur Node 18+, **sans dépendance**. Il sert `public/`, expose `POST /api/sample` (flux NDJSON) et `GET /api/status`, choisit et relaie les moteurs d'IA et fait la recherche web gratuite. |
+| `server.js` | Serveur Node 18+, **sans dépendance**. Il sert `public/`, expose `POST /api/sample` (flux NDJSON) et `GET /api/status`, choisit et relaie les moteurs d'IA et fait la recherche web gratuite. Il expose aussi `POST /api/images/generate` (images du Storyboard, payant) et `POST /api/video/analyze` (analyse complète d'une vidéo, gratuite). `SP_NO_DOTENV=1` ignore `.env`, pour les tests. |
 | `public/*_PROMPTING_GUIDE.md`, `public/MASTER_VIDEO_PROMPT_AGENT.md` | Guides de rédaction par générateur. |
 | `references/` | Specs (`DIRECTOR_ENGINE_V4.md`, `creative-director-v2/`, ce fichier), analyses de style et prompts réussis. |
 | `tests/` | Tests de non-régression avec IA simulée (§8). |
@@ -124,6 +124,25 @@ Point d'entrée : `generateProject`.
 | `PROMPT_COMPILER` | `prepareProduction`, `productionIdea`, `agentPrompt` (+ `PROMPT_V4`), compilation par morceaux, `normalize`, `validResult` | `lintPlan` / `lintSummary`, prompts assemblés par `keyframePrompt`, `i2vPrompt`, `t2vPrompt`, `startPrompt`, `videoPrompt`, `negPrompt`, `shotLine`, `cameraOne`, `STYLES`, `BASE_AVOID`, `VEO_CLEAN` |
 | `GENERATION` (faite par l'utilisateur) | Prompts copiés dans Veo, Runway ou Wan | `riskOf` / `riskChip` : risque faible, moyen ou élevé avant génération |
 | Après génération | `videoCriticPrompt`, `runVideoCritic` (VIDEO CRITIC), `vcApplyMasterPatch` (TARGETED REGENERATION), `fixShot`, `learnFromClip` / `storeLesson` | Décisions : APPROVED, APPROVED WITH NOTES, REGENERATE, REJECT |
+
+### 4.1 Entrée « Depuis une vidéo » (analyse complète)
+
+1. `analyzeFullVideo` envoie le **fichier entier** à `/api/video/analyze`.
+2. Le serveur passe par l'envoi reprenable de la Files API Gemini, attend l'état ACTIVE, puis appelle `/interactions` avec `processing` : 4 images/s jusqu'à 2 min, 2 jusqu'à 5 min, puis le mode « agentic » en flux pour les vidéos longues. Le rapport JSON structuré (`videoAnalysisSchema`) contient la transcription mot à mot, les scènes, les plans horodatés (cadrage, angle, focale, mouvement caméra, lumière, son, transitions, raccords), les défauts et les pistes de reconstruction. Il est rédigé en français ; les paroles restent dans leur langue d'origine. La copie est ensuite supprimée chez Google.
+3. `normalizeFullVideo` répare les minutages. `renderRmReport` montre ce que l'agent a compris (bouton « 1. Analyser la vidéo complète »). La transcription remplit `rm-text`, qui reste modifiable.
+4. `rmTimeline` / `splitFullVideoShots` découpent chaque plan source à la durée du générateur. Un segment technique garde l'action, l'axe et l'état.
+5. `params.fullVideoAnalysis` est injecté dans le Scene Engine (« ANALYSE MULTIMODALE ») et dans le Master Plan (« ANALYSE DES PLANS SOURCE »).
+6. Si l'analyse complète échoue (quota, format), les images clés locales (`readVideo` + `describeFrames`) prennent le relais.
+
+Règle des paroles :
+- avec la propre vidéo de l'utilisateur, les paroles sont verrouillées (`audioLockedOf`) ;
+- avec la vidéo d'un autre (`remakeSrc === "autre"`), elles servent seulement de contexte, et rien n'est recopié.
+
+### 4.2 Autres ajouts du 5 octobre
+- **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
+- **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
+- **Mode secours** (`fallbackMasterFromScenes`) : si la réalisation détaillée échoue, un Master minimal est construit à partir des scènes validées.
+- **Lots plus petits** : `BATCH_SHOTS = 8`, `AUDIO_BATCH_SHOTS = 4`.
 
 Le projet est enregistré par `saveProject`. Il est rendu par `renderProject` puis organisé par `buildScenes`, `attachMasterPlan` et `scenesOf` en **scènes contenant des plans**, jamais en liste plate de plans.
 
@@ -241,6 +260,7 @@ Ce que le code corrige :
 | Personnages et continuité | 🟡 partiel | Bible (`fiche_en`, `rappel_en`), page Personnages, `continuity.state_in/out`, `lockedShotFingerprint` | Registre des objets de continuité, verrous d'identité, de tenue et d'état de scène sous forme de données, contrôle d'identité entre l'image et la référence |
 | Director Critic | ✅ existe | Critique du modèle + `codeDefects` + `masterPlanFailures` | Contrôle par le code de la crédibilité temporelle (aujourd'hui seulement une règle du prompt) |
 | Video Critic | ✅ existe | `runVideoCritic`, `vcApplyMasterPatch` | — |
+| Analyse vidéo (compréhension) | ✅ existe | `/api/video/analyze`, `analyzeFullVideo`, `renderRmReport` | — |
 | Cost Optimizer | ❌ absent | Seulement indirect : relais vers les modèles gratuits, `BATCH_SHOTS`, compression | Estimation du coût en crédits par plan et par modèle, choix de la qualité, limite de régénérations |
 | Model Router | ✅ existe | `MODEL_CAPABILITIES` (veo, runway, wan), `routeShotModel` | Adaptateurs Kling et Seedance (prévus par V2, pas encore écrits) |
 | API vidéo | ❌ absent | L'utilisateur colle les prompts dans le générateur | Appel direct de Veo et des autres depuis `server.js` (clés côté serveur uniquement) |
@@ -287,6 +307,9 @@ Ce que le code corrige :
 | `gates-test.js` | Routage d'entrée, tous les contrôles du code V3 et V4, `cameraOne` |
 | `audio-lock-test.js` | Alignement des plans sur l'audio importé |
 | `ui-test.js`, `menu-test.js` | Vues, menu, mobile, mode sombre, console sans erreur |
+| `video-analyze-test.js` | Vrai `server.js` face à un faux Google : envoi reprenable, état ACTIVE, images/s, mode agentic en flux, schéma, suppression, quota, format refusé |
+| `remake-test.js` | Page « Depuis une vidéo » : vraie petite vidéo, rapport, transcription, découpage, reconstruction, quota épuisé |
+| `../tests/director-pipeline.test.js` | Contrôles de structure de l'autre assistant (`npm test` à la racine) |
 | `v4-prompts-test.js` | Prompts réellement affichés pour 8 styles × 3 outils : ni lampes, ni LED, ni figurants, ni micro-mouvements ; un seul mouvement de caméra ; état de fin transmis |
 | `long-mock-test.js` | Vidéo de 5 min : 20 scènes, maximum de plans V4, lots, compilation, docteur des dialogues, aucun `${` envoyé à l'IA |
 | `adapt-test.js` | Adaptation à un autre pays |
@@ -328,7 +351,8 @@ Les commits sont en français. Étapes majeures :
 12. onglet Paroles ;
 13. relais Luna et docteur des dialogues ;
 14. suivi des étapes en direct ;
-15. **Director Engine V4**.
+15. **Director Engine V4** ;
+16. images du Storyboard, analyse des paroles, mode secours, **analyse complète des vidéos** (commencées par un autre assistant, terminées et testées).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

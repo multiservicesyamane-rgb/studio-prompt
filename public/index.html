@@ -331,6 +331,10 @@ dl.kv dd{margin:0;font-size:15px}
 .stat-table{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-sm)}
 .stat-table table{width:100%;border-collapse:collapse;font-size:13.5px}
 .stat-table th,.stat-table td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.rm-report{display:grid;gap:12px;margin:4px 0 2px}
+.rm-report .stat-table td.wrap{white-space:normal;min-width:170px;max-width:360px}
+.rm-report details>summary{cursor:pointer;font-weight:700}
+.rm-report .chips{display:flex;flex-wrap:wrap;gap:6px}
 .stat-table td:first-child{white-space:normal;min-width:180px}
 .stat-table th{background:var(--sunken);font-weight:700;font-size:12.5px}
 .stat-pick label{border-radius:var(--r-sm);align-items:flex-start}
@@ -872,6 +876,7 @@ input[type=text].plain-in{background:var(--surface)}
             <div class="field" id="rm-capbox" hidden><label for="rm-caps">Ou des captures de ta vidéo, dans l'ordre <span class="hint">(5 à 40 images)</span></label><input type="file" id="rm-caps" accept="image/png,image/jpeg,image/webp" multiple>
               <label class="hint" for="rm-capdur">Durée de la vidéo (m:ss)</label><input type="text" id="rm-capdur" placeholder="10:00" style="max-width:160px"></div>
             <div id="rm-info" hidden><div class="facts" id="rm-facts"></div><div class="thumbs" id="rm-thumbs" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0"></div></div>
+            <div class="rm-report" id="rm-report" hidden aria-live="polite"></div>
             <div class="opts">
               <div class="field"><label for="rm-src">Origine de la vidéo</label><div class="sel"><select id="rm-src"></select></div></div>
               <div class="field"><label for="rm-ambition">Nouvelle version</label><div class="sel"><select id="rm-ambition"></select></div></div>
@@ -888,7 +893,8 @@ input[type=text].plain-in{background:var(--surface)}
             <div class="field"><label for="rm-text">Ce qui est dit dans la vidéo <span class="hint">(facultatif : l’agent transcrit automatiquement ; tes corrections restent prioritaires)</span></label><textarea id="rm-text" rows="3" placeholder="La transcription apparaîtra ici. Tu peux aussi coller ou charger un fichier .srt, puis corriger librement les paroles dans n’importe quelle langue."></textarea>
               <input type="file" id="rm-srt" accept=".srt,.vtt,.txt" aria-label="Fichier de sous-titres"></div>
             <div class="field"><label for="rm-note">Ce que tu veux améliorer <span class="hint">(facultatif)</span></label><input type="text" id="rm-note" placeholder="Exemple : plus d'émotion au début, des images plus belles, une fin plus forte"></div>
-            <div class="actions"><button type="submit" class="btn primary" id="rm-go">Analyser tout et proposer mieux</button><button type="button" class="btn" id="rm-stop" hidden>Arrêter</button></div>
+            <div class="actions"><button type="button" class="btn" id="rm-analyze">1. Analyser la vidéo complète</button><button type="submit" class="btn primary" id="rm-go">2. Reconstruire en version excellente</button><button type="button" class="btn" id="rm-stop" hidden>Arrêter</button></div>
+            <p class="hint">L’étape 1 est facultative : elle te montre tout ce que l’agent a compris (scènes, plans, caméra, son, paroles, défauts) avant la reconstruction. Sinon, l’étape 2 analyse la vidéo automatiquement.</p>
             <div class="status" id="rm-status" hidden><span id="rm-status-text"></span><div class="bar"><i id="rm-status-bar"></i></div></div>
           </form>
           <h2 class="sub-h">Ou seulement des conseils pour l'améliorer</h2>
@@ -5883,7 +5889,7 @@ function rmRefresh(){
 }
 $("rm-file").addEventListener("change", async e=>{
   const file=e.target.files&&e.target.files[0]; if(!file) return;
-  const loadId=++RM.loadId; RM.file=file; RM.desc=null; RM.full=null; RM.caps=false; RM.dur=0; RM.scenes=[]; RM.frames=[]; RM.an=null; RM.localReady=false; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value=""; $("rm-thumbs").innerHTML=""; $("rm-info").hidden=true; $("rm-go").disabled=true;
+  const loadId=++RM.loadId; RM.file=file; RM.desc=null; RM.full=null; RM.caps=false; RM.dur=0; RM.scenes=[]; RM.frames=[]; RM.an=null; RM.localReady=false; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value=""; $("rm-thumbs").innerHTML=""; $("rm-info").hidden=true; $("rm-go").disabled=true; renderRmReport();
   try{
     const dur=await readVideoDuration(file); if(loadId!==RM.loadId||file!==RM.file) return; RM.dur=dur; RM.scenes=[{t0:0,t1:dur}]; $("rm-status").hidden=true; rmRefresh();
   }catch(err){
@@ -5893,7 +5899,7 @@ $("rm-file").addEventListener("change", async e=>{
 $("rm-caps").addEventListener("change", async e=>{
   const fs=[...(e.target.files||[])].slice(0,40); if(!fs.length) return;
   const dur=parseDur($("rm-capdur").value)||fs.length*8;
-  ++RM.loadId; RM.file={name:"captures"}; RM.dur=dur; RM.an=null; RM.caps=true; RM.desc=null; RM.full=null; RM.localReady=true; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value="";
+  ++RM.loadId; RM.file={name:"captures"}; RM.dur=dur; RM.an=null; RM.caps=true; RM.desc=null; RM.full=null; RM.localReady=true; RM.cues=null; RM.plain=""; RM.textDirty=false; $("rm-text").value=""; renderRmReport();
   RM.scenes=fs.map((f,i)=>({t0:i*dur/fs.length, t1:(i+1)*dur/fs.length}));
   RM.frames=fs.map((f,i)=>({t:(i+0.5)*dur/fs.length, scene:i, blob:f, canvas:null}));
   $("rm-thumbs").innerHTML=""; rmRefresh();
@@ -5931,7 +5937,32 @@ async function analyzeFullVideo(signal){
   RM.full=x; RM.desc=x.shots.map(s=>({t:(Number(s.t0)+Number(s.t1))/2,description:noOverlay([s.description,s.action,s.performance].filter(Boolean).join(" ; ")),cadrage:noOverlay([s.framing,s.angle,s.lens,s.camera_movement].filter(Boolean).join(" ; ")),lumiere:noOverlay([s.lighting,s.color].filter(Boolean).join(" ; ")),defauts:""}));
   if(x.scenes.length) RM.scenes=x.scenes.map(s=>({t0:Number(s.t0),t1:Number(s.t1)}));
   if(x.transcript.length&&!RM.textDirty){ RM.cues=x.transcript.map(c=>({start:c.t0,end:c.t1,text:c.text})); RM.plain=""; $("rm-text").value=toSrt(x.transcript.map(c=>({t0:c.t0,t1:c.t1,texte:c.text}))); }
-  rmRefresh(); return x;
+  rmRefresh(); renderRmReport(); return x;
+}
+/* Rapport lisible de l'analyse complète : tout ce que l'agent a compris, à vérifier avant la reconstruction */
+function renderRmReport(){
+  const host=$("rm-report"), x=RM.full; if(!host) return;
+  if(!x){ host.hidden=true; host.innerHTML=""; return; }
+  const o=x.overview||{}, t=v=>fmtT(Number(v)||0), cell=v=>esc(clip(String(v||""),220));
+  const chars=(x.characters||[]).map(c=>`<span class="chip" title="${esc(c.fiche_fr||c.fiche_en||"")}">${esc(c.nom||c.id)}</span>`).join("");
+  const locs=(x.locations||[]).map(l=>`<span class="chip" title="${esc(l.description||"")}">${esc(l.name||l.id)}</span>`).join("");
+  const scenes=(x.scenes||[]).map(s=>`<tr><td>${esc(s.scene_id||"")}</td><td>${t(s.t0)} – ${t(s.t1)}</td><td class="wrap">${cell(s.event)}</td><td class="wrap">${cell(s.change)}</td></tr>`).join("");
+  const shots=(x.shots||[]).map(s=>`<tr><td>${esc(s.shot_id||"")}</td><td>${t(s.t0)} – ${t(s.t1)}</td><td class="wrap">${cell(s.description||s.action)}</td><td class="wrap">${cell([s.framing,s.angle,s.lens].filter(Boolean).join(" · "))}</td><td class="wrap">${cell(s.camera_movement)}</td><td class="wrap">${cell([s.dialogue&&`« ${s.dialogue} »`,s.music,s.sfx,s.ambience].filter(Boolean).join(" · "))}</td><td class="wrap">${cell([s.transition_in,s.transition_out].filter(Boolean).join(" → "))}</td></tr>`).join("");
+  const words=(x.transcript||[]).map(c=>`<tr><td>${t(c.t0)}</td><td>${esc(c.speaker||"")}</td><td class="wrap">${esc(c.text)}</td></tr>`).join("");
+  const defects=(x.defects||[]).map(d=>`<li><b>${t(d.t0)}</b> ${esc(d.problem||"")}${d.improvement?` → <i>${esc(d.improvement)}</i>`:""}</li>`).join("");
+  const rc=x.reconstruction||{}, list=(k,l)=>(rc[k]||[]).filter(Boolean).length?`<div><span class="label">${l}</span><ul class="plain">${rc[k].filter(Boolean).map(v=>`<li>${esc(v)}</li>`).join("")}</ul></div>`:"";
+  const fps=String(x.processing||"").match(/static_(\d+)/), proc=x.processing==="agentic"?"lecture intelligente (vidéo longue)":fps?`${fps[1]} image${fps[1]>1?"s":""} par seconde`:"";
+  host.innerHTML=`<div class="card"><div><span class="label">Ce que l'agent a compris · vidéo complète, image et son${proc?" · "+esc(proc):""}${x.source_deleted?" · copie effacée chez Google":""}</span>
+    <h4>${esc(o.summary||"Résumé indisponible")}</h4>${o.story&&o.story!==o.summary?`<p>${esc(o.story)}</p>`:""}</div>
+    <div class="facts">${[["Durée",fmtD(x.duration)],["Langue",o.language],["Image",o.visual_style],["Montage",o.editing_style],["Son",o.audio_style],["Scènes",String((x.scenes||[]).length)],["Plans d'origine",String((x.shots||[]).length)],["Paroles",`${(x.transcript||[]).length} réplique${(x.transcript||[]).length>1?"s":""}`]].filter(([,v])=>v).map(([k,v])=>`<div><span class="label">${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}</div>
+    ${chars?`<div><span class="label">Personnages (fictifs, pour la nouvelle version)</span><div class="chips">${chars}</div></div>`:""}${locs?`<div><span class="label">Lieux</span><div class="chips">${locs}</div></div>`:""}
+    ${scenes?`<details><summary>Scènes (${x.scenes.length})</summary><div class="stat-table"><table><thead><tr><th>Scène</th><th>Temps</th><th>Ce qui se passe</th><th>Ce qui change</th></tr></thead><tbody>${scenes}</tbody></table></div></details>`:""}
+    ${shots?`<details><summary>Plans d'origine, caméra et son (${x.shots.length})</summary><div class="stat-table"><table><thead><tr><th>Plan</th><th>Temps</th><th>Image</th><th>Cadrage</th><th>Caméra</th><th>Son</th><th>Transitions</th></tr></thead><tbody>${shots}</tbody></table></div></details>`:""}
+    ${words?`<details><summary>Paroles minutées (${x.transcript.length})</summary><div class="stat-table"><table><thead><tr><th>Temps</th><th>Qui</th><th>Texte exact</th></tr></thead><tbody>${words}</tbody></table></div></details>`:""}
+    ${defects?`<div><span class="label">Défauts repérés → amélioration</span><ul class="plain">${defects}</ul></div>`:""}
+    ${list("keep","À garder")}${list("improve","À améliorer")}${list("risks","Risques pour la génération")}
+    ${x.timing_repairs?`<p class="hint">${x.timing_repairs} minutage${x.timing_repairs>1?"s":""} de plan corrigé${x.timing_repairs>1?"s":""} pour couvrir toute la vidéo sans trou.</p>`:""}</div>`;
+  host.hidden=false;
 }
 async function describeFrames(signal){
   if(!imgOK || !RM.frames.length) return null;
@@ -5982,6 +6013,15 @@ $("rm-form").addEventListener("submit", async e=>{
   finally{ $("rm-go").disabled=false; $("rm-stop").hidden=true; rmctl=null; }
 });
 $("rm-stop").addEventListener("click",()=>{ if(rmctl) rmctl.abort(); });
+/* Étape 1 (facultative) : lire la vidéo complète et montrer ce que l'agent a compris */
+$("rm-analyze").addEventListener("click", async ()=>{
+  if(!RM.file||RM.caps){ showStatus("rm-","Charge d'abord ton fichier vidéo : l'analyse complète lit la vidéo elle-même, pas des captures.",true); return; }
+  if(rmctl) return;
+  rmctl=new AbortController(); $("rm-analyze").disabled=true; $("rm-go").disabled=true; $("rm-stop").hidden=false;
+  try{ RM.full=null; renderRmReport(); await analyzeFullVideo(rmctl.signal); $("rm-status").hidden=true; toast("Vidéo analysée : vérifie ce que l'agent a compris."); }
+  catch(err){ showStatus("rm-", err&&err.code==="cancelled" ? "Analyse arrêtée." : (m=>/images clés/.test(m)?m:`${m} Tu peux quand même lancer l'étape 2 : les images clés prendront le relais.`)(err&&err.message?err.message:errText(err)), true); }
+  finally{ $("rm-analyze").disabled=false; $("rm-go").disabled=false; $("rm-stop").hidden=true; rmctl=null; }
+});
 
 /* =================== VEILLE DU JOUR : recherche web quotidienne des séries et des sujets les plus suivis =================== */
 const TV_MAX = 4, TV_KEEP = 7;

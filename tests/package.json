@@ -5,7 +5,7 @@
   "description": "Tests de non-régression de Studio Prompt (IA simulée, aucun quota). L'application elle-même reste sans dépendance.",
   "scripts": {
     "test": "node run-all.js",
-    "test:code": "node run-all.js gates audio-lock"
+    "test:code": "node run-all.js gates audio-lock video-analyze"
   },
   "dependencies": {
     "puppeteer-core": "^23.11.1"
