@@ -58,6 +58,7 @@ async function probeOpenAI(){
 }
 const MAX_OUT = Number(process.env.MAX_OUTPUT_TOKENS) || 60000;   // un master découpé scène par scène peut être long
 const PUBLIC = path.join(__dirname, "public");
+const GENERATED = path.join(PUBLIC, "generated");
 
 /* Modèles de secours quand le quota du jour d'un modèle est atteint (chaque modèle a son propre quota) */
 const GEMINI_FALLBACKS = (process.env.GEMINI_FALLBACKS || "gemini-3-flash-preview,gemini-2.5-flash,gemini-3.1-flash-lite-preview").split(",").map(x => x.trim()).filter(Boolean);
@@ -100,6 +101,29 @@ function readBody(req, limit){
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
   });
+}
+const safePart = (v, fallback) => String(v || fallback).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || fallback;
+function findOutputImage(value){
+  if(!value || typeof value !== "object") return null;
+  if(typeof value.data === "string" && /^image\//.test(String(value.mime_type || value.mimeType || ""))) return {data:value.data, mime:value.mime_type || value.mimeType};
+  if(value.output_image && value.output_image.data) return {data:value.output_image.data, mime:value.output_image.mime_type || "image/png"};
+  for(const x of Object.values(value)){ if(x && typeof x === "object"){ const hit=findOutputImage(x); if(hit) return hit; } }
+  return null;
+}
+async function handleImageGenerate(req,res){
+  if(!GEMINI_KEY) return sendJson(res,400,{code:"no_key",message:"La génération automatique d'images nécessite GEMINI_API_KEY dans .env."});
+  let input; try{ input=JSON.parse(await readBody(req,38e6)); }catch(e){ return sendJson(res,400,{code:"bad_request",message:"Requête image illisible ou trop volumineuse."}); }
+  const prompt=String(input.prompt||"").trim(); if(prompt.length<20) return sendJson(res,400,{code:"bad_request",message:"Prompt image manquant."});
+  const refs=(Array.isArray(input.references)?input.references:[]).slice(0,4).filter(x=>x&&/^image\/(png|jpeg|webp)$/.test(String(x.mime))&&typeof x.data==="string"&&x.data.length<9e6);
+  const body={model:process.env.GEMINI_IMAGE_MODEL||"gemini-3.1-flash-image",input:[{type:"text",text:prompt},...refs.map(x=>({type:"image",mime_type:x.mime,data:x.data}))],response_format:{type:"image",mime_type:"image/png",aspect_ratio:["1:1","16:9","9:16","4:5","3:4"].includes(input.aspectRatio)?input.aspectRatio:"9:16",image_size:process.env.GEMINI_IMAGE_SIZE||"1K"}};
+  const ctl=new AbortController(), timer=setTimeout(()=>ctl.abort(),Number(process.env.IMAGE_TIMEOUT_MS)||180000); let up;
+  try{ up=await fetch(`${GEMINI_BASE.replace(/\/$/,"")}/interactions`,{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body)}); }
+  catch(e){ clearTimeout(timer); return sendJson(res,502,{code:e&&e.name==="AbortError"?"timeout":"network",message:e&&e.name==="AbortError"?"Génération image trop longue : le plan pourra être relancé.":"API image injoignable."}); }
+  clearTimeout(timer); const raw=await up.json().catch(()=>({})); if(!up.ok){ const msg=raw&&raw.error&&raw.error.message||""; return sendJson(res,up.status,{code:codeFor(up.status),message:`Erreur Gemini Image (${up.status}) ${msg}`.trim()}); }
+  const image=findOutputImage(raw); if(!image) return sendJson(res,502,{code:"invalid_image",message:"Gemini n'a renvoyé aucune image exploitable ; relance uniquement ce plan."});
+  const project=safePart(input.projectId,"project"), shot=safePart(input.shotId,"P01"), dir=path.join(GENERATED,project); fs.mkdirSync(dir,{recursive:true});
+  const file=path.join(dir,`${shot}.png`); fs.writeFileSync(file,Buffer.from(image.data,"base64"));
+  return sendJson(res,200,{ok:true,shotId:shot,url:`/generated/${encodeURIComponent(project)}/${encodeURIComponent(shot)}.png`,model:body.model,references:refs.length});
 }
 function codeFor(status){ return status === 429 ? "rate_limited" : status === 401 || status === 403 ? "bad_key" : status === 400 ? "bad_request" : "server_error"; }
 /* Crédits ou quota épuisés : message clair en français (OpenAI répond en anglais) */
@@ -372,6 +396,7 @@ function authorized(req){
 http.createServer((req, res) => {
   if(!authorized(req)){ res.writeHead(401, {"WWW-Authenticate":'Basic realm="Studio Prompt", charset="UTF-8"', "Content-Type":"text/plain; charset=utf-8"}); return res.end("Mot de passe requis."); }
   if(req.method === "GET" && req.url.startsWith("/api/status")) return handleStatus(res).catch(() => sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model:""}));
+  if(req.method === "POST" && req.url.startsWith("/api/images/generate")) return handleImageGenerate(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant la génération de l'image."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/sample")) return handleSample(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Erreur interne du serveur."}); else res.end(); });
   if(req.method === "GET" || req.method === "HEAD") return serveStatic(req, res);
   res.writeHead(405); res.end();

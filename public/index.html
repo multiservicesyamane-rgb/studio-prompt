@@ -829,8 +829,9 @@ input[type=text].plain-in{background:var(--surface)}
             <div class="au-step"><div class="au-step-h"><span class="au-num" id="au-n2">2</span><div><b>Ce qui est dit</b><span class="hint">Transcription automatique : texte exact, minutage au dixième de seconde, voix et langue.</span></div></div>
             <div class="au-tr-bar"><button type="button" class="btn small" id="au-transcribe" title="Gemini : l'audio est envoyé par ton serveur, seulement pour la transcription. Gratuit : tout se passe sur ton ordinateur.">Transcrire l'audio automatiquement</button><div class="sel au-tr-sel"><select id="au-tr-engine" aria-label="Moteur de transcription"><option value="auto">Auto : Gemini, sinon gratuit</option><option value="gemini">Gemini (voix et langues)</option><option value="local">Gratuit sur cet ordinateur · rapide</option><option value="local-small">Gratuit sur cet ordinateur · précis (250 Mo)</option></select></div><button type="button" class="btn small" id="au-srt-dl" hidden>Télécharger les sous-titres .srt</button><span class="hint" id="au-tr-meta"></span></div>
             <div class="au-transcript" id="au-transcript" hidden></div>
-            <div class="field"><label for="au-text">Texte ou sous-titres <span class="hint">(rempli par la transcription ; tu peux corriger un mot ici)</span></label><textarea id="au-text" rows="4" placeholder="Laisse vide : l'application transcrit ton audio automatiquement. Tu peux aussi coller ton texte ou des sous-titres .srt (CapCut, ElevenLabs)."></textarea>
+            <div class="field"><label for="au-text">Paroles, texte ou sous-titres <span class="hint">(source exacte ; modifiable manuellement dans n'importe quelle langue)</span></label><textarea id="au-text" rows="7" lang="auto" spellcheck="true" placeholder="Écris ou colle ici les paroles exactes, dans leur langue d'origine. L'application les conserve mot pour mot. Tu peux aussi transcrire l'audio ou coller des sous-titres .srt."></textarea>
               <label class="hint" for="au-srt">Ou charge ton fichier de sous-titres :</label><input type="file" id="au-srt" accept=".srt,.vtt,.txt"></div>
+            <div class="au-tr-bar"><button type="button" class="btn small" id="au-analyze">Analyser les paroles et les personnages</button><span class="hint" id="au-lyrics-meta">Le texte original ne sera ni traduit ni reformulé.</span></div>
             </div>
             <div class="au-step"><div class="au-step-h"><span class="au-num" id="au-n3">3</span><div><b>Direction visuelle</b><span class="hint">Type d'audio, outil vidéo, style et thème des images.</span></div></div>
             <div class="opts">
@@ -2206,6 +2207,7 @@ function scenePlanPrompt(idee,p,creative,previous){
 DEMANDE : """${idee}"""
 CREATIVE PROFILE : ${JSON.stringify({video_type:profile.label,primary_goal:profile.goal,audience:label("public",p.public||"famille"),platform:profile.platform,duration:`${p.duree}s`,pacing:profile.pace,hook_strategy:profile.hookStrategy,story_importance:profile.storyImportance,character_importance:profile.characterImportance,information_density:profile.informationDensity,emotional_intensity:profile.emotionalIntensity,interaction_need:profile.interactionNeed,visual_priority:profile.visualPriority,sound_priority:profile.soundPriority,cta_need:profile.ctaNeed,realism:profile.realism,narrative_mode:profile.narrative,silent_test:profile.silent})}
 DOSSIER CRÉATIF VALIDÉ : ${JSON.stringify(creative.selection)}
+${p.lyricsAnalysis?`ANALYSE DES PAROLES VERROUILLÉE : ${JSON.stringify(p.lyricsAnalysis)}. Utilise les ids de characters dans chaque scène concernée. Les scene_anchors servent à relier les paroles exactes aux personnages, lieux et événements visibles ; ne modifie jamais les paroles.`:""}
 RÈGLE DU TYPE : ${TYPE_RULE_OVERRIDES[profile.id]||TYPE_RULES[baseVtype(profile.id)]||TYPE_RULES.histoire}
 ${nicheContext(nicheById(p.niche))}
 ${imposed.length?`UNITÉS TEMPORELLES IMPOSÉES PAR LE MÉDIA SOURCE : ${JSON.stringify(imposed)}. Crée exactement ${imposed.length} unités avec les mêmes n, debut et fin.`:`Durée cible : ${p.duree} s. Couvre entre ${Math.round((Number(p.duree)||60)*0.65)} et ${p.duree} s avec des unités réellement utiles : si l'idée paraît trop courte, enrichis-la (obstacle supplémentaire, réaction, conséquence, escalade, retournement) plutôt que de livrer une vidéo trop courte ; jamais de remplissage ni de plan d'attente. Une vidéo de fiction alterne action, réaction et conséquence ; les personnages se parlent plutôt qu'un narrateur ne raconte.`}
@@ -2492,8 +2494,38 @@ async function dialogueDoctor(idee, p, creative, scenePlan, master, prefix, sign
   }
   pipeStep("DIALOGUE_DOCTOR","DONE",t0,`${rewritten} plan${rewritten>1?"s":""} retravaillé${rewritten>1?"s":""} · ${lines} réplique${lines>1?"s":""}${silent?` · ${silent} plan${silent>1?"s":""} volontairement muet${silent>1?"s":""}`:""}${tooLong?` · ${tooLong} proposition${tooLong>1?"s":""} trop longue${tooLong>1?"s":""} écartée${tooLong>1?"s":""}`:""}`);
 }
+/* Mode dégradé : une panne du réalisateur IA ne bloque jamais un audio déjà
+   découpé. On transforme les scènes validées en Master minimal, sans ajouter
+   d'événement, de caméra décorative ni de dialogue. Le compilateur peut continuer. */
+function fallbackMasterFromScenes(scenePlan,p,reason){
+  const scenes=(scenePlan&&scenePlan.scenes)||[], units=audioLockedOf(p)?p.timeline:scenes;
+  const shots=units.map((u,i)=>{
+    const key=audioLockedOf(p)?unitKey(u,i):String(u.scene_id||`S${String(i+1).padStart(2,"0")}`);
+    const sc=audioLockedOf(p)?(scenes.find(x=>String(x.source_n)===key)||scenes[i]||{}):u;
+    const event=String(sc.event||sc.change||u.source||u.texte||"Progression visuelle de la scène");
+    const state=`${event} — ${String(sc.lieu||"")} ${String(sc.moment||"")}`.trim();
+    const s={shot_id:`SH${String(i+1).padStart(2,"0")}`,scene_id:String(sc.scene_id||`S${String(i+1).padStart(2,"0")}`),source_n:audioLockedOf(p)?(u.n!=null?u.n:i+1):(sc.source_n!=null?sc.source_n:i+1),purpose:String(sc.purpose||event),change:String(sc.change||event),characters:Array.isArray(sc.characters)?sc.characters:[],wants:Array.isArray(sc.wants)?sc.wants:[],obstacle:String(sc.obstacle||""),event,
+      blocking:{start_positions:"État visible au début de l'unité",end_positions:"État visible après l'événement",distance:"",movement:"Seulement le mouvement exigé par l'événement",entry:"",exit:"",eye_lines:"",foreground:"",background:"Décor stable",object_relationship:"",power_relationship:""},
+      performance:[],objects:Array.isArray(sc.objects)?sc.objects:[],causal_beats:Array.isArray(sc.causal_beats)?sc.causal_beats:[],
+      shot_design:{must_notice:event,notice_when:"pendant l'événement",hidden_information:"",revealed_information:String(sc.change||""),moment_owner:"",framing:"medium or wide shot as needed for readability",angle:"eye level",lens:"natural perspective",camera_position:"stable readable position",camera_movement:"locked",focus:"main event",depth:"context remains readable",duration:Number(u.duree||sc.duree_s)||5,start_frame:state,end_frame:String(sc.change||event),cut_point:"after the change is readable",shot_mode:"ONE_SHOT",camera_reason:"show the validated event clearly"},
+      sound:{diegetic:"",ambience:"",dialogue:"",sfx:"",silence:"",voice_over:"",music:"",model_audio:"",post_audio:audioLockedOf(p)?"audio importé":"",voice_over_dependency:"LOW"},
+      continuity:{state_in:state,state_out:String(sc.change||event),screen_direction:"",light:String(sc.moment||"lumière du lieu"),time_of_day:String(sc.moment||""),environment:String(sc.lieu||""),emotional_state:"",object_state:"",damage_dirt_wetness:"",story_information:String(sc.change||event)},
+      complexity:{decision:"KEEP"},model_requirements:{mode:"either",reference_count:0,character_consistency:false,camera_control:false,native_audio:false,multi_shot:false,start_end_frames:false,editing:false,motion_complexity:"low"}};
+    if(audioLockedOf(p)) setUnitText(s,u); return s;
+  });
+  const d=normalizeMasterPlan({version:"master-video-plan-1-fallback",shots,continuity_map:[],editing_plan:{shot_order:shots.map(s=>s.shot_id),reaction_shots:[],inserts:[],transitions:[],rhythm:"suit les unités validées"},director_critic:{decision:"FALLBACK FROM VALIDATED SCENES",scores:{},defects:[]}},scenePlan,p);
+  d.reserves=[`Réalisation détaillée indisponible : Master minimal construit depuis les scènes validées (${String(reason||"erreur transitoire").slice(0,120)}).`];
+  return routeMasterPlan(d,p);
+}
 async function prepareProduction(idee,p,prefix,signal){
-  const creative=await developCreative(idee,p,prefix,signal), scenes=await developScenes(idee,p,creative,prefix,signal), master=await directExecution(idee,p,creative,scenes,prefix,signal);
+  const creative=await developCreative(idee,p,prefix,signal), scenes=await developScenes(idee,p,creative,prefix,signal); let master;
+  try{ master=await directExecution(idee,p,creative,scenes,prefix,signal); }
+  catch(err){
+    if(err&&err.code==="cancelled") throw err;
+    master=fallbackMasterFromScenes(scenes,p,errText(err));
+    pipeStep("MASTER_PLAN + DIRECTOR_CRITIC","CONTINUED WITH FALLBACK",pipeNow(),"réalisation facultative indisponible ; Master minimal construit depuis les scènes validées");
+    showStatus(prefix,"Réalisation détaillée indisponible : poursuite automatique avec les scènes validées…",false,42);
+  }
   await dialogueDoctor(idee,p,creative,scenes,master,prefix,signal);
   const sourceTimeline=Array.isArray(p.timeline)?p.timeline:[];
   const compileTimeline=master.shots.map((s,i)=>{ const src=sourceTimeline.find((x,k)=>String(x.n==null?k+1:x.n)===String(s.source_n)); return {n:i+1,t0:s.time.start,t1:s.time.end,debut:s.time.debut,fin:s.time.fin,duree:s.shot_design.duration,section:s.scene_id,source:s.event,texte:src&&src.texte||""}; });
@@ -3372,7 +3404,10 @@ function renderProject(){
   const allMsgs = msgs.map((m,k)=>`===== MESSAGE ${k+1} · ${m.label} =====\n${m.text}`).join("\n\n");
   copyMap.set("board-all", allMsgs);
   const boardHtml = `<section class="section" id="s-board"><h3>Storyboard : toutes les images</h3>
-    <p class="hint">Gemini et ChatGPT ne génèrent que quelques images par réponse. Envoie donc <b>un message à la fois</b>, dans la <b>même conversation</b>, dans l'ordre. Chaque message donne une image, avec dessous son prompt image → vidéo et son prompt texte → vidéo.</p>
+    <p class="hint">Génère automatiquement une image PNG séparée par plan. Les images réussies sont conservées ; une reprise ne traite que les plans manquants ou ratés.</p>
+    <div class="card"><div class="field"><label for="board-refs">Références personnages <span class="hint">(facultatif, jusqu'à 4 images : Nadia, Arman, Blondina…)</span></label><input type="file" id="board-refs" accept="image/png,image/jpeg,image/webp" multiple></div>
+      <div class="actions"><button type="button" class="btn primary" id="board-generate">Générer les ${plans.length} images</button><button type="button" class="btn" id="board-retry">Reprendre les manquantes</button><button type="button" class="btn quiet" id="board-stop" hidden>Arrêter</button></div>
+      <div class="status" id="board-status" hidden><span id="board-status-text"></span><div class="bar"><i id="board-status-bar"></i></div></div><div class="shots" id="board-generated">${plans.map((p,i)=>{const g=(r.generated_images||{})[String(p.n)]; return g&&g.url?`<article class="shot"><div class="shot-head"><span class="shot-n">${String(p.n).padStart(2,"0")}</span><div class="shot-t"><b>${esc(p.intention||`Plan ${p.n}`)}</b></div><span class="chip ok">Prête</span></div><img src="${esc(g.url)}" alt="Image de départ du plan ${esc(p.n)}" style="width:100%;max-height:520px;object-fit:contain;border-radius:10px"><div class="actions"><a class="btn small" href="${esc(g.url)}" download="P${String(p.n).padStart(2,"0")}.png">Télécharger</a><button type="button" class="btn small quiet" data-board-one="${i}">Régénérer</button></div></article>`:""}).join("")}</div></div>
     <div class="card">
       <ol class="steps">${msgs.map((m,k)=>`<li><span class="step-n">${k+1}</span><span class="step-t">${k===0&&(r.personnages||[]).length?"Personnages (une planche de référence)":esc(m.label)}</span><button type="button" class="btn small" data-copy="board-msg-${k}" data-step="1">Copier</button></li>`).join("")}</ol>
       <p class="hint">Si l'image d'une scène est ratée, renvoie le même message. Un bouton copié devient vert : tu sais où tu en es.</p>
@@ -4959,13 +4994,14 @@ fillGlobalSelects();
 OPTS.autype = [["histoire","Histoire racontée (voix)"],["chanson","Chanson"],["musique","Musique rythmée"],["ambiance","Concentration ou relaxation"]];
 const AU_VTYPE = {histoire:"cinematic", chanson:"music_video", musique:"music_video", ambiance:"ambiance"};
 const AU_STYLE = {ambiance:"realiste"};
-const AU = {file:null, dur:0, est:false, an:null, cues:null, timeline:[], plain:"", stretch:1, buf:null, spk:null, transcript:null, trText:""};
+const AU = {file:null, dur:0, est:false, an:null, cues:null, timeline:[], plain:"", stretch:1, buf:null, spk:null, transcript:null, trText:"", lyricsAnalysis:null, lyricsSource:""};
 const MAX_PLANS = 90;
 fillSelect($("au-type"),"autype","histoire",()=>{ const k=$("au-type").value; if(AU_STYLE[k]) $("au-style").value=AU_STYLE[k]; refreshTimeline(); });
 fillSelect($("au-outil"),"outil",form.outil||"veo",()=>refreshTimeline());
 fillSelect($("au-style"),"style",form.style||"realiste",()=>{});
 fillSelect($("au-format"),"format",form.format||"16:9",()=>{});
 fillSelect($("au-langue"),"langue",form.langue||"fr",()=>{});
+$("au-langue").insertBefore(new Option("Détection automatique · toute langue","auto"),$("au-langue").firstChild);
 
 /* ---------- Time helpers ---------- */
 function fmtT(t){ t=Math.max(0,t); const m=Math.floor(t/60), s=t-m*60; return `${m}:${s.toFixed(1).padStart(4,"0")}`; }
@@ -5221,6 +5257,8 @@ $("au-dur").addEventListener("change",()=>{ const d=parseDur($("au-dur").value);
 function readText(){
   const t=$("au-text").value; const c=parseSrt(t);
   AU.cues = c.length>=1 ? c : null; AU.plain = c.length ? "" : t.trim();
+  const source=c.length?c.map(x=>x.text).join(" "):t.trim();
+  if(source!==AU.lyricsSource){ AU.lyricsAnalysis=null; AU.lyricsSource=""; const m=$("au-lyrics-meta"); if(m) m.textContent="Texte modifié : analyse à actualiser. Le texte original restera inchangé."; }
   refreshTimeline(); renderTranscript();
 }
 $("au-text").addEventListener("input",()=>{ clearTimeout(readText._t); readText._t=setTimeout(readText,350); });
@@ -5405,6 +5443,36 @@ function audioVoicesLine(){
   const t=AU.transcript; if(!t) return "";
   return `Transcription automatique de l'audio : langue ${(t.langues.length?t.langues:[t.langue]).map(x=>LANG_FR[x]||x).join(" + ")}${t.genre?`, genre ${t.genre}`:""}. Voix : ${t.locuteurs.map(l=>`${l.id} = ${l.description||"voix"}`).join(" ; ")||"une seule voix"}. Dans chaque unité, « voix » indique qui parle : montre cette personne à ce moment (le son existe déjà, pas de doublage).`;
 }
+function lyricsText(){ return AU.cues&&AU.cues.length?AU.cues.map(c=>c.text).join(" "):String(AU.plain||"").trim(); }
+function lyricsAnalysisPrompt(text,kind){
+  return `Tu es SCRIPT ANALYST pour une vidéo construite sur un audio. Analyse le texte ci-dessous dans sa langue d'origine, quelle qu'elle soit.
+RÈGLE ABSOLUE : ne corrige, ne traduis, ne reformule et ne complète AUCUN mot. Les paroles originales ne figurent pas dans ta réponse : elles restent verrouillées dans l'application.
+TYPE : ${kind}. LANGUE DÉCLARÉE : ${$("au-langue").value||"auto"}.
+TEXTE VERROUILLÉ : """${text}"""
+
+Identifie les personnages explicitement nommés ou indispensables pour montrer les actions racontées. Un narrateur hors champ n'est pas automatiquement visible. Pour une chanson, crée un interprète récurrent seulement si une performance visible sert le clip. Fusionne les variantes d'un même personnage. Maximum 5 personnages récurrents fictifs.
+Pour chacun, produis une identité visuelle stable : fiche_en de 35 à 60 mots et rappel_en de 15 à 25 mots, avec exactement les mêmes traits, coiffure, tenue, couleurs et accessoire. N'invente pas de personne réelle ni de célébrité.
+Les scene_anchors relient une citation EXACTE et courte du texte à ce qu'il faut montrer ; copie la citation caractère par caractère.
+RÉPONDS UNIQUEMENT avec ce JSON :
+{"detected_language":"code BCP-47 ou und","languages":[""],"summary_fr":"sens général en français, sans réécrire les paroles","characters":[{"id":"identifiant_ascii","nom":"","role":"","fiche_fr":"","fiche_en":"","rappel_en":""}],"scene_anchors":[{"quote_exact":"","characters":["id"],"place":"","visible_event":""}],"warnings":[""]}`;
+}
+function normalizeLyricsAnalysis(x){
+  x=x&&typeof x==="object"?x:{}; const seen=new Set();
+  x.characters=(Array.isArray(x.characters)?x.characters:[]).filter(c=>c&&c.id&&c.fiche_en).map(c=>({id:String(c.id).toLowerCase().replace(/[^a-z0-9_-]+/g,"_").replace(/^_+|_+$/g,"")||`personnage_${seen.size+1}`,nom:String(c.nom||c.id),role:String(c.role||""),fiche_fr:String(c.fiche_fr||""),fiche_en:String(c.fiche_en),rappel_en:String(c.rappel_en||c.fiche_en)})).filter(c=>!seen.has(c.id)&&(seen.add(c.id),true)).slice(0,5);
+  x.scene_anchors=(Array.isArray(x.scene_anchors)?x.scene_anchors:[]).filter(a=>a&&a.quote_exact&&a.visible_event).map(a=>({quote_exact:String(a.quote_exact),characters:(Array.isArray(a.characters)?a.characters:[]).map(String).filter(id=>seen.has(id)),place:String(a.place||""),visible_event:String(a.visible_event)}));
+  x.detected_language=String(x.detected_language||"und"); x.languages=(Array.isArray(x.languages)?x.languages:[]).map(String).filter(Boolean); x.summary_fr=String(x.summary_fr||""); x.warnings=(Array.isArray(x.warnings)?x.warnings:[]).map(String).filter(Boolean); return x;
+}
+async function analyzeLyrics(signal,force){
+  readText(); const text=lyricsText(); if(!text) throw {code:"bad_request",message:"Écris, colle ou transcris d'abord les paroles."};
+  if(!force&&AU.lyricsAnalysis&&AU.lyricsSource===text) return AU.lyricsAnalysis;
+  showStatus("au-","Analyse des paroles : langue, personnages et scènes…",false,3);
+  const x=normalizeLyricsAnalysis(await sample.json(lyricsAnalysisPrompt(text,$("au-type").value),{modelTier:"default",engine:"best",signal,cache:false}));
+  /* Garde-fou : aucune citation inventée n'entre dans le dossier. */
+  x.scene_anchors=x.scene_anchors.filter(a=>text.includes(a.quote_exact)); AU.lyricsAnalysis=x; AU.lyricsSource=text;
+  const m=$("au-lyrics-meta"), names=x.characters.map(c=>c.nom).join(", "); if(m) m.textContent=`${x.detected_language==="und"?"Langue analysée":x.detected_language} · ${x.characters.length} personnage${x.characters.length>1?"s":""}${names?` : ${names}`:""} · paroles verrouillées mot pour mot`;
+  return x;
+}
+$("au-analyze").addEventListener("click",async()=>{ const b=$("au-analyze"); b.disabled=true; try{ await analyzeLyrics(null,true); $("au-status").hidden=true; toast("Paroles analysées : personnages et scènes prêts."); }catch(err){ showStatus("au-",errText(err),true); } finally{ b.disabled=false; } });
 try{ const v=localStorage.getItem("sp-tr-engine"); if(v && $("au-tr-engine").querySelector(`option[value="${v}"]`)) $("au-tr-engine").value=v; }catch(e){}
 $("au-tr-engine").addEventListener("change",()=>{ try{ localStorage.setItem("sp-tr-engine",$("au-tr-engine").value); }catch(e){} });
 let trctl=null;
@@ -5449,22 +5517,26 @@ let auctl=null;
 $("au-form").addEventListener("submit", async e=>{
   e.preventDefault();
   if(!sample){ showStatus("au-","Ouvre cette page dans Claude, connecté, pour créer les plans.",true); return; }
-  if(!AU.dur){ showStatus("au-","Charge d'abord ton fichier audio.",true); return; }
+  readText(); const manualLyrics=lyricsText();
+  if(!AU.dur&&manualLyrics){ const words=manualLyrics.split(/\s+/).filter(Boolean).length; AU.dur=Math.max(8,Math.round(words/2.15)); AU.est=true; $("au-dur").value=fmtD(AU.dur); refreshTimeline(); }
+  if(!AU.dur){ showStatus("au-","Charge un audio, ou écris les paroles manuellement pour créer les scènes sans fichier audio.",true); return; }
   const kind=$("au-type").value;
   auctl=new AbortController(); $("au-go").disabled=true; $("au-stop").hidden=false;
   try{
-  if(needsTranscript(kind)) await transcribeAudio(auctl.signal);   /* pas de texte (ou une consigne à la place) : l'application écoute l'audio elle-même */
+  if(AU.file&&needsTranscript(kind)) await transcribeAudio(auctl.signal);   /* pas de texte : l'application écoute l'audio elle-même */
   if(kind==="histoire" && !(AU.cues&&AU.cues.length) && !AU.plain){ showStatus("au-","Colle le texte de l'histoire ou ses sous-titres : l'agent doit savoir ce que dit chaque seconde.",true); $("au-text").focus(); return; }
+  const lyrics=(kind==="histoire"||kind==="chanson")&&lyricsText()?await analyzeLyrics(auctl.signal,false):null;
   refreshTimeline();
   const tl=AU.timeline; if(!tl.length){ showStatus("au-","Découpage impossible : vérifie la durée.",true); return; }
   const theme=$("au-theme").value.trim(), nz=nicheById($("au-niche").value);
-  const fullTxt = AU.cues&&AU.cues.length ? AU.cues.map(c=>c.text).join(" ") : AU.plain;
+  const fullTxt = lyricsText();
   const idee=[`Vidéo sur un audio existant : « ${AU.file?AU.file.name:"audio"} » (${label("autype",kind)}, ${fmtD(AU.dur)}).`,
     theme?`Thème des images voulu par l'utilisateur : ${theme}`:(kind==="ambiance"?"Thème des images : choisis le plus beau et le plus apaisant pour cette musique (nature, mer, Terre, ciel, espace).":""),
-    fullTxt?`Texte complet de l'audio : """${clip(fullTxt,6000)}"""`:"", audioVoicesLine()].filter(Boolean).join("\n");
+    fullTxt?`PAROLES ORIGINALES VERROUILLÉES, À REPRENDRE MOT POUR MOT : """${clip(fullTxt,12000)}"""`:"", lyrics?`Personnages et ancrages extraits des paroles : ${JSON.stringify(lyrics)}`:"", audioVoicesLine()].filter(Boolean).join("\n");
   const audioVtype=AU_VTYPE[kind]||"cinematic";
-  const params=Object.assign({}, form, {vcat:categoryOf(audioVtype), vtype:audioVtype, genre:form.genre, style:$("au-style").value, format:$("au-format").value, outil:$("au-outil").value, langue:$("au-langue").value,
-    duree:String(Math.round(AU.dur)), audio:"montage", pays:$("au-pays").value, niche:nz?nz.docId:"", nicheNom:nz?nz.nom:"", persos:[],
+  const detected=lyrics&&String(lyrics.detected_language||"").toLowerCase().split(/[-_]/)[0], chosenLang=$("au-langue").value, finalLang=chosenLang==="auto"?(detected||"auto"):chosenLang;
+  const params=Object.assign({}, form, {vcat:categoryOf(audioVtype), vtype:audioVtype, genre:form.genre, style:$("au-style").value, format:$("au-format").value, outil:$("au-outil").value, langue:finalLang,
+    duree:String(Math.round(AU.dur)), audio:"montage", pays:$("au-pays").value, niche:nz?nz.docId:"", nicheNom:nz?nz.nom:"", persos:lyrics?lyrics.characters.map(c=>({id:c.id,nom:c.nom,fiche_en:c.fiche_en,rappel_en:c.rappel_en,fiche_fr:c.fiche_fr})):[], lyricsAnalysis:lyrics||null, lyricsLocked:true,
     timeline:tl.map(x=>({n:x.n,t0:Math.round(x.t0*100)/100,t1:Math.round(x.t1*100)/100,debut:x.debut,fin:x.fin,duree:x.duree,texte:x.texte,energie:x.energie,section:x.section,coupe:x.coupe,voix:x.voix||undefined})),
     audioKind:kind, audioName:AU.file?AU.file.name:"", stretch:AU.stretch});
   showStatus("au-","L'Agent maître écrit un plan pour chaque moment de ton audio…",false,4);
@@ -6025,6 +6097,23 @@ async function copyText(text, el, btn){
   toast(ok ? "Copié." : (el ? "Texte sélectionné : copie-le avec ton appareil." : "Copie impossible ici."));
 }
 function slug(s){ return (s||"projet").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"projet"; }
+let boardCtl=null;
+async function boardPart(file){ const u=new Uint8Array(await file.arrayBuffer()); let bin=""; for(let i=0;i<u.length;i+=0x8000) bin+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return {mime:file.type||"image/jpeg",data:btoa(bin)}; }
+async function generateBoardImages(onlyMissing,oneIndex){
+  if(!current||current.isExample) return; const r=current.result, plans=r.plans||[], input=$("board-refs"), files=input&&input.files?Array.from(input.files).slice(0,4):[];
+  const refs=await Promise.all(files.map(boardPart)), todo=plans.map((p,i)=>({p,i})).filter(x=>oneIndex!=null?x.i===oneIndex:!onlyMissing||!(r.generated_images&&r.generated_images[String(x.p.n)]&&r.generated_images[String(x.p.n)].url));
+  if(!todo.length){ toast("Toutes les images sont déjà prêtes."); return; }
+  boardCtl=new AbortController(); const stop=$("board-stop"); if(stop) stop.hidden=false; r.generated_images=r.generated_images||{}; let ok=0,failed=0;
+  for(let k=0;k<todo.length;k++){
+    if(boardCtl.signal.aborted) break; const {p}=todo[k], shot=`P${String(p.n).padStart(2,"0")}`; showStatus("board-",`${shot} · image ${k+1} sur ${todo.length}…`,false,Math.round(100*k/todo.length));
+    try{
+      const res=await fetch("/api/images/generate",{method:"POST",headers:{"Content-Type":"application/json"},signal:boardCtl.signal,body:JSON.stringify({projectId:current.id||slug(r.titre),shotId:shot,prompt:keyframePrompt(r,p,view)+" Preserve the exact identity, face, hair, body type and wardrobe of every supplied character reference. This is one clean start frame, not a collage or storyboard sheet.",aspectRatio:view.format,references:refs})});
+      const out=await res.json().catch(()=>({})); if(!res.ok||!out.url) throw new Error(out.message||`Erreur ${res.status}`);
+      r.generated_images[String(p.n)]={url:out.url,model:out.model,at:Date.now(),references:out.references}; ok++; current.updatedAt=Date.now(); await saveProject(current);
+    }catch(err){ if(err&&err.name==="AbortError") break; r.generated_images[String(p.n)]={error:String(err.message||err),at:Date.now()}; failed++; }
+  }
+  boardCtl=null; if(stop) stop.hidden=true; renderProject(); projTab("board"); toast(`${ok} image${ok>1?"s":""} prête${ok>1?"s":""}${failed?` · ${failed} à relancer`:""}.`);
+}
 document.addEventListener("click", async e=>{
   const t = e.target.closest("button,a");
   if(!t){ const pre=e.target.closest(".pb.fold:not(.open) pre"); if(pre && !String(window.getSelection())) toggleFold(pre.closest(".pb")); return; }
@@ -6033,6 +6122,10 @@ document.addEventListener("click", async e=>{
     copyText(copyMap.get(k)||"", $("pre-"+k), t); return; }
   if(t.dataset.fold){ toggleFold(t.closest(".pb")); return; }
   if(t.dataset.ptab){ projTab(t.dataset.ptab); return; }
+  if(t.id==="board-generate"){ await generateBoardImages(false); return; }
+  if(t.id==="board-retry"){ await generateBoardImages(true); return; }
+  if(t.id==="board-stop"){ if(boardCtl) boardCtl.abort(); return; }
+  if(t.dataset.boardOne!=null){ await generateBoardImages(false,Number(t.dataset.boardOne)); return; }
   if(t.dataset.plan!=null){ showPlan(Number(t.dataset.plan)); return; }
   if(t.dataset.planStep){ showPlan(pv.idx + Number(t.dataset.planStep)); return; }
   if(t.id==="pg-all"){ pv.all=!pv.all; applyProjView(); const pg=$("pager"); if(pg && pg.getBoundingClientRect().top<0) pg.scrollIntoView({block:"start"}); return; }
