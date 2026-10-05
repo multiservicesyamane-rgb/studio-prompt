@@ -314,6 +314,9 @@ dl.kv dd{margin:0;font-size:15px}
 .desk-only{display:none}
 @media (min-width:960px){ .desk-only{display:inline} }
 #stats-panel{margin-bottom:18px}
+.pm-opts{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.pm-table td .sel{min-width:200px}
+.pm-video{width:100%;max-height:420px;border-radius:var(--r-sm);background:#000}
 .stat-table{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-sm)}
 .stat-table table{width:100%;border-collapse:collapse;font-size:13.5px}
 .stat-table th,.stat-table td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -3265,13 +3268,14 @@ function renderProject(){
     ${pblock("music","Musique",musicPrompt(r),{kind:"audio",where:"Suno ou ElevenLabs Music"})}<div><span class="label">Mixage</span><p>${esc(a.mixage)}</p></div>
     <div><span class="label">Effets sonores</span><div class="sfx">${plans.map(p=>`<span>P${String(p.n).padStart(2,"0")}</span><span>${esc(p.son_en)}</span>`).join("")}</div></div></div></section>
   <section class="section" id="s-montage"><h3>4. Montage</h3><div class="card"><ul class="plain">${(r.montage||[]).map(m=>`<li>${esc(m)}</li>`).join("")}</ul></div></section>
+  ${premontHtml(proj)}
   <section class="section" id="s-yt"><h3>5. Publication YouTube</h3><div class="card"><div><span class="label">Titres</span><ol class="plain">${(y.titres||[]).map(t=>`<li>${esc(t)}</li>`).join("")}</ol></div>
     ${pblock("thumb","Miniature",thumbPrompt(r,v),{kind:"image",where:IMG_WHERE,join:""})}
     ${y.texte_miniature?`<p class="hint">Texte à ajouter sur la miniature au montage : <b>${esc(y.texte_miniature)}</b></p>`:""}
     ${pblock("desc","Description de la vidéo",y.description||"",{kind:"texte",where:"YouTube, case « Description »"})}
     ${v.style==="realiste"?`<p class="hint">Vidéo réaliste : active l'option « contenu modifié ou synthétique » au moment de l'envoi sur YouTube.</p>`:""}</div></section>${monetHtml(proj)}`;
   $res.innerHTML = h;
-  const TAB_OF_SECTION = {"s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-yt":"yt","s-monet":"yt"};
+  const TAB_OF_SECTION = {"s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-premont":"montage","s-yt":"yt","s-monet":"yt"};
   $res.querySelectorAll("section.section[id]").forEach(s=>{ if(TAB_OF_SECTION[s.id]) s.dataset.tab = TAB_OF_SECTION[s.id]; });
   applyProjView();
   fillSelect($("v-outil"),"outil",view.outil,val=>{ view.outil=val; savePrefs({outil:val}); rerender("v-outil"); });
@@ -3477,6 +3481,109 @@ $("desk").addEventListener("submit", async e=>{
 $("stop").addEventListener("click",()=>{ if(ctl) ctl.abort(); });
 
 /* Version améliorée d'un projet : l'agent reçoit le projet actuel et la critique, puis réécrit le projet complet */
+/* =================== PRÉ-MONTAGE AUTOMATIQUE : les clips dans l'ordre, coupés à la durée de leur plan, avec le son (dans le navigateur) =================== */
+const PM = {key:"", clips:[], map:[], stop:false, running:false};
+const planDur = p => { const d=tc(p.fin)-tc(p.debut); return d>0.2 ? d : 4; };
+function clipPlanNo(name){ const m=String(name||"").match(/(?:^|[^a-z0-9])(?:p|plan|shot|clip|sc[eè]ne)[\s_-]*0*(\d{1,3})(?![0-9])/i); return m ? Number(m[1]) : null; }
+function autoMap(plans, clips){
+  const map=new Array(plans.length).fill(-1), used=new Set();
+  clips.forEach((c,ci)=>{ const n=clipPlanNo(c.name), pi=plans.findIndex(p=>Number(p.n)===n); if(n!=null && pi>=0 && map[pi]<0){ map[pi]=ci; used.add(ci); } });
+  const rest=clips.map((c,ci)=>ci).filter(ci=>!used.has(ci)).sort((a,b)=>clips[a].name.localeCompare(clips[b].name, undefined, {numeric:true}));
+  map.forEach((v,pi)=>{ if(v<0 && rest.length) map[pi]=rest.shift(); });
+  return map;
+}
+function pmMapHtml(plans){
+  if(!PM.clips.length) return "";
+  const ok=PM.map.filter(x=>x>=0).length;
+  return `<p class="hint"><b>${ok} plan${ok>1?"s":""} sur ${plans.length}</b> ont un clip${ok<plans.length?" ; les plans sans clip restent noirs, à leur durée, pour garder le son synchronisé":""}. Corrige si besoin :</p>
+    <div class="stat-table pm-table"><table><thead><tr><th>Plan</th><th>Durée</th><th>Clip</th></tr></thead><tbody>${plans.map((p,i)=>`<tr><td>P${String(p.n).padStart(2,"0")} · ${esc(clip(p.intention,60))}</td><td>${planDur(p).toFixed(1).replace(".",",")} s</td><td><div class="sel"><select data-pm-plan="${i}"><option value="-1">— aucun (écran noir) —</option>${PM.clips.map((c,ci)=>`<option value="${ci}"${PM.map[i]===ci?" selected":""}>${esc(c.name)}</option>`).join("")}</select></div></td></tr>`).join("")}</tbody></table></div>`;
+}
+function premontHtml(proj){
+  const plans=(proj.result&&proj.result.plans)||[], key=(proj.id||"ex")+":"+plans.length;
+  if(PM.key!==key){ PM.clips.forEach(c=>{ try{ URL.revokeObjectURL(c.url); }catch(e){} }); Object.assign(PM,{key, clips:[], map:[]}); }
+  const total=plans.reduce((a,p)=>a+planDur(p),0);
+  return `<section class="section" id="s-premont"><h3>Pré-montage automatique</h3>
+    <p class="hint">Dépose les clips générés pour ce projet : l'application les met dans l'ordre des plans, coupe chacun à la durée de son plan, ajoute le son et produit une vidéo prête à finir dans CapCut. Nomme tes clips avec le numéro du plan (P01, P02… ou « plan 5 ») pour qu'ils se placent seuls ; sinon ils suivent l'ordre alphabétique.</p>
+    <div class="card">
+      <div class="field"><label for="pm-clips">Tes clips (plusieurs fichiers à la fois)</label><input type="file" id="pm-clips" accept="video/*,.mp4,.mov,.webm" multiple></div>
+      <div id="pm-map">${pmMapHtml(plans)}</div>
+      <div class="field"><label for="pm-audio">Voix off ou musique (facultatif)</label><input type="file" id="pm-audio" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg"></div>
+      <div class="pm-opts">
+        <label class="check"><input type="checkbox" id="pm-clipsound" checked><span>Garder le son des clips (dialogues, ambiance)</span></label>
+        <label class="check"><input type="checkbox" id="pm-subs"><span>Incruster les sous-titres</span></label>
+        <div class="field"><label for="pm-res">Qualité</label><div class="sel"><select id="pm-res"><option value="720">720p (plus rapide)</option><option value="1080">1080p</option></select></div></div>
+      </div>
+      <p class="hint">Le montage se fait en temps réel : environ ${fmtS(Math.round(total))} pour cette vidéo. Garde cet onglet ouvert et visible pendant le montage.</p>
+      <div class="actions"><button type="button" class="btn primary" id="pm-go">Monter la vidéo</button><button type="button" class="btn" id="pm-stop" hidden>Arrêter</button></div>
+      <div class="status" id="pm-status" hidden><span id="pm-status-text"></span><div class="bar"><i id="pm-status-bar"></i></div></div>
+      <div id="pm-out"></div>
+    </div></section>`;
+}
+function pmDraw(g, W, H, el, p, i, showSubs){
+  g.fillStyle="#000"; g.fillRect(0,0,W,H);
+  if(el && el.readyState>=2 && el.videoWidth){ const sc=Math.max(W/el.videoWidth, H/el.videoHeight), w=el.videoWidth*sc, h=el.videoHeight*sc; g.drawImage(el,(W-w)/2,(H-h)/2,w,h); }
+  else { g.fillStyle="#888"; g.font=`${Math.round(H*0.04)}px sans-serif`; g.textAlign="center"; g.fillText(`Plan ${p.n} : clip manquant`, W/2, H/2); }
+  const txt = showSubs ? String((p.repliques&&p.repliques.length ? p.repliques.map(x=>x.texte).join(" ") : p.voix_off)||"").trim() : "";
+  if(txt){
+    const fs=Math.round(Math.min(W,H)*0.045); g.font=`600 ${fs}px sans-serif`; g.textAlign="center";
+    const words=txt.split(/\s+/), lines=[]; let cur="";
+    words.forEach(w=>{ const t=cur?cur+" "+w:w; if(g.measureText(t).width>W*0.86 && cur){ lines.push(cur); cur=w; } else cur=t; }); if(cur) lines.push(cur);
+    const show=lines.slice(-2), y0=H-fs*0.9-(show.length-1)*fs*1.25;
+    show.forEach((l,k)=>{ const y=y0+k*fs*1.25, w=g.measureText(l).width; g.fillStyle="rgba(0,0,0,.55)"; g.fillRect(W/2-w/2-fs*0.4, y-fs*1.0, w+fs*0.8, fs*1.3); g.fillStyle="#fff"; g.fillText(l, W/2, y); });
+  }
+}
+function pmPrepare(ac, dest, url, withSound){
+  return new Promise(res=>{
+    if(!url) return res(null);
+    const el=document.createElement("video"); el.preload="auto"; el.playsInline=true; el.src=url;
+    let done=false; const ok=()=>{ if(done) return; done=true; try{ const src=ac.createMediaElementSource(el), gn=ac.createGain(); gn.gain.value=withSound?1:0; src.connect(gn).connect(dest); }catch(e){} res(el); };
+    el.addEventListener("canplay", ok, {once:true}); el.addEventListener("error", ()=>{ if(!done){ done=true; res(null); } }, {once:true}); setTimeout(ok, 6000);
+  });
+}
+async function runPremontage(){
+  if(!current || PM.running) return;
+  const plans=current.result.plans||[], msg=$("pm-status-text");
+  if(!PM.clips.length){ showStatus("pm-","Dépose d'abord tes clips.",true); return; }
+  if(!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream){ showStatus("pm-","Ce navigateur ne peut pas monter la vidéo : utilise Chrome ou Edge à jour.",true); return; }
+  const vertical=(view.format||current.params.format)==="9:16", S=Number($("pm-res").value)===1080?1080:720, W=vertical?S:Math.round(S*16/9/2)*2, H=vertical?Math.round(S*16/9/2)*2:S;
+  const canvas=document.createElement("canvas"); canvas.width=W; canvas.height=H; const g=canvas.getContext("2d");
+  const ac=new (window.AudioContext||window.webkitAudioContext)(); await ac.resume(); const dest=ac.createMediaStreamDestination();
+  const mime=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t))||"";
+  const stream=new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+  const rec=new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:S===1080?8e6:5e6}:{}), chunks=[];
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  const withSound=$("pm-clipsound").checked, subs=$("pm-subs").checked, af=$("pm-audio").files&&$("pm-audio").files[0];
+  let extra=null; if(af){ extra=new Audio(URL.createObjectURL(af)); try{ const src=ac.createMediaElementSource(extra), gn=ac.createGain(); gn.gain.value=0.9; src.connect(gn).connect(dest); }catch(e){} }
+  PM.running=true; PM.stop=false; $("pm-go").disabled=true; $("pm-stop").hidden=false; $("pm-out").innerHTML="";
+  const total=plans.reduce((a,p)=>a+planDur(p),0); let doneSec=0;
+  try{
+    let next=pmPrepare(ac, dest, PM.map[0]>=0?PM.clips[PM.map[0]].url:null, withSound);
+    rec.start(1000); if(extra) extra.play().catch(()=>{});
+    for(let i=0;i<plans.length && !PM.stop;i++){
+      const p=plans[i], d=planDur(p), el=await next;
+      next = i+1<plans.length ? pmPrepare(ac, dest, PM.map[i+1]>=0?PM.clips[PM.map[i+1]].url:null, withSound) : null;
+      if(el){ try{ el.currentTime=0; await el.play(); }catch(e){} }
+      showStatus("pm-", `Montage : plan ${i+1} sur ${plans.length} · ${fmtS(Math.round(doneSec))} / ${fmtS(Math.round(total))}`, false, 100*doneSec/total);
+      const t0=performance.now();
+      await new Promise(res=>{ const tick=()=>{ const t=(performance.now()-t0)/1000; pmDraw(g,W,H,el,p,i,subs); if(t>=d || PM.stop) return res(); requestAnimationFrame(tick); }; tick(); });
+      if(el){ el.pause(); el.removeAttribute("src"); el.load(); }
+      doneSec+=d;
+    }
+    await new Promise(res=>{ rec.onstop=res; rec.stop(); });
+    if(extra) extra.pause();
+    const type=(rec.mimeType||mime||"video/webm").split(";")[0], ext=/mp4/.test(type)?"mp4":"webm", blob=new Blob(chunks,{type}), url=URL.createObjectURL(blob);
+    PM.result={blob, ext, url};
+    $("pm-status").hidden=true;
+    $("pm-out").innerHTML=`<p><b>${PM.stop?"Montage arrêté (vidéo partielle)":"Vidéo montée"}</b> · ${ext.toUpperCase()} · ${(blob.size/1e6).toFixed(1).replace(".",",")} Mo</p><video class="pm-video" controls src="${url}"></video><div class="actions"><button type="button" class="btn small primary" id="pm-dl">Télécharger la vidéo</button></div>`;
+  }catch(err){ showStatus("pm-", `Le montage a échoué : ${String(err&&err.message||err).slice(0,160)}`, true); }
+  finally{ PM.running=false; $("pm-go").disabled=false; $("pm-stop").hidden=true; try{ ac.close(); }catch(e){} }
+}
+document.addEventListener("change", e=>{
+  const t=e.target; if(!t||!current) return;
+  if(t.id==="pm-clips"){ PM.clips.forEach(c=>{ try{ URL.revokeObjectURL(c.url); }catch(x){} }); PM.clips=[...(t.files||[])].map(f=>({name:f.name, url:URL.createObjectURL(f)})); PM.map=autoMap(current.result.plans||[], PM.clips); $("pm-map").innerHTML=pmMapHtml(current.result.plans||[]); }
+  if(t.dataset && t.dataset.pmPlan!=null){ PM.map[Number(t.dataset.pmPlan)]=Number(t.value); $("pm-map").innerHTML=pmMapHtml(current.result.plans||[]); }
+});
+
 /* =================== APPRENDRE DE TES STATISTIQUES (export YouTube Studio) =================== */
 async function inflateRaw(bytes){ const st=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")); return await new Response(st).text(); }
 /* Lit un fichier d'une archive .zip (répertoire central), sans bibliothèque */
@@ -5727,6 +5834,9 @@ document.addEventListener("click", async e=>{
   if(t.id==="improve-go" && current){ improveProject(); return; }
   if(t.id==="adapt-go" && current){ adaptProject(); return; }
   if(t.id==="monet-go" && current){ runMonet(); return; }
+  if(t.id==="pm-go" && current){ runPremontage(); return; }
+  if(t.id==="pm-stop"){ PM.stop=true; return; }
+  if(t.id==="pm-dl" && PM.result){ const name=`${slug(current?current.result.titre:"video")}-premontage.${PM.result.ext}`; if(downloads){ try{ await downloads.save({filename:name, data:PM.result.blob}); toast("Vidéo enregistrée."); }catch(e){ toast("Téléchargement impossible."); } } return; }
   if(t.id==="stats-keep" && lastStats && lastStats.ia && db && uid){
     const keep=[...document.querySelectorAll("#stats-res .stat-pick input:checked")].map(x=>lastStats.ia.regles[Number(x.value)]).filter(Boolean); t.disabled=true;
     try{ for(const r of keep) await storeLesson({regle:r.regle, type:r.type, domaine:r.domaine, portee:"tous"}, {source:"stats", cible:"strategie"}); $("stats-keep-msg").textContent=`${keep.length} règle${keep.length>1?"s":""} retenue${keep.length>1?"s":""} : elles guident désormais tes idées, tes concepts et ta veille.`; }
