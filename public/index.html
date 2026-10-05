@@ -2034,8 +2034,8 @@ function normalizeCreative(d){
 const creativePasses = (d,p) => { const profile=videoProfile(p.vtype,p), s=d&&d.selection&&d.selection.scores; return !!(d&&d.selection&&profile.gates.every(k=>Number(s&&s[k])>=8)&&Number(d.selection.comprehension_mode_muet)>=profile.silent&&/^APPROVED/.test(String(d.selection.decision||""))); };
 /* PIPELINE EXECUTION REPORT : chaque étape réellement exécutée, avec son statut, sa durée et son résultat */
 let PIPE = null, lastModel = "";
-const AI_STEP = /ENGINE|MASTER|COMPILER/;
-const weakModel = m => /lite|luna/i.test(String(m||""));   /* modèles de secours : plus rapides, nettement moins bons */
+const AI_STEP = /ENGINE|MASTER|COMPILER|DIALOGUE/;
+const weakModel = m => /lite/i.test(String(m||""));   /* modèles de secours : plus rapides, nettement moins bons */
 const pipeNow = () => (typeof performance!=="undefined" && performance.now) ? performance.now() : Date.now();
 function pipeStart(){ PIPE = []; lastModel = ""; return PIPE; }
 function pipeStep(etape, statut, t0, resume){ if(PIPE) PIPE.push({etape, statut, s:Math.round((pipeNow()-t0)/100)/10, resume:String(resume||"").slice(0,260), model:AI_STEP.test(etape)?lastModel:""}); }
@@ -2333,8 +2333,54 @@ function finishMaster(d, p, scenePlan, t0, got, lots){
   pipeStep("MODEL_ROUTER + MODEL_ADAPTER", routed.model_router&&routed.model_router.status||"DONE", t1, `outil : ${label("outil",p.outil)}${(routed.model_router&&routed.model_router.risks||[]).length ? " · "+routed.model_router.risks.length+" risque(s) signalé(s)" : ""}`);
   return routed;
 }
+/* =================== DOCTEUR DES DIALOGUES : répliques vivantes, qui se répondent et tiennent dans leur plan =================== */
+const DD_CHUNK = 30;
+const ddMax = s => Math.max(4, Math.floor(2.2*Math.min(Number(s.shot_design&&s.shot_design.duration)||5, 8)));
+function dialoguePrompt(idee, p, creative, scenePlan, shots){
+  const lang = LANG_NAME[p.langue]||"français", sel = (creative&&creative.selection)||{};
+  return `Tu es le DOCTEUR DES DIALOGUES d'un studio de séries et de vidéos IA réalistes. Le découpage est verrouillé : tu ne changes ni les événements, ni les personnages présents, ni l'ordre. Tu réécris seulement ce qui est dit.
+DEMANDE : """${clip(idee,800)}"""
+HISTOIRE : ${JSON.stringify({titre:sel.titre, promesse:sel.promesse_spectateur, objectif:sel.objectif, obstacle:sel.obstacle, payoff:sel.payoff})}
+LANGUE DES RÉPLIQUES : ${lang}, comme on parle vraiment dans ${label("pays",p.pays||"sn")} (expressions, registre, humour du pays) ; jamais du langage de livre.
+SCÈNES : ${JSON.stringify((scenePlan.scenes||[]).map(sc=>({scene_id:sc.scene_id, titre:sc.titre, lieu:sc.lieu, enjeu:sc.purpose||sc.event})))}
+RÈGLES :
+- Chaque réplique veut quelque chose (convaincre, cacher, accuser, provoquer, rassurer, fuir) et provoque une réaction dans le plan suivant ou dans le même plan.
+- Sous-texte : les personnages ne disent pas ce qu'ils ressentent ; ils esquivent, coupent la parole, répondent à côté, mentent, plaisantent pour cacher la peur.
+- Jamais d'exposition (« comme tu le sais », récit de ce qu'on voit déjà), jamais de morale récitée.
+- Les personnages présents ensemble se parlent : question → réponse, reproche → excuse, ordre → refus. Varie la longueur : un mot sec, puis une phrase.
+- Un plan de réaction peut rester muet si le silence est plus fort : dis-le avec dialogue vide.
+- Voix off seulement si elle apporte ce que l'image ne peut pas montrer ; sinon vide.
+- LONGUEUR : au plus max_mots mots par plan, toutes répliques réunies (sinon le générateur coupe la phrase) ; 3 répliques au plus par plan ; une personne parle à la fois.
+- speaker = exactement un nom de la liste characters du plan.
+PLANS : ${JSON.stringify(shots.map(s=>({shot_id:s.shot_id, scene_id:s.scene_id, characters:(s.characters||[]).filter(Boolean), event:s.event, duree:Math.round(Number(s.shot_design&&s.shot_design.duration)||5), max_mots:ddMax(s), dialogue_actuel:(s.sound&&s.sound.dialogue)||"", voix_off_actuelle:(s.sound&&s.sound.voice_over)||""})))}
+RÉPONDS UNIQUEMENT avec ce JSON : {"shots":[{"shot_id":"","dialogue":[{"speaker":"","line":"","tone_en":""}],"voice_over":""}],"notes":[""]}`;
+}
+async function dialogueDoctor(idee, p, creative, scenePlan, master, prefix, signal){
+  const profile = videoProfile(p.vtype,p), shots = master.shots||[];
+  if(audioLockedOf(p) || p.audioKind==="remake" || !FICTION_CATS.includes(profile.category) || !shots.some(s=>(s.characters||[]).filter(Boolean).length)) return;
+  const t0 = pipeNow(), opts = {modelTier:p.qualite==="complex"?"complex":"default", engine:"best", signal, cache:false};
+  let rewritten = 0, lines = 0, silent = 0, tooLong = 0;
+  for(let i=0;i<shots.length;i+=DD_CHUNK){
+    const part = shots.slice(i, i+DD_CHUNK);
+    showStatus(prefix, shots.length>DD_CHUNK ? `Docteur des dialogues : plans ${i+1} à ${i+part.length} sur ${shots.length}…` : "Docteur des dialogues : répliques vivantes, qui se répondent…", false, 46+2*i/shots.length);
+    let x; try{ x = await sample.json(dialoguePrompt(idee, p, creative, scenePlan, part), opts); }catch(err){ if(err && err.code==="cancelled") throw err; pipeStep("DIALOGUE_DOCTOR","SKIPPED",t0,`dialogues gardés tels quels (${errText(err).slice(0,80)})`); return; }
+    (Array.isArray(x&&x.shots)?x.shots:[]).forEach(q=>{
+      const s = part.find(y=>y.shot_id===q.shot_id); if(!s) return;
+      const names = (s.characters||[]).filter(Boolean), dl = (Array.isArray(q.dialogue)?q.dialogue:[]).filter(d=>d&&String(d.line||"").trim()).slice(0,3)
+        .map(d=>({speaker:names.find(n=>n.toLowerCase()===String(d.speaker||"").toLowerCase())||names[0]||String(d.speaker||""), line:String(d.line).trim(), tone_en:String(d.tone_en||"")}));
+      const words = dl.reduce((a,d)=>a+nWordsOf(d.line),0) + nWordsOf(q.voice_over);
+      if(words > ddMax(s)*1.3){ tooLong++; return; }   /* trop long pour le plan : on garde l'ancienne version */
+      s.sound = s.sound&&typeof s.sound==="object" ? s.sound : {};
+      s.sound.dialogue_lines = dl; s.sound.dialogue = dl.map(d=>`${d.speaker}${d.tone_en?` (${d.tone_en})`:""}: "${d.line}"`).join(" / ");
+      s.sound.voice_over = String(q.voice_over||"").trim();
+      rewritten++; lines += dl.length; if(!dl.length && !s.sound.voice_over) silent++;
+    });
+  }
+  pipeStep("DIALOGUE_DOCTOR","DONE",t0,`${rewritten} plan${rewritten>1?"s":""} retravaillé${rewritten>1?"s":""} · ${lines} réplique${lines>1?"s":""}${silent?` · ${silent} plan${silent>1?"s":""} volontairement muet${silent>1?"s":""}`:""}${tooLong?` · ${tooLong} proposition${tooLong>1?"s":""} trop longue${tooLong>1?"s":""} écartée${tooLong>1?"s":""}`:""}`);
+}
 async function prepareProduction(idee,p,prefix,signal){
   const creative=await developCreative(idee,p,prefix,signal), scenes=await developScenes(idee,p,creative,prefix,signal), master=await directExecution(idee,p,creative,scenes,prefix,signal);
+  await dialogueDoctor(idee,p,creative,scenes,master,prefix,signal);
   const sourceTimeline=Array.isArray(p.timeline)?p.timeline:[];
   const compileTimeline=master.shots.map((s,i)=>{ const src=sourceTimeline.find((x,k)=>String(x.n==null?k+1:x.n)===String(s.source_n)); return {n:i+1,t0:s.time.start,t1:s.time.end,debut:s.time.debut,fin:s.time.fin,duree:s.shot_design.duration,section:s.scene_id,source:s.event,texte:src&&src.texte||""}; });
   const compileParams=Object.assign({},p,{masterPlanLocked:true,masterPlan:master,audioKind:"master",duree:String(Math.max(1,Math.round(master.duration))),timeline:compileTimeline});

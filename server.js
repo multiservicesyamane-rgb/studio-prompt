@@ -35,6 +35,7 @@ const openaiEffort = best => best ? (process.env.OPENAI_EFFORT_BEST || "max") : 
 /* Sans crédits pour Sol, le relais OpenAI est Luna (recherche web comprise) ; on revérifie Sol toutes les 30 minutes */
 const OPENAI_FALLBACK = process.env.OPENAI_MODEL_FALLBACK || "gpt-6-luna";
 let openaiSolBlockedUntil = 0, openaiAllBlockedUntil = 0;   // Sol sans crédits ; plus aucun crédit OpenAI
+let lunaOk = false;   // Sol sans crédits mais Luna répond : Luna remplace le modèle de secours de Gemini (Flash-Lite)
 const CREDIT_RE = /insufficient_quota|credit_balance|no credits|exceeded your current quota|billing/i;
 async function probeOpenAI(){
   if(!OPENAI_KEY) return;
@@ -43,8 +44,16 @@ async function probeOpenAI(){
       body:JSON.stringify({model:openaiModel(true), input:"OK", max_output_tokens:16, reasoning:{effort:"low"}})});
     const j = await r.json().catch(() => ({}));
     const e = j.error ? `${j.error.code || ""} ${j.error.type || ""} ${j.error.message || ""}` : "";
-    if(e && CREDIT_RE.test(e)){ openaiSolBlockedUntil = openaiAllBlockedUntil = Date.now() + 30 * 60 * 1000; console.log("OpenAI : compte API sans crédits, relais direct par Gemini ou Anthropic pendant 30 minutes."); }
-    else if(!e){ if(openaiSolBlockedUntil || openaiAllBlockedUntil) console.log(`OpenAI ${openaiModel(true)} : crédits disponibles.`); openaiSolBlockedUntil = 0; openaiAllBlockedUntil = 0; }
+    if(e && CREDIT_RE.test(e)){
+      openaiSolBlockedUntil = Date.now() + 30 * 60 * 1000;
+      /* Sol sans crédits : Luna répond-il encore ? */
+      const r2 = await fetch(`${OPENAI_BASE}/responses`, {method:"POST", headers:{"Content-Type":"application/json", "Authorization":`Bearer ${OPENAI_KEY}`}, body:JSON.stringify({model:OPENAI_FALLBACK, input:"OK", max_output_tokens:16, reasoning:{effort:"low"}})});
+      const j2 = await r2.json().catch(() => ({}));
+      lunaOk = r2.ok && !j2.error;
+      if(lunaOk){ openaiAllBlockedUntil = 0; console.log(`OpenAI : ${openaiModel(true)} sans crédits ; ${OPENAI_FALLBACK} répond et sert de relais quand les bons modèles Gemini sont épuisés.`); }
+      else { openaiAllBlockedUntil = Date.now() + 30 * 60 * 1000; console.log("OpenAI : compte API sans crédits, relais direct par Gemini ou Anthropic pendant 30 minutes."); }
+    }
+    else if(!e){ if(openaiSolBlockedUntil || openaiAllBlockedUntil) console.log(`OpenAI ${openaiModel(true)} : crédits disponibles.`); openaiSolBlockedUntil = 0; openaiAllBlockedUntil = 0; lunaOk = true; }
   }catch(err){}
 }
 const MAX_OUT = Number(process.env.MAX_OUTPUT_TOKENS) || 60000;   // un master découpé scène par scène peut être long
@@ -170,8 +179,14 @@ async function handleSample(req, res){
   /* Moteur : « best » = OpenAI Sol (réflexion maximale, recherche web fiable) s'il est disponible, sinon le moteur par défaut.
      Si un moteur échoue (quota, crédits, clé), l'autre prend le relais. */
   const best = input.engine === "best" || (input.engine !== "default" && input.tier === "complex");
-  const oaOk = OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) && !(openaiSolBlockedUntil > Date.now());   // sans crédits pour Sol : Gemini directement (Luna sans crédits coupe ses réponses)
-  const engines = hasAudio ? ["gemini"] : [best && oaOk ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", ANTHROPIC_KEY ? "anthropic" : "", oaOk ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i && !(x === "openai" && !oaOk));
+  /* Ordre des moteurs : Sol (si crédits) → bons modèles Gemini gratuits → Luna (si Sol n'a plus de crédits) → Flash-Lite en dernier */
+  const now = Date.now(), solAvail = !!OPENAI_KEY && !(openaiAllBlockedUntil > now) && !(openaiSolBlockedUntil > now);
+  const lunaAvail = !!OPENAI_KEY && !(openaiAllBlockedUntil > now) && (openaiSolBlockedUntil > now) && lunaOk;
+  let geminiGood = !!GEMINI_KEY;
+  if(GEMINI_KEY && lunaAvail){ const gm = await geminiModels(); geminiGood = [gm.default, gm.complex, ...GEMINI_FALLBACKS].filter((x, i, a) => x && a.indexOf(x) === i && !/lite/i.test(x)).some(x => !(geminiBlocked.get(x) > now) && !(geminiBusy.get(x) > now)); }
+  const oaOk = solAvail || lunaAvail, lunaFirst = lunaAvail && !geminiGood;
+  const engines = hasAudio ? ["gemini"] : [(best && solAvail) || lunaFirst ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", ANTHROPIC_KEY ? "anthropic" : "", oaOk ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i && !(x === "openai" && !oaOk));
+  if(lunaFirst) console.log(`Bons modèles Gemini épuisés : ${OPENAI_FALLBACK} répond à leur place (plutôt que Flash-Lite).`);
   let upstream = null, prov = engines[0], geminiUsed = "";
   const callGemini = async () => {
     const m = await geminiModels(), model = input.tier === "complex" ? m.complex : m.default;
@@ -218,14 +233,14 @@ async function handleSample(req, res){
     return up;
   };
   const solOk = !(openaiSolBlockedUntil > Date.now());
-  const oaModel = solOk ? openaiModel(best) : OPENAI_FALLBACK, oaEffort = solOk ? openaiEffort(best) : (process.env.OPENAI_EFFORT_FALLBACK || "high");
+  const oaModel = solOk ? openaiModel(best) : OPENAI_FALLBACK, oaEffort = solOk ? openaiEffort(best) : (process.env.OPENAI_EFFORT_FALLBACK || "medium");
   const callOpenAI = () => fetch(`${OPENAI_BASE}/responses`, {
     method:"POST", signal:ctl.signal,
     headers:{"Content-Type":"application/json", "Authorization":`Bearer ${OPENAI_KEY}`},
     body:JSON.stringify({model:oaModel, stream:true, max_output_tokens:best ? Math.max(MAX_OUT, 64000) : MAX_OUT, reasoning:{effort:oaEffort},
       input:[{role:"user", content:[...images.map(i => ({type:"input_image", image_url:`data:${i.mime};base64,${i.data}`})), {type:"input_text", text:prompt + (json ? "\n\nRéponds uniquement avec le JSON, sans texte autour." : "")}]}],
-      ...(search ? {tools:[{type:"web_search"}]} : {}),
-      ...(json && !search ? {text:{format:{type:"json_object"}}} : {})})
+      ...(search && solOk ? {tools:[{type:"web_search"}]} : {}),   // relais Luna : pas d'outil payant, les flux Google sont déjà dans la demande
+      ...(json && !(search && solOk) ? {text:{format:{type:"json_object"}}} : {})})
   });
   const callAnthropic = () => {
     const model = input.tier === "complex" ? (process.env.ANTHROPIC_MODEL_PRO || process.env.ANTHROPIC_MODEL || "claude-opus-5-5") : (process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5");
