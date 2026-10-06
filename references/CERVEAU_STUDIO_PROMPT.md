@@ -189,13 +189,14 @@ Règle des paroles :
 ### 4.2 Entrée « Depuis des infos » (revue de presse)
 
 1. **Matière**, au choix :
-   - automatique : `prFetch` → `/api/news`. `PRESSE_SITES` est une liste de grands médias par pays, simple point de départ modifiable par l'utilisateur. L'utilisateur coche les infos à garder.
+   - automatique : `prFetch` → `/api/news`. `PRESSE_SITES` est une liste de grands médias par pays, simple point de départ modifiable par l'utilisateur. L'utilisateur coche les infos à garder. Une info de plus de 3 jours avant la plus récente n'est pas cochée d'office et porte la mention « ancienne » (`prNewsHtml`).
    - ses textes et ses liens : `prReadLinks` → `/api/news/read`.
 2. **Écriture** (`prPrompt`). Les **règles de vérité** sont non négociables :
    - seulement la matière fournie, chaque info attribuée à son média ;
    - rester au niveau du titre quand on n'a que le titre ;
    - aucune rumeur ni accusation présentée comme un fait, aucun parti pris.
-   La longueur suit la durée (2,4 mots par seconde). La revue fournit aussi la publication et les points `a_verifier`. Le texte est modifiable.
+   La longueur suit la durée (`PR_WPS` = 2,7 mots par seconde, débit d'un présentateur vif). La revue fournit aussi la publication et les points `a_verifier`. Le texte est modifiable. Le bloc `learningBlock(…, "strategie")` (ce qui marche sur la chaîne de l'utilisateur) est ajouté aux règles : la revue utilise le cerveau de l'agent.
+   **Preuve de chaque fait** : chaque sujet porte `preuve`, copie mot pour mot du passage de la matière qui prouve le fait principal. `prProof` la cherche dans la matière (mot pour mot, ou 85 % des mots importants) : « ✓ Fait vérifié dans la source » sinon « ⚠ Preuve introuvable » et une ligne dans « À vérifier avant de publier ».
    **Format signature** (`prRules`) :
    - nom de l'émission (`pr-nom`, gardé dans `sp-prefs.presseNom` ; inventé par l'IA la première fois) ;
    - ouverture, sommaire, sujets, « Le chiffre du jour » sourcé, « Ce qu'il faut retenir », fin signée avec rendez-vous.
@@ -204,25 +205,35 @@ Règle des paroles :
 3. **Voix d'or** :
    - `prParts` découpe dans l'ordre de l'émission, en parties de 800 caractères au plus ;
    - `prVoice` les envoie avec le style `PR_STYLE` et la voix choisie ;
-   - `prPlayAll` les lit d'un trait, `prDownload` les met bout à bout (voix seule).
+   - `prPlayAll` les lit d'un trait, `prDownload` les met bout à bout (voix seule, en MP3 ou en WAV).
+   - `PR_STYLE` demande un rythme vif, sans pauses qui traînent (plainte de l'utilisateur : « la voix est lente »).
 4. **Fusion finale** (`prMix`, `OfflineAudioContext`, stéréo 44,1 kHz, entièrement dans le navigateur et gratuite) :
    - jingle d'ouverture : souffle, accord, impact grave ;
    - transition sonore seulement quand le sujet change ;
    - musique de fond `prBed` qui baisse sous la voix et remonte entre les sujets ;
    - fin signée, puis compression et normalisation.
    - Ambiances `PR_MOODS` : journal, inspirant, énergique, sobre. Jingle et musique de l'utilisateur possibles (libres de droits).
+   - **Vitesse de la voix** (`pr-speed`, gardée dans `sp-prefs.presseVitesse`) : normale ×1, vive ×1,12 (par défaut), très rapide ×1,25. `prTighten` ramène les pauses longues à 0,28 s, puis `prTempo` accélère sans rendre la voix aiguë (WSOLA : morceaux de 40 ms recollés au point le plus ressemblant).
+   - **Formats** : revue finale en MP3 (`prMp3`, encodeur LAME `@breezystack/lamejs` chargé depuis jsDelivr ; `window.__lameMock` dans les tests) ou en WAV ; sous-titres `.srt` (`prSrt`, mêmes temps que la vidéo grâce à `prSubTimes`) ; texte, sources et crédits en `.txt` ; vidéo en MP4 quand le navigateur sait l'enregistrer, sinon WebM.
    **Quota des voix** : l'offre gratuite de Google accepte peu de voix par jour (environ 12 le 5 octobre 2026). `prChunks` regroupe donc toute la revue en blocs de 2 400 caractères au plus, avec une ligne vide entre les parties, soit une ou deux demandes par revue. La fusion recoupe chaque bloc aux pauses les plus proches des frontières attendues (`prSplit`) ; si c'est impossible, le bloc reste entier et les images suivent la longueur des textes.
 5. **Images réelles** (`/api/photos`, `prPhotoSearch`, `prPhotoPick`) :
    - Openverse (`license_type=commercial,modification`) et Wikimedia Commons ;
    - `FREE_LICENSE` exclut les licences NC et ND ainsi que l'usage équitable (fair use) ; seules les photos de 600 px de large au moins sont gardées ;
    - mots-clés `image_en` écrits par l'IA pour chaque sujet ;
    - l'image choisie est importée dans le projet (`/api/photos/import`) avec son crédit ; l'utilisateur peut mettre sa propre photo ;
+   - deux autres images du même sujet sont importées (`prPhotoExtras`, `PR.extra`, cadre pointillé) pour que la vidéo change de plan ;
+   - les crédits de toutes les photos (`prPhotoCredits`) sont ajoutés à la publication et au fichier texte, comme l'exigent leurs licences ; dans la vidéo, chaque photo porte « Image d'illustration · Photo : … » ;
+   - le serveur écarte les titres d'images choquants (`UNSAFE_IMAGE`) en plus du filtre `mature=false` d'Openverse ;
    - les photos des journaux et des agences ne sont jamais reprises.
-6. **Vidéo de la revue** (`prVideo`) :
+   **La une du journal avant les images** (demande de l'utilisateur) : `prUne` / `prUneHtml` recréent la une du journal qui porte le sujet (nom du journal, vrai titre de l'info pris dans les sources, date, chapeau, colonnes suggérées). C'est une citation : aucune page de journal n'est copiée. L'utilisateur peut mettre sa propre photo de la une (`PR.unes`, seulement s'il a le droit de l'utiliser) et revenir à la une recréée.
+6. **Vidéo de la revue** (`prVideo`), montée comme au journal télévisé (plainte de l'utilisateur : « pas du tout professionnel ») :
    - canevas en 9:16 ou 16:9 enregistré en temps réel (MediaRecorder) sur la fusion. Le son est décodé et lancé par le moteur audio dès le clic, sinon le navigateur bloque la lecture automatique ;
-   - images avec mouvement lent et fondus ;
-   - bandeau avec le nom de l'émission et la date, carte d'ouverture, titre du sujet et « Source : … », carte « Le chiffre du jour », carte « Ce qu'il faut retenir » ;
-   - sous-titres et crédit photo. Le plan vient de `PR.mixPlan`, calculé par `prMix`.
+   - générique animé (nom de l'émission, date), sommaire animé (sujets numérotés qui arrivent un par un) ;
+   - chaque sujet commence par **la une du journal** (carte papier qui arrive avec un léger rebond, tampon « À LA UNE · JOURNAL »), puis ses photos en mouvement (zoom avant, zoom arrière, travelling, photo en largeur sur fond flouté en vertical) avec fondus entre les photos ;
+   - bandeau du sujet (numéro, « SUJET 2 SUR 5 », titre, « Source : … »), carte « Le chiffre du jour » animée, « Ce qu'il faut retenir », carte de fin « Abonne-toi · demain, même heure » ;
+   - transitions entre sujets (poussée, zoom avec flash, volet aux couleurs de l'émission, glissement), placées pendant le souffle de la fusion ;
+   - sous-titres mot à mot (le mot dit s'allume en jaune), crédit de chaque photo, barre de progression, grain et vignette. Le plan vient de `PR.mixPlan`, calculé par `prMix` ;
+   - fond animé quand un sujet n'a pas d'image.
 7. La dernière revue est gardée dans le navigateur (`sp-presse`, photos comprises). « En faire une vidéo » envoie le texte dans « Depuis une idée ».
 
 ### 4.3 Manus AI (ajouté par l'autre assistant, relu le 5 octobre)

@@ -420,6 +420,8 @@ async function handleNewsRead(req, res){
 /* ---------- Photos réelles libres de droits (Openverse + Wikimedia Commons) : seulement les licences qui permettent un usage commercial ---------- */
 const OPENVERSE_BASE = (process.env.OPENVERSE_BASE || "https://api.openverse.org").replace(/\/$/, ""), COMMONS_BASE = (process.env.COMMONS_BASE || "https://commons.wikimedia.org").replace(/\/$/, "");
 const FREE_LICENSE = l => { l = String(l || "").trim(); return !!l && !/\bNC\b|\bND\b|non.?commercial|no.?deriv|fair use|copyright/i.test(l) && /^(cc0|cc[- ]?by|pdm|public domain|pd\b|domaine public)/i.test(l); };
+/* Images sûres : en plus du filtre « mature » d'Openverse, les titres choquants sont écartés (nudité, violence, cadavres) */
+const UNSAFE_IMAGE = /\b(nude|nudity|naked|nsfw|porn\w*|sex|sexy|erotic\w*|topless|lingerie|corpse|cadaver|dead body|gore|bloody|execution|torture|beheading|nu|nue|nues|cadavre|sanglant)\b/i;
 async function fetchJson(url, ms){ const t = await fetchText(url, ms || 12000); try{ return JSON.parse(t); }catch(e){ return null; } }
 async function handlePhotos(req, res){
   const u = new URL(req.url, "http://x"), q = String(u.searchParams.get("q") || "").replace(/[<>"]/g, " ").trim().slice(0, 120), n = Math.min(12, Math.max(1, Number(u.searchParams.get("n")) || 8));
@@ -428,7 +430,7 @@ async function handlePhotos(req, res){
     fetchJson(`${OPENVERSE_BASE}/v1/images/?q=${encodeURIComponent(q)}&license_type=commercial,modification&page_size=${n + 4}&mature=false`),
     fetchJson(`${COMMONS_BASE}/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&gsrlimit=${n + 4}&prop=imageinfo&iiprop=url|extmetadata|size|mime&iiurlwidth=1280&format=json`)
   ]);
-  const out = [], seen = new Set(), add = x => { const k = String(x.url || "").split("?")[0]; if(!k || seen.has(k) || !FREE_LICENSE(x.license) || (x.w && x.w < 600)) return; seen.add(k); out.push(x); };
+  const out = [], seen = new Set(), add = x => { const k = String(x.url || "").split("?")[0]; if(!k || seen.has(k) || !FREE_LICENSE(x.license) || (x.w && x.w < 600) || UNSAFE_IMAGE.test(x.title || "")) return; seen.add(k); out.push(x); };
   ((ov && ov.results) || []).forEach(r => add({title:String(r.title || "").slice(0, 120), url:r.url, thumb:r.thumbnail || r.url, w:r.width, h:r.height, creator:String(r.creator || "").slice(0, 80),
     license:`${r.license === "cc0" ? "CC0" : r.license === "pdm" ? "Domaine public" : "CC " + String(r.license || "").toUpperCase()}${r.license_version && !/cc0|pdm/.test(r.license) ? " " + r.license_version : ""}`, source:r.source === "wikimedia" ? "Wikimedia Commons" : r.source === "flickr" ? "Flickr" : String(r.source || "Openverse"), page:r.foreign_landing_url || ""}));
   Object.values((cm && cm.query && cm.query.pages) || {}).sort((a, b) => (a.index || 0) - (b.index || 0)).forEach(p => { const i = (p.imageinfo || [])[0] || {}, m = i.extmetadata || {}, val = k => String((m[k] || {}).value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
