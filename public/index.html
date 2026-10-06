@@ -3591,7 +3591,7 @@ function renderProject(){
   <section class="section" id="s-yt"><h3>5. Publication YouTube</h3><div class="card"><div><span class="label">Titres</span><ol class="plain">${(y.titres||[]).map(t=>`<li>${esc(t)}</li>`).join("")}</ol></div>
     ${pblock("thumb","Miniature",thumbPrompt(r,v),{kind:"image",where:IMG_WHERE,join:""})}
     ${y.texte_miniature?`<p class="hint">Texte à ajouter sur la miniature au montage : <b>${esc(y.texte_miniature)}</b></p>`:""}
-    ${pblock("desc","Description de la vidéo",y.description||"",{kind:"texte",where:"YouTube, case « Description »"})}
+    ${pblock("desc","Description de la vidéo",(y.description||"")+localCredits(Object.values(r.generated_voices||{}).flat()),{kind:"texte",where:"YouTube, case « Description »"})}
     ${v.style==="realiste"?`<p class="hint">Vidéo réaliste : active l'option « contenu modifié ou synthétique » au moment de l'envoi sur YouTube.</p>`:""}</div></section>${monetHtml(proj)}`;
   $res.innerHTML = h;
   const TAB_OF_SECTION = {"s-paroles":"paroles","s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-premont":"montage","s-yt":"yt","s-monet":"yt"};
@@ -3863,6 +3863,29 @@ async function genLoad(){
   try{ FAB.voices.gemini=(await genApi.voices("gemini")).voices||[]; }catch(e){ FAB.voices.gemini=[]; }
   if(FAB.status.voice&&FAB.status.voice[1]&&FAB.status.voice[1].ready){ try{ FAB.voices.elevenlabs=(await genApi.voices("elevenlabs")).voices||[]; }catch(e){ FAB.voices.elevenlabs=[]; } }
 }
+/* =================== VOIX GRATUITE SUR L'ORDINATEUR (Piper : sans clé, sans quota, sans limite) =================== */
+const LOCAL_TTS_URL="https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/+esm";
+/* Seulement des voix dont la licence permet la monétisation ; « Tom » (AGPL) est volontairement écartée. Le crédit demandé par la licence est affiché. */
+const LOCAL_VOICES=[{id:"fr_FR-siwis-medium", name:"Siwis", desc:"femme, naturelle", g:"femme", credit:"Voix de synthèse « Siwis » (Piper, données de l'Université d'Édimbourg), licence CC BY 4.0"},
+  {id:"fr_FR-upmc-medium", name:"UPMC", desc:"voix posée", g:"", credit:"Voix de synthèse « UPMC » (Piper, données MaryTTS UPMC), licence CC BY-SA 4.0"},
+  {id:"fr_FR-mls-medium", name:"MLS", desc:"voix lue", g:"", credit:"Voix de synthèse « MLS » (Piper, Multilingual LibriSpeech), licence CC BY 4.0"},
+  {id:"fr_FR-gilles-low", name:"Gilles", desc:"homme, qualité simple", g:"homme", credit:""}];
+const LV={tts:null, busy:false};
+async function localTts(){ if(window.__localTtsMock) return window.__localTtsMock; if(!LV.tts) LV.tts=await import(LOCAL_TTS_URL); return LV.tts; }   /* __localTtsMock : tests sans téléchargement */
+const localVoice = id => LOCAL_VOICES.find(v=>v.id===id) || LOCAL_VOICES[0];
+const localFor = g => g==="homme" ? "fr_FR-gilles-low" : "fr_FR-siwis-medium";
+const localOptions = sel => `<optgroup label="Voix gratuites sur l'ordinateur (sans quota)">${LOCAL_VOICES.map(v=>`<option value="local|${v.id}"${sel&&sel.service==="local"&&sel.voice===v.id?" selected":""}>${v.name} · ${v.desc} · gratuite</option>`).join("")}</optgroup>`;
+/* Crédit demandé par la licence des voix gratuites utilisées, ajouté à la description de publication */
+const localCredits = list => { const c=[...new Set((list||[]).filter(x=>x&&x.status==="done"&&x.service==="local").map(x=>localVoice(x.voice).credit).filter(Boolean))]; return c.length?`\n\n${c.join("\n")}`:""; };
+function wavSecs(ab){ try{ const dv=new DataView(ab); if(String.fromCharCode(...new Uint8Array(ab,0,4))!=="RIFF") return 0; const rate=dv.getUint32(24,true), bps=dv.getUint16(32,true); let i=12; while(i+8<=ab.byteLength){ const id=String.fromCharCode(...new Uint8Array(ab,i,4)), len=dv.getUint32(i+4,true); if(id==="data") return Math.round(Math.min(len,ab.byteLength-i-8)/(rate*bps)*10)/10; i+=8+len; } }catch(e){} return 0; }
+/* Fabrique une voix sur l'ordinateur, puis l'enregistre dans le projet (même stockage que les autres voix) */
+async function localSpeak(text, voiceId, project, base, onStep){
+  const tts=await localTts();
+  const blob=await tts.predict({text, voiceId}, p=>{ if(onStep&&p&&p.total&&p.loaded<p.total) onStep(`Téléchargement de la voix gratuite (une seule fois, environ 60 Mo) : ${Math.round(100*p.loaded/p.total)} %`); });
+  const ab=await blob.arrayBuffer(), seconds=wavSecs(ab);
+  if(genApi){ const out=await genApi.upload(new File([ab], `${base}.wav`, {type:"audio/wav"}), {project, base}); return {url:out.url, seconds}; }
+  return {url:URL.createObjectURL(new Blob([ab],{type:"audio/wav"})), seconds};
+}
 /* Une voix fixe par personnage, devinée d'après sa fiche (femme / homme), modifiable dans l'onglet Paroles */
 function guessGender(c){ const f=` ${String((c&&c.fiche_en)||"")} ${String((c&&c.fiche_fr)||"")} `.toLowerCase();
   if(/\b(woman|girl|mother|grandmother|lady|wife|daughter|sister|aunt|she|her|femme|fille|mère|grand-mère|sœur|soeur|tante)\b/.test(f)) return "femme";
@@ -3894,16 +3917,17 @@ function voicePlanHtml(r,p,i){
 function castHtml(proj){
   if(!genOn(proj)||!FAB.status) return "";
   const r=proj.result, cast=voiceCast(r), eleven=FAB.status.voice&&FAB.status.voice[1]&&FAB.status.voice[1].ready;
-  const opts=sel=>`<optgroup label="Voix Gemini (gratuites)">${(FAB.voices.gemini||[]).map(v=>`<option value="gemini|${esc(v.id)}"${sel.service==="gemini"&&sel.voice===v.id?" selected":""}>${esc(v.name)} · ${esc(v.desc)}</option>`).join("")}</optgroup>${eleven&&(FAB.voices.elevenlabs||[]).length?`<optgroup label="ElevenLabs">${FAB.voices.elevenlabs.map(v=>`<option value="elevenlabs|${esc(v.id)}"${sel.service==="elevenlabs"&&sel.voice===v.id?" selected":""}>${esc(v.name)}${v.desc?" · "+esc(v.desc):""}</option>`).join("")}</optgroup>`:""}`;
+  const opts=sel=>`<optgroup label="Voix Gemini (gratuites)">${(FAB.voices.gemini||[]).map(v=>`<option value="gemini|${esc(v.id)}"${sel.service==="gemini"&&sel.voice===v.id?" selected":""}>${esc(v.name)} · ${esc(v.desc)}</option>`).join("")}</optgroup>${eleven&&(FAB.voices.elevenlabs||[]).length?`<optgroup label="ElevenLabs">${FAB.voices.elevenlabs.map(v=>`<option value="elevenlabs|${esc(v.id)}"${sel.service==="elevenlabs"&&sel.voice===v.id?" selected":""}>${esc(v.name)}${v.desc?" · "+esc(v.desc):""}</option>`).join("")}</optgroup>`:""}${localOptions(sel)}`;
   const rows=[{id:"_narr",nom:"Voix off"}].concat(r.personnages||[]).map(c=>`<div class="cast-row"><span class="cast-who">${esc(c.nom)}</span><div class="sel"><select data-cast="${esc(c.id)}" aria-label="Voix de ${esc(c.nom)}">${opts(cast[c.id]||{})}</select></div><button type="button" class="btn small quiet" data-cast-try="${esc(c.id)}">Essai</button><span class="cast-try" id="cast-try-${esc(c.id)}"></span></div>`).join("");
-  return `<div class="card gen-cast"><div><span class="label">Voix des personnages · fabrication gratuite avec ta clé Gemini</span><p class="hint">Chaque personnage garde la même voix dans toute la vidéo. « Essai » fait entendre une de ses phrases. Si tes clips de Google Flow parlent déjà, fabrique seulement la voix off.</p></div>${rows}<div class="actions"><button type="button" class="btn small primary" id="genv-all">🔊 Fabriquer toutes les voix</button><span class="hint" id="genv-msg"></span></div></div>`;
+  return `<div class="card gen-cast"><div><span class="label">Voix des personnages · gratuites avec ta clé Gemini, ou sur l'ordinateur sans quota</span><p class="hint">Chaque personnage garde la même voix dans toute la vidéo. Si Google refuse (quota du jour), choisis une « voix gratuite sur l'ordinateur ». « Essai » fait entendre une de ses phrases. Si tes clips de Google Flow parlent déjà, fabrique seulement la voix off.</p></div>${rows}<div class="actions"><button type="button" class="btn small primary" id="genv-all">🔊 Fabriquer toutes les voix</button><span class="hint" id="genv-msg"></span></div></div>`;
 }
 function genPending(r){ const ids=[]; Object.values(r.generated_voices||{}).forEach(l=>(l||[]).forEach(x=>{ if(x&&x.job&&/queued|running/.test(x.status)) ids.push(x.job); })); return ids; }
 function genRefreshVoices(){
   if(!current) return; const r=current.result;
   (r.plans||[]).forEach((p,i)=>{ const el=$("genv-"+i); if(el) el.innerHTML=voicePlanHtml(r,p,i); });
   const m=$("genv-msg"); if(m){ const all=Object.values(r.generated_voices||{}).flat(), done=all.filter(x=>x.status==="done").length, run=all.filter(x=>/queued|running/.test(x.status)).length, ko=all.filter(x=>x.status==="failed").length;
-    m.textContent=all.length?`${done} voix prête${done>1?"s":""}${run?` · ${run} en cours (une à la fois, pour respecter l'offre gratuite)`:""}${ko?` · ${ko} échec${ko>1?"s":""}`:""}`:""; }
+    const quota=all.some(x=>x.status==="failed"&&/Quota du jour/.test(x.error||""));
+    m.innerHTML=all.length?`${done} voix prête${done>1?"s":""}${run?` · ${run} en cours (une à la fois, pour respecter l'offre gratuite)`:""}${ko?` · ${ko} échec${ko>1?"s":""}`:""}${quota?` <button type="button" class="btn small primary" data-genv-free="1">🎙️ Refaire ces voix gratuitement sur l'ordinateur</button>`:""}`:""; }
 }
 /* Suivi des voix en cours : le serveur fabrique, la page met à jour le projet quand c'est prêt */
 function genWatch(){
@@ -3921,6 +3945,10 @@ async function genVoicesPlan(i){
   const list=[];
   for(const l of lines){
     const v=cast[l.who]||cast._narr||{service:"gemini",voice:"Kore"};
+    if(v.service==="local"){   /* voix gratuite : fabriquée sur l'ordinateur, prête tout de suite */
+      try{ const x=await localSpeak(l.text, v.voice, genProject(current), `P${pad2n(p.n)}-voix-${l.k+1}-gratuite`, txt=>{ const m=$("genv-msg"); if(m) m.textContent=txt; }); list.push({k:l.k, who:l.who, text:l.text, kind:l.kind, status:"done", url:x.url, seconds:x.seconds, service:"local", voice:v.voice}); }
+      catch(err){ list.push({k:l.k, who:l.who, text:l.text, kind:l.kind, status:"failed", error:`Voix gratuite impossible : ${String(err&&err.message||err).slice(0,120)}`}); }
+      continue; }
     try{ const out=await genApi.start({kind:"voice", service:v.service, voice:v.voice, text:l.text, style:l.style, project:genProject(current), plan:p.n, line:l.k, who:l.who, base:`P${pad2n(p.n)}-voix-${l.k+1}`});
       list.push({k:l.k, who:l.who, text:l.text, kind:l.kind, job:out.job.id, status:out.job.status, service:v.service, voice:v.voice}); }
     catch(err){ list.push({k:l.k, who:l.who, text:l.text, kind:l.kind, status:"failed", error:err.message||errText(err)}); }
@@ -3928,10 +3956,23 @@ async function genVoicesPlan(i){
   r.generated_voices=r.generated_voices||{}; r.generated_voices[p.n]=list; current.updatedAt=Date.now();
   await saveProject(current,{quiet:true}); genRefreshVoices(); genWatch(); return list.length;
 }
+/* Relais gratuit : les personnages dont la voix a été refusée (quota du jour) passent sur une voix gratuite de l'ordinateur (même genre que leur voix d'avant).
+   Tous les plans où ils parlent sont refaits, pour que chaque personnage garde une seule voix dans toute la vidéo. */
+async function genVoicesFree(){
+  const r=current.result, cast=voiceCast(r), all=Object.values(r.generated_voices||{}).flat();
+  const who=new Set(all.filter(x=>x&&x.status==="failed"&&/Quota du jour/.test(x.error||"")).map(x=>x.who||"_narr")), gv=FAB.voices.gemini||[];
+  who.forEach(w=>{ const old=cast[w]||{}; if(old.service==="local") return; const d=String((gv.find(v=>v.id===old.voice)||{}).desc||"");
+    const g=/^femme/.test(d)?"femme":/^homme/.test(d)?"homme":guessGender((r.personnages||[]).find(x=>x.id===w)); cast[w]={service:"local", voice:localFor(g)}; });
+  current.updatedAt=Date.now(); await saveProject(current,{quiet:true});
+  const plans=(r.plans||[]).map((p,i)=>[p,i]).filter(([p])=>voiceLines(r,p).some(l=>who.has(l.who)));
+  for(const [k,[,i]] of plans.entries()){ const m=$("genv-msg"); if(m) m.textContent=`Voix gratuites : plan ${k+1} sur ${plans.length}…`; await genVoicesPlan(i); }
+  renderProject(); projTab("paroles"); genRefreshVoices(); toast("Voix refaites gratuitement sur l'ordinateur.");
+}
 async function genTryVoice(id){
   const r=current.result, v=voiceCast(r)[id], el=$("cast-try-"+id); if(!v||!el) return;
   const line=(r.plans||[]).flatMap(p=>voiceLines(r,p)).find(l=>l.who===id), c=(r.personnages||[]).find(x=>x.id===id);
   const text=line?line.text:(id==="_narr"?"Voici la voix off de ta vidéo.":`Bonjour, je suis ${c?c.nom:"ce personnage"}.`);
+  if(v.service==="local"){ el.innerHTML=`<span class="hint">Voix gratuite en préparation…</span>`; try{ const x=await localSpeak(clip(text,220), v.voice, genProject(current), `essai-${id}`, t=>{ el.innerHTML=`<span class="hint">${esc(t)}</span>`; }); el.innerHTML=`<audio controls autoplay src="${esc(x.url)}"></audio>`; }catch(err){ el.innerHTML=`<span class="chip mid">${esc(String(err&&err.message||err))}</span>`; } return; }
   el.innerHTML=`<span class="hint">Fabrication de l'essai…</span>`;
   try{ let {job}=await genApi.start({kind:"voice", service:v.service, voice:v.voice, text:clip(text,220), project:genProject(current), plan:0, who:id, base:`essai-${id}`});
     for(let k=0;k<120&&/queued|running/.test(job.status);k++){ await new Promise(res=>setTimeout(res,800)); job=((await genApi.jobs(genProject(current),[job.id])).jobs||[])[0]||job; }
@@ -4000,6 +4041,7 @@ async function renderConnexions(){
   const vg=st.voice[0]||{}, ve=st.voice[1]||{}, veo=st.video.filter(v=>/^veo/.test(v.id)), rw=st.video.find(v=>v.id==="runway");
   host.innerHTML=`<div class="panel"><h2 class="sub-h">Gratuit</h2>
       ${row("Voix Gemini", vg.ready?"Prêt · gratuit":"Pas de clé Gemini", vg.ready?"ok":"mid", "30 voix, français inclus, dans l’onglet « Paroles » de chaque projet. Google limite le nombre de voix par minute et par jour : Studio Prompt les fabrique une par une et attend si besoin (tes limites : AI Studio → Limite de débit).")}
+      ${row("Voix gratuite sur l’ordinateur (Piper)", "Gratuit · sans limite", "ok", "Relais automatique quand le quota de Google est épuisé, ou au choix dans « Paroles » et dans la revue de presse. Première utilisation : la voix se télécharge une seule fois (environ 60 Mo). Siwis, UPMC et MLS demandent un crédit dans la description (affiché par l’application) ; Gilles est libre.")}
       ${row("ElevenLabs", ve.ready?"Prêt":"Pas de clé", ve.ready?"ok":"", "Voix très naturelles, petite quantité gratuite chaque mois. Facultatif : voir le guide ci-dessous.")}
       ${row("Images · application Gemini", "Gratuit, à la main", "ok", "Crée les images dans l’application Gemini avec les prompts du Storyboard, puis importe-les toutes d’un coup dans l’onglet Storyboard du projet.")}
       ${row("Vidéos · Google Flow", "Gratuit, à la main", "ok", "Avec tes crédits gratuits du jour dans Flow, fais chaque plan avec son prompt, puis importe les clips dans l’onglet Plans : ils vont au Video Critic et au pré-montage.")}</div>
@@ -4023,6 +4065,7 @@ document.addEventListener("click", async e=>{
   if(t.dataset.genv!=null){ t.disabled=true; await genVoicesPlan(Number(t.dataset.genv)); return; }
   if(t.id==="genv-all"){ t.disabled=true; const n=(current.result.plans||[]).length; let c=0; for(let i=0;i<n;i++){ const m=$("genv-msg"); if(m) m.textContent=`Envoi des voix : plan ${i+1} sur ${n}…`; c+=await genVoicesPlan(i); } t.disabled=false; if(!c) toast("Aucune parole à dire dans ce projet."); return; }
   if(t.dataset.castTry!=null){ await genTryVoice(t.dataset.castTry); return; }
+  if(t.dataset.genvFree!=null){ t.disabled=true; t.textContent="Voix gratuites en fabrication…"; await genVoicesFree(); return; }
   if(t.dataset.vcUse!=null){ await genCriticUse(Number(t.dataset.vcUse)); return; }
   if(t.id==="pm-use-project"){ pmUseProject(); return; }
 });
@@ -4071,7 +4114,7 @@ function prSourceName(x){
   if(n.length>4 && n===n.toUpperCase()) n=n.charAt(0)+n.slice(1).toLowerCase();
   return n;
 }
-function prSave(){ try{ localStorage.setItem("sp-presse", JSON.stringify({r:PR.r, o:PR.o, id:PR.id, voices:PR.voices, news:PR.news, list:PR.list, matiere:PR.matiere, photos:PR.photos, photoQ:PR.photoQ})); }catch(e){} }
+function prSave(){ try{ localStorage.setItem("sp-presse", JSON.stringify({r:PR.r, o:PR.o, id:PR.id, voices:PR.voices, news:PR.news, list:PR.list, matiere:PR.matiere, photos:PR.photos, photoQ:PR.photoQ, voiceCredit:PR.voiceCredit||"", voiceName:PR.voiceName||""})); }catch(e){} }
 function prInit(){
   if(prInit.done) return; prInit.done=true;
   const ps=$("pr-pays"); COUNTRIES.forEach(([c,l])=>ps.append(new Option(l,c))); ps.value=(COUNTRIES.some(x=>x[0]===form.pays)?form.pays:"sn");
@@ -4080,16 +4123,17 @@ function prInit(){
   $("pr-mode").addEventListener("change",()=>{ const t=$("pr-mode").value==="textes"; $("pr-auto").hidden=t; $("pr-textes").hidden=!t; });
   $("pr-nom").value=loadPrefs().presseNom||"";
   $("pr-nom").addEventListener("change",()=>savePrefs({presseNom:$("pr-nom").value.trim()}));
-  try{ const x=JSON.parse(localStorage.getItem("sp-presse")||"null"); if(x&&x.r){ Object.assign(PR,{r:prNorm(x.r), o:x.o, id:x.id||"", voices:x.voices||[], news:x.news||null, list:x.list||[], matiere:x.matiere||"", photos:x.photos||{}, photoQ:x.photoQ||{}}); if(PR.news) $("pr-news").innerHTML=prNewsHtml(); } }catch(e){}
+  try{ const x=JSON.parse(localStorage.getItem("sp-presse")||"null"); if(x&&x.r){ Object.assign(PR,{r:prNorm(x.r), o:x.o, id:x.id||"", voices:x.voices||[], news:x.news||null, list:x.list||[], matiere:x.matiere||"", photos:x.photos||{}, photoQ:x.photoQ||{}, voiceCredit:x.voiceCredit||"", voiceName:x.voiceName||""}); if(PR.news) $("pr-news").innerHTML=prNewsHtml(); } }catch(e){}
 }
 async function prShow(){
   prInit();
   const sel=$("pr-voix"); if(!sel.options.length || sel.dataset.ready!=="1"){
     await genLoad(); const list=FAB.voices.gemini||[]; sel.innerHTML="";
-    (list.length?list:[{id:"Charon",name:"Charon",desc:"homme, voix posée"}]).forEach(v=>sel.append(new Option(`${v.name} · ${v.desc}`, v.id)));
-    sel.value=(PR.o&&PR.o.voix)||"Charon"; sel.dataset.ready=list.length?"1":"";
+    const gg=document.createElement("optgroup"); gg.label="Voix Gemini (gratuites dans la limite du jour)"; (list.length?list:[{id:"Charon",name:"Charon",desc:"homme, voix posée"}]).forEach(v=>gg.append(new Option(`${v.name} · ${v.desc}`, v.id))); sel.append(gg);
+    const lg=document.createElement("optgroup"); lg.label="Voix gratuites sur l'ordinateur (sans quota)"; LOCAL_VOICES.forEach(v=>lg.append(new Option(`${v.name} · ${v.desc} · gratuite`, "local:"+v.id))); sel.append(lg);
+    sel.value=(PR.o&&PR.o.voix)||"Charon"; if(!sel.value) sel.value="Charon"; sel.dataset.ready=list.length?"1":"";
   }
-  $("pr-try").hidden=$("pr-voix").disabled=!genApi||!FAB.status;
+  if(!genApi||!FAB.status) $("pr-voix").value="local:fr_FR-siwis-medium";   /* sans serveur ni Gemini : voix gratuite d'office */
   if(PR.r){ prRender(); prWatch(); }
 }
 function prNewsHtml(){
@@ -4207,8 +4251,9 @@ function prRender(){
     ${r.chiffre_du_jour.texte?`<div class="pr-seg"><b>Le chiffre du jour</b>${r.chiffre_du_jour.source?`<span class="hint">Source : ${esc(prSourceName(r.chiffre_du_jour.source))}</span>`:""}${ta("chiffre",r.chiffre_du_jour.texte,2)}</div>`:""}
     <div class="pr-seg"><b>Ce qu’il faut retenir et fin</b>${ta("a_retenir",r.a_retenir,1)}${ta("conclusion",r.conclusion,2)}${ta("appel",r.appel,1)}</div>
     <div class="actions"><button type="button" class="btn small" id="pr-improve"${sample?"":" disabled"}>✨ Rendre la revue encore plus forte</button><button type="button" class="btn small quiet" id="pr-copy">Copier le texte</button><button type="button" class="btn small quiet" id="pr-studio">En faire une vidéo</button></div>
-    <div class="block"><h4>La voix d’or</h4><p class="hint">${genApi&&FAB.status?`Voix « ${esc(($("pr-voix")||{}).value||"Charon")} », style grand présentateur. ${parts.length} parties lues en ${chunks.length} demande${chunks.length>1?"s":""} seulement, gratuitement avec ta clé Gemini.`:"La voix se fabrique sur ton ordinateur (Lancer Studio Prompt)."}</p>
-      <div class="actions"><button type="button" class="btn primary" id="pr-voice"${genApi&&FAB.status?"":" disabled"}>🎙️ ${done?"Refaire la voix":"Fabriquer la voix d’or"}</button><button type="button" class="btn" id="pr-play"${done?"":" hidden"}>▶ Écouter la voix seule</button><button type="button" class="btn small quiet" id="pr-dl"${all?"":" hidden"}>Télécharger la voix seule</button></div>
+    <div class="block"><h4>La voix d’or</h4><p class="hint">${PR.voiceName||/^local:/.test(($("pr-voix")||{}).value||"")?`Voix gratuite « ${esc(PR.voiceName||localVoice(String($("pr-voix").value).slice(6)).name)} », fabriquée sur ton ordinateur, sans quota.`:genApi&&FAB.status?`Voix « ${esc(($("pr-voix")||{}).value||"Charon")} », style grand présentateur. ${parts.length} parties lues en ${chunks.length} demande${chunks.length>1?"s":""} seulement, gratuitement avec ta clé Gemini. Si Google refuse, la voix gratuite de l'ordinateur prend le relais.`:"Voix gratuite fabriquée sur ton ordinateur, sans quota."}</p>
+      <div class="actions"><button type="button" class="btn primary" id="pr-voice"${LV.busy?" disabled":""}>🎙️ ${done?"Refaire la voix":"Fabriquer la voix d’or"}</button><button type="button" class="btn" id="pr-play"${done?"":" hidden"}>▶ Écouter la voix seule</button><button type="button" class="btn small quiet" id="pr-dl"${all?"":" hidden"}>Télécharger la voix seule</button></div>
+      <p class="hint" id="pr-local-msg"></p>${PR.voiceCredit&&PR.voices.some(v=>v.local)?`<p class="hint">📝 À mettre dans la description de la vidéo : ${esc(PR.voiceCredit)}.</p>`:""}
       <div id="pr-voices">${(PR.voices.length?PR.voices.map(x=>({ks:prKs(x)})):chunks).map(c=>{ const ks=prKs(c); return `<div class="genv-line"><span class="hint"><b>${esc([...new Set(ks.map(k=>(parts[k]||[])[0]).filter(Boolean))].join(" · "))}</b></span>${voiceOf(ks[0])}</div>`; }).join("")}</div>
       <div class="pr-mix"><h4>La fusion finale</h4>
         <p class="hint">${all?"Jingle d’ouverture, transition sonore entre chaque sujet, musique de fond qui baisse quand la voix parle, fin signée : tout est composé sur ton ordinateur, gratuitement.":"Fabrique d’abord la voix d’or : la fusion assemble ensuite toute l’émission."}</p>
@@ -4223,7 +4268,7 @@ function prRender(){
       <div class="pr-row"><div class="field"><label for="pr-vformat">Format</label><div class="sel"><select id="pr-vformat"><option value="9:16">9:16 · TikTok, Shorts, Reels</option><option value="16:9">16:9 · YouTube</option></select></div></div><label class="check"><input type="checkbox" id="pr-vsubs" checked><span>Sous-titres incrustés</span></label></div>
       <div class="actions"><button type="button" class="btn primary" id="pr-video"${PR.mixBlob&&PR.mixPlan?"":" disabled"}>🎬 Créer la vidéo</button><button type="button" class="btn" id="pr-video-stop" hidden>Arrêter</button><span class="hint" id="pr-video-msg"></span></div>
       <div id="pr-video-out"></div></div>
-    ${r.publication.titres.length?`<div class="block"><h4>Publication</h4><ol class="plain">${r.publication.titres.map(t=>`<li>${esc(t)}</li>`).join("")}</ol>${r.publication.description?`<p>${esc(r.publication.description)}</p>`:""}${r.publication.hashtags.length?`<p class="hint">${esc(r.publication.hashtags.join(" "))}</p>`:""}</div>`:""}
+    ${r.publication.titres.length?`<div class="block"><h4>Publication</h4><ol class="plain">${r.publication.titres.map(t=>`<li>${esc(t)}</li>`).join("")}</ol>${r.publication.description?`<p>${esc(r.publication.description)}</p>`:""}${PR.voiceCredit&&PR.voices.some(v=>v.local)?`<p class="hint">${esc(PR.voiceCredit)}</p>`:""}${r.publication.hashtags.length?`<p class="hint">${esc(r.publication.hashtags.join(" "))}</p>`:""}</div>`:""}
     ${r.a_verifier.length?`<div class="alert"><b>À vérifier avant de publier :</b><ul class="plain">${r.a_verifier.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:""}
     ${(PR.o&&PR.o.sources||[]).length?`<details class="fix"><summary>Sources utilisées (${PR.o.sources.length})</summary><div class="fix-body"><ul class="plain">${PR.o.sources.map(s=>`<li>${esc(prSourceName(s.source||s.site||""))} · ${s.link||s.url?`<a href="${esc(s.link||s.url)}" target="_blank" rel="noopener">${esc(s.title||s.link||s.url)}</a>`:esc(s.title||"")}</li>`).join("")}</ul></div></details>`:""}
   </div></section>`;
@@ -4259,7 +4304,7 @@ async function prWrite(e){
     showStatus("pr-","L'agent choisit les sujets et écrit la revue…",false,40);
     const r=prFinish(await sample.json(prPrompt(matiere,o),{modelTier:"default",signal:PR.ctl.signal}), o);
     if(!r.segments.length) throw {code:"server_error", message:"La revue est vide : réessaie, ou ajoute des infos."};
-    Object.assign(PR,{r, o, id:"presse-"+Date.now().toString(36), voices:[], matiere, mixUrl:"", mixPlan:null, mixBlob:null, photos:{}, photoRes:{}, photoQ:{}}); prSave();
+    Object.assign(PR,{r, o, id:"presse-"+Date.now().toString(36), voices:[], matiere, mixUrl:"", mixPlan:null, mixBlob:null, photos:{}, photoRes:{}, photoQ:{}, voiceCredit:"", voiceName:""}); prSave();
     $("pr-status").hidden=true; prRender(); $("pr-res").scrollIntoView({behavior:"smooth", block:"start"});
   }catch(err){ if(err&&err.code==="cancelled") $("pr-status").hidden=true; else showStatus("pr-",err&&err.message&&!ERR[err.code]?err.message:errText(err),true); }
   finally{ $("pr-go").disabled=false; $("pr-stop").hidden=true; PR.ctl=null; }
@@ -4271,9 +4316,22 @@ async function prImprove(btn){
     Object.assign(PR,{r, voices:[], mixUrl:"", mixPlan:null, mixBlob:null, photos:{}, photoRes:{}, photoQ:{}, id:"presse-"+Date.now().toString(36)}); prSave(); prRender(); toast("Revue relue et renforcée : écoute-la, puis fabrique la voix.");
   }catch(err){ toast(err&&err.message&&!ERR[err.code]?err.message:errText(err)); btn.disabled=false; btn.textContent="✨ Rendre la revue encore plus forte"; }
 }
+/* Voix gratuite sur l'ordinateur : une partie après l'autre, prête sans quota (relais automatique quand Google refuse) */
+async function prVoiceLocal(voiceId, auto){
+  if(!PR.r||LV.busy) return; LV.busy=true; prReadEdits();
+  const parts=prParts(PR.r), lv=localVoice(voiceId), say=t=>{ const e=$("pr-local-msg"); if(e) e.textContent=t; };
+  Object.assign(PR,{voices:[], mixUrl:"", mixBlob:null, mixPlan:null, voiceCredit:lv.credit, voiceName:lv.name}); prSave(); prRender(); say(auto?"Quota de Google atteint : la voix gratuite de l'ordinateur prend le relais…":"Voix gratuite en préparation…");
+  try{ for(const [k,[,x]] of parts.entries()){ const out=await localSpeak(x, lv.id, PR.id, `revue-${k+1}-gratuite`, say);
+      PR.voices.push({c:k, k, ks:[k], text:x, status:"done", url:out.url, seconds:out.seconds, local:true}); prSave(); prRender(); say(`Voix gratuite : partie ${k+1} sur ${parts.length} prête…`); }
+    toast(auto?"Quota de Google atteint : la voix gratuite de l'ordinateur a pris le relais.":"Voix gratuite prête."); }
+  catch(err){ toast(`Voix gratuite impossible : ${String(err&&err.message||err).slice(0,120)}`); }
+  finally{ LV.busy=false; prSave(); prRender(); }
+}
 async function prVoice(){
-  if(!PR.r||!genApi) return; prReadEdits(); prSave();
-  const chunks=prChunks(prParts(PR.r)), voice=$("pr-voix").value||"Charon", style=PR_STYLE[(PR.o&&PR.o.ton)||"inspirant"]||PR_STYLE.inspirant;
+  if(!PR.r) return; const sel=$("pr-voix").value||"Charon"; PR.autoLocal=false;
+  if(/^local:/.test(sel)||!genApi) return prVoiceLocal(sel.replace(/^local:/,""));
+  prReadEdits(); prSave(); PR.voiceCredit=""; PR.voiceName="";
+  const chunks=prChunks(prParts(PR.r)), voice=sel, style=PR_STYLE[(PR.o&&PR.o.ton)||"inspirant"]||PR_STYLE.inspirant;
   PR.voices=[]; PR.mixUrl=""; PR.mixBlob=null; PR.mixPlan=null; $("pr-voice").disabled=true;
   for(const [c,ch] of chunks.entries()){
     try{ const {job}=await genApi.start({kind:"voice", service:"gemini", voice, text:ch.text, style, project:PR.id, plan:c+1, line:ch.ks[0], who:"_narr", base:`revue-${c+1}`}); PR.voices.push({c, k:ch.ks[0], ks:ch.ks, text:ch.text, job:job.id, status:job.status}); }
@@ -4286,6 +4344,7 @@ function prWatch(){
   PR.timer=setTimeout(async()=>{ try{ const {jobs}=await genApi.jobs(PR.id, ids); let ch=false;
       (jobs||[]).forEach(j=>{ const v=PR.voices.find(x=>x.job===j.id); if(v&&(v.status!==j.status||v.url!==(j.url||""))){ Object.assign(v,{status:j.status, url:j.url||"", seconds:j.seconds||0, error:j.error||""}); ch=true; } });
       if(ch){ prSave(); if(!$("view-presse").hidden) prRender(); } }catch(e){}
+    if(!PR.voices.some(v=>/queued|running/.test(v.status))&&PR.voices.some(v=>v.status==="failed"&&/Quota du jour/.test(v.error||""))&&!PR.autoLocal){ PR.autoLocal=true; const d=String(((FAB.voices.gemini||[]).find(x=>x.id===($("pr-voix")||{}).value)||{}).desc||""); prVoiceLocal(localFor(/^homme/.test(d)?"homme":"femme"), true); return; }   /* relais gratuit automatique */
     prWatch(); }, 1500);
 }
 function prPlayAll(){
@@ -4463,8 +4522,10 @@ $("pr-form").addEventListener("submit", prWrite);
 $("pr-stop").addEventListener("click",()=>{ if(PR.ctl) PR.ctl.abort(); });
 $("pr-fetch").addEventListener("click", prFetch);
 $("pr-try").addEventListener("click", async ()=>{
-  const out=$("pr-try-out"); if(!genApi) return; out.innerHTML=`<span class="hint">Essai…</span>`;
-  try{ let {job}=await genApi.start({kind:"voice", service:"gemini", voice:$("pr-voix").value, text:`Bonjour, et bienvenue dans ${$("pr-nom").value.trim()||"votre revue de presse"}. Voici l'essentiel de l'actualité du jour, ce qu'il faut savoir et pourquoi cela compte.`, style:PR_STYLE[$("pr-ton").value]||PR_STYLE.inspirant, project:"presse-essai", plan:0, base:"essai-presse"});
+  const out=$("pr-try-out"), sel=$("pr-voix").value, text=`Bonjour, et bienvenue dans ${$("pr-nom").value.trim()||"votre revue de presse"}. Voici l'essentiel de l'actualité du jour, ce qu'il faut savoir et pourquoi cela compte.`;
+  if(/^local:/.test(sel)||!genApi){ out.innerHTML=`<span class="hint">Voix gratuite en préparation…</span>`; try{ const x=await localSpeak(text, sel.replace(/^local:/,""), "presse-essai", "essai-presse-gratuite", t=>{ out.innerHTML=`<span class="hint">${esc(t)}</span>`; }); out.innerHTML=`<audio controls autoplay src="${esc(x.url)}"></audio>`; }catch(err){ out.innerHTML=`<span class="chip mid">${esc(String(err&&err.message||err))}</span>`; } return; }
+  out.innerHTML=`<span class="hint">Essai…</span>`;
+  try{ let {job}=await genApi.start({kind:"voice", service:"gemini", voice:sel, text, style:PR_STYLE[$("pr-ton").value]||PR_STYLE.inspirant, project:"presse-essai", plan:0, base:"essai-presse"});
     for(let k=0;k<120&&/queued|running/.test(job.status);k++){ await new Promise(r=>setTimeout(r,800)); job=((await genApi.jobs("presse-essai",[job.id])).jobs||[])[0]||job; }
     out.innerHTML=job.status==="done"?`<audio controls autoplay src="${esc(job.url)}"></audio>`:`<span class="chip mid">${esc(job.error||"Essai impossible pour le moment.")}</span>`; }
   catch(err){ out.innerHTML=`<span class="chip mid">${esc(err.message||errText(err))}</span>`; }

@@ -58,7 +58,15 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 - analyse vidéo : images clés et Whisper local ;
 - images : application Gemini puis « Importer », ou photos libres de droits ;
 - vidéos : Google Flow puis « Importer » ;
-- voix : quota gratuit de Gemini (une voix locale gratuite est à ajouter).
+- voix : quota gratuit de Gemini, puis **voix gratuite sur l'ordinateur** (Piper, voir ci-dessous).
+
+**Voix gratuite sur l'ordinateur** (`LOCAL_VOICES`, `localTts`, `localSpeak`, dans `index.html`) :
+- moteur Piper dans le navigateur (`@diffusionstudio/vits-web@1.0.3`, chargé depuis jsDelivr), sans clé, sans quota ; la première fois, la voix se télécharge (environ 60 Mo) puis reste en cache ;
+- le WAV produit est enregistré dans le projet par `genApi.upload` (même stockage que les autres voix) ; sa durée est lue dans l'en-tête (`wavSecs`) ;
+- voix proposées : Siwis (femme, CC BY 4.0), UPMC (CC BY-SA 4.0), MLS (CC BY 4.0), Gilles (homme, CC0). « Tom » est écartée (licence AGPL). Le crédit exigé par la licence est ajouté à la description à copier (`localCredits` pour un projet, `PR.voiceCredit` pour la revue) ;
+- revue de presse : choix direct (`local:<voix>`) ou **relais automatique** quand les voix Gemini échouent avec « Quota du jour » (`prWatch` → `prVoiceLocal`, même genre que la voix choisie) ; sans serveur, la voix gratuite est choisie d'office ;
+- onglet Paroles : voix gratuites dans la distribution (`local|<voix>`), essai, et bouton « Refaire ces voix gratuitement » (`genVoicesFree`) : chaque personnage refusé passe sur une voix gratuite du même genre et **tous** ses plans sont refaits, pour garder une seule voix par personnage ;
+- tests : `window.__localTtsMock` remplace le moteur (aucun téléchargement).
 
 **Utiliser le cerveau de l'agent** : toute nouvelle fonction réutilise les briques existantes (Director V4, `keyframePrompt` et le compilateur, fiches des personnages, `learningBlock`, critiques) plutôt que des consignes isolées.
 
@@ -411,6 +419,7 @@ Ce que le code corrige :
 | `fab-ui-test.js` | Interface de fabrication avec un vrai `server.js` (`GEN_DIR` séparé) : voix par personnage, essai, voix d'un plan ou de tout le projet, imports groupés d'images et de clips, pré-montage, page Connexions |
 | `video-analyze-test.js` | Vrai `server.js` face à un faux Google : envoi reprenable, état ACTIVE, images/s, mode agentic en flux, schéma, suppression, quota, format refusé |
 | `remake-test.js` | Page « Depuis une vidéo » : vraie petite vidéo, rapport, transcription, découpage, reconstruction, quota épuisé |
+| `voix-gratuite-test.js` | Voix gratuite sur l'ordinateur face à un faux Google sans quota : relais automatique de la revue, choix direct, essai, fusion, crédit de licence, reprise ; onglet Paroles (refaire gratuitement, une voix par personnage, crédit YouTube) ; Connexions |
 | `../tests/director-pipeline.test.js` | Contrôles de structure de l'autre assistant (`npm test` à la racine) |
 | `v4-prompts-test.js` | Prompts réellement affichés pour 8 styles × 3 outils : ni lampes, ni LED, ni figurants, ni micro-mouvements ; un seul mouvement de caméra ; état de fin transmis |
 | `long-mock-test.js` | Vidéo de 5 min : 20 scènes, maximum de plans V4, lots, compilation, docteur des dialogues, aucun `${` envoyé à l'IA |
