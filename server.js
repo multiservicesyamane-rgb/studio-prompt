@@ -201,10 +201,11 @@ CLASSEMENT POUR STUDIO PROMPT : ajoute dans overview "video_type" = l'identifian
 }
 async function handleImageGenerate(req,res){
   const IMG_KEY=gen.mediaKey;   /* clé du projet payant si elle existe (GEMINI_MEDIA_API_KEY), sinon la clé principale */
-  if(!IMG_KEY) return sendJson(res,400,{code:"no_key",message:"La génération automatique d'images nécessite GEMINI_API_KEY dans .env."});
   let input; try{ input=JSON.parse(await readBody(req,38e6)); }catch(e){ return sendJson(res,400,{code:"bad_request",message:"Requête image illisible ou trop volumineuse."}); }
   const prompt=String(input.prompt||"").trim(); if(prompt.length<20) return sendJson(res,400,{code:"bad_request",message:"Prompt image manquant."});
   const refs=(Array.isArray(input.references)?input.references:[]).slice(0,4).filter(x=>x&&/^image\/(png|jpeg|webp)$/.test(String(x.mime))&&typeof x.data==="string"&&x.data.length<9e6);
+  if(input.provider==="gpt") return handleGptImage(res,input,prompt);   /* relais GPT Image quand Manus et Nano Banana ne sont pas disponibles */
+  if(!IMG_KEY) return sendJson(res,400,{code:"no_key",message:"La génération automatique d'images nécessite GEMINI_API_KEY dans .env."});
   const body={model:process.env.GEMINI_IMAGE_MODEL||"gemini-3.1-flash-image",input:[{type:"text",text:prompt},...refs.map(x=>({type:"image",mime_type:x.mime,data:x.data}))],response_format:{type:"image",mime_type:"image/png",aspect_ratio:["1:1","16:9","9:16","4:5","3:4"].includes(input.aspectRatio)?input.aspectRatio:"9:16",image_size:process.env.GEMINI_IMAGE_SIZE||"1K"}};
   const charge=gen.reserve(gen.imagePrice); if(!charge.ok) return sendJson(res,402,{code:"budget",message:charge.message});
   const ctl=new AbortController(), timer=setTimeout(()=>ctl.abort(),Number(process.env.IMAGE_TIMEOUT_MS)||180000); let up;
@@ -217,6 +218,72 @@ async function handleImageGenerate(req,res){
   gen.billing(true); const project=safePart(input.projectId,"project"), shot=safePart(input.shotId,"P01"), dir=path.join(GENERATED,project); fs.mkdirSync(dir,{recursive:true});
   const file=path.join(dir,`${shot}.png`); fs.writeFileSync(file,Buffer.from(image.data,"base64"));
   return sendJson(res,200,{ok:true,shotId:shot,url:`/generated/${encodeURIComponent(project)}/${encodeURIComponent(shot)}.png`,model:body.model,references:refs.length});
+}
+/* Relais GPT Image (OpenAI, gpt-image-2) pour les images du Storyboard ; même enregistrement que Nano Banana */
+async function handleGptImage(res,input,prompt){
+  if(!OPENAI_KEY) return sendJson(res,400,{code:"no_key",message:"Pas de clé OpenAI dans le fichier .env pour GPT Image."});
+  const ar=String(input.aspectRatio||""), size=["9:16","3:4","4:5"].includes(ar)?"1024x1536":ar==="16:9"?"1536x1024":"1024x1024";
+  const charge=gen.reserve(gen.imagePrice); if(!charge.ok) return sendJson(res,402,{code:"budget",message:charge.message});
+  const ctl=new AbortController(), timer=setTimeout(()=>ctl.abort(),Number(process.env.IMAGE_TIMEOUT_MS)||180000);
+  const ask=model=>fetch(`${OPENAI_BASE.replace(/\/$/,"")}/images/generations`,{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json","Authorization":`Bearer ${OPENAI_KEY}`},body:JSON.stringify({model,prompt:prompt.slice(0,30000),size,n:1})});
+  let model=process.env.OPENAI_IMAGE_MODEL||"gpt-image-2", up, raw;
+  try{ up=await ask(model); raw=await up.json().catch(()=>({}));
+    if(!up.ok&&up.status===400&&/model/i.test(JSON.stringify(raw))&&model!=="gpt-image-1"){ model="gpt-image-1"; up=await ask(model); raw=await up.json().catch(()=>({})); } }
+  catch(e){ gen.refund(charge); return sendJson(res,502,{code:e&&e.name==="AbortError"?"timeout":"network",message:"GPT Image ne répond pas : réessaie."}); }
+  finally{ clearTimeout(timer); }
+  if(!up.ok){ gen.refund(charge); const m=String(raw&&raw.error&&raw.error.message||""), credit=up.status===429&&/quota|billing|credit/i.test(m)||/insufficient_quota|billing_hard_limit|credit/i.test(m);
+    return sendJson(res,credit?402:up.status,{code:credit?"no_credit":codeFor(up.status),message:credit?"Plus de crédits OpenAI pour GPT Image.":`Erreur GPT Image (${up.status}) ${m.slice(0,160)}`.trim()}); }
+  const b64=raw&&raw.data&&raw.data[0]&&raw.data[0].b64_json; if(!b64){ gen.refund(charge); return sendJson(res,502,{code:"invalid_image",message:"GPT Image n'a renvoyé aucune image : relance ce plan."}); }
+  const project=safePart(input.projectId,"project"), shot=safePart(input.shotId,"P01"), dir=path.join(GENERATED,project); fs.mkdirSync(dir,{recursive:true});
+  fs.writeFileSync(path.join(dir,`${shot}.png`),Buffer.from(b64,"base64"));
+  return sendJson(res,200,{ok:true,shotId:shot,url:`/generated/${encodeURIComponent(project)}/${encodeURIComponent(shot)}.png`,model,references:0});
+}
+/* ---------- Manus : suivi des tâches et récupération des images dans le projet (l'API ne prévient pas : on interroge) ---------- */
+const MANUS_BASE = () => (process.env.MANUS_BASE_URL || "https://api.manus.ai").replace(/\/$/, "");
+async function manusGet(pathq){
+  const key = (process.env.MANUS_API_KEY || "").trim(), ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);
+  try{ const r = await fetch(`${MANUS_BASE()}${pathq}`, {signal:ctl.signal, headers:{"x-manus-api-key":key}}); return {ok:r.ok, status:r.status, json:await r.json().catch(() => ({}))}; }
+  catch(e){ return {ok:false, status:0, json:{}}; } finally{ clearTimeout(t); }
+}
+/* Toutes les images jointes par Manus, où qu'elles soient dans les messages (type image, type MIME image/*, ou extension) */
+function manusImages(json){
+  const out = [], seen = new Set();
+  (function walk(x){ if(!x || typeof x !== "object") return; if(Array.isArray(x)){ x.forEach(walk); return; }
+    if(typeof x.url === "string" && /^https?:/.test(x.url) && (x.type === "image" || /^image\//.test(String(x.content_type || "")) || /\.(png|jpe?g|webp)$/i.test(String(x.filename || "")))){ const k = String(x.file_uid || x.version_uid || x.url); if(!seen.has(k)){ seen.add(k); out.push({id:k, filename:String(x.filename || ""), url:x.url}); } }
+    Object.values(x).forEach(walk); })(json);
+  return out;
+}
+async function manusInfo(taskId){
+  const q = encodeURIComponent(taskId), [d, m] = await Promise.all([manusGet(`/v2/task.detail?task_id=${q}`), manusGet(`/v2/task.listMessages?task_id=${q}&limit=200`)]);
+  const task = (d.json && d.json.task) || {}, errs = [];
+  (function walk(x){ if(!x || typeof x !== "object") return; if(Array.isArray(x)){ x.forEach(walk); return; } if(x.type === "error_message") errs.push(JSON.stringify(x.error_message || x).replace(/[{}"]/g, " ").replace(/\s+/g, " ").trim()); Object.values(x).forEach(walk); })(m.json);
+  return {ok:d.ok || m.ok, http:d.status || m.status, status:String(task.status || (errs.length ? "error" : "running")), credits:Number(task.credit_usage) || 0, title:String(task.title || ""), images:manusImages(m.json), error:errs.join(" · ").slice(0, 300)};
+}
+async function handleManusStatus(req, res){
+  if(!(process.env.MANUS_API_KEY || "").trim()) return sendJson(res, 400, {code:"no_key", message:"La clé MANUS_API_KEY est manquante dans votre fichier .env."});
+  const id = String(new URL(req.url, "http://x").searchParams.get("task_id") || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80);
+  if(!id) return sendJson(res, 400, {code:"bad_request", message:"Tâche Manus inconnue."});
+  const info = await manusInfo(id);
+  if(!info.ok) return sendJson(res, info.http === 401 || info.http === 403 ? 401 : 502, {code:info.http === 401 || info.http === 403 ? "bad_key" : "network", message:info.http === 401 || info.http === 403 ? "Clé Manus refusée : vérifie MANUS_API_KEY dans le fichier .env." : "Manus ne répond pas : nouvel essai dans un instant."});
+  sendJson(res, 200, info);
+}
+/* Télécharge les nouvelles images d'une tâche dans le projet ; le numéro du plan vient du nom du fichier (P01, plan 2…) */
+async function handleManusImport(req, res){
+  let input; try{ input = JSON.parse(await readBody(req, 50000)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible."}); }
+  const id = String(input.task_id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80); if(!id) return sendJson(res, 400, {code:"bad_request", message:"Tâche Manus inconnue."});
+  const skip = new Set(Array.isArray(input.skip) ? input.skip.map(String) : []), info = await manusInfo(id), key = (process.env.MANUS_API_KEY || "").trim(), out = [];
+  const project = safePart(input.project, "project"), dir = path.join(GENERATED, project); fs.mkdirSync(dir, {recursive:true});
+  for(const im of info.images.filter(x => !skip.has(x.id)).slice(0, 60)){
+    try{ let url; try{ url = new URL(im.url); }catch(e){ continue; } if(privateHost(url.hostname) && !process.env.NEWS_ALLOW_LOCAL) continue;
+      let r = await fetch(url, {redirect:"follow"}); if(r.status === 401 || r.status === 403) r = await fetch(url, {redirect:"follow", headers:{"x-manus-api-key":key}});
+      const type = String(r.headers.get("content-type") || "").split(";")[0], ext = {"image/jpeg":"jpg", "image/png":"png", "image/webp":"webp"}[type] || (im.filename.match(/\.(png|jpe?g|webp)$/i) || [])[1];
+      const buf = Buffer.from(await r.arrayBuffer()); if(!r.ok || !ext || buf.length < 500 || buf.length > 25e6) continue;
+      const m = im.filename.match(/(?:^|[^a-z0-9])(?:p|plan|shot|scene|sc[eè]ne)[\s_-]*0*(\d{1,3})(?![0-9])/i) || im.filename.match(/^0*(\d{1,3})(?![0-9])/), plan = m ? Number(m[1]) : null;
+      const name = `${plan ? "P" + String(plan).padStart(2, "0") : "manus"}-manus-${Date.now().toString(36)}${out.length}.${String(ext).toLowerCase().replace("jpeg", "jpg")}`;
+      fs.writeFileSync(path.join(dir, name), buf); out.push({id:im.id, filename:im.filename, plan, url:`/generated/${project}/${name}`});
+    }catch(e){}
+  }
+  sendJson(res, 200, {status:info.status, images:out});
 }
 async function handleManusTask(req,res){
   const key = process.env.MANUS_API_KEY ? process.env.MANUS_API_KEY.trim() : "";
@@ -240,8 +307,8 @@ async function handleManusTask(req,res){
     const data = await resp.json().catch(() => ({}));
     if(!resp.ok){
       const raw = (data && data.error && data.error.message) || data.message || "";
-      const errM = /at most \d+ estimated tokens|too long|too many tokens/i.test(raw) ? "Demande trop longue pour Manus : envoie moins de plans à la fois." : resp.status === 401 || resp.status === 403 ? "Clé Manus refusée : vérifie MANUS_API_KEY dans le fichier .env." : /credit|quota|insufficient/i.test(raw) ? "Plus assez de crédits Manus pour cette tâche." : raw || `Erreur Manus (${resp.status})`;
-      return sendJson(res, resp.status, {code:"manus_error", message: errM});
+      const errM = /at most \d+ estimated tokens|too long|too many tokens/i.test(raw) ? "Demande trop longue pour Manus : envoie moins de plans à la fois." : resp.status === 401 || resp.status === 403 ? "Clé Manus refusée : vérifie MANUS_API_KEY dans le fichier .env." : /credit|quota|insufficient/i.test(raw) || resp.status === 402 ? "Plus assez de crédits Manus pour cette tâche." : raw || `Erreur Manus (${resp.status})`;
+      return sendJson(res, resp.status, {code:/crédits Manus/.test(errM) ? "no_credit" : "manus_error", message: errM});
     }
     const taskId = data.task_id || data.id || data.data?.task_id || data.data?.id;
     return sendJson(res, 200, {
@@ -606,6 +673,8 @@ http.createServer((req, res) => {
   if(req.method === "POST" && req.url.startsWith("/api/news/read")) return handleNewsRead(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de l'article impossible."}); });   /* /api/gen/* (vidéos, voix, imports, budget) et lecture des fichiers de /generated/ */
   if(req.method === "POST" && req.url.startsWith("/api/video/analyze")) return handleVideoAnalyze(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant l'analyse vidéo."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/images/generate")) return handleImageGenerate(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant la génération de l'image."}); else res.end(); });
+  if(req.method === "GET" && req.url.startsWith("/api/manus/status")) return handleManusStatus(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Suivi Manus indisponible."}); });
+  if(req.method === "POST" && req.url.startsWith("/api/manus/import")) return handleManusImport(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Import des images Manus impossible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/manus/task")) return handleManusTask(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Erreur interne pendant l'appel Manus."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/sample")) return handleSample(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Erreur interne du serveur."}); else res.end(); });
   if(req.method === "GET" || req.method === "HEAD") return serveStatic(req, res);

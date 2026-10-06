@@ -3596,7 +3596,7 @@ function renderProject(){
   $res.innerHTML = h;
   const TAB_OF_SECTION = {"s-paroles":"paroles","s-plans":"plans","s-board":"board","s-perso":"perso","s-cut":"cut","s-special":"special","s-brief":"brief","s-creative":"brief","s-pipeline":"brief","s-realisation":"brief","s-hook":"brief","s-audio":"audio","s-montage":"montage","s-premont":"montage","s-yt":"yt","s-monet":"yt"};
   $res.querySelectorAll("section.section[id]").forEach(s=>{ if(TAB_OF_SECTION[s.id]) s.dataset.tab = TAB_OF_SECTION[s.id]; });
-  applyProjView();
+  applyProjView(); manusEnsure();
   fillSelect($("v-outil"),"outil",view.outil,val=>{ view.outil=val; savePrefs({outil:val}); rerender("v-outil"); });
   fillSelect($("v-format"),"format",view.format,val=>{ view.format=val; rerender("v-format"); });
   fillSelect($("v-style"),"style",view.style,val=>{ view.style=val; rerender("v-style"); });
@@ -7000,22 +7000,60 @@ PLANS :
   if(cur.length) groups.push(cur);
   return groups.map((g,k)=>head(k+1,groups.length)+g.join("\n\n"));
 }
+/* Manus travaille dans son propre environnement : Studio Prompt interroge ses tâches et range chaque image prête dans son plan */
+const MANUS={timer:null};
+const manusPending = r => (r&&r.manus_tasks||[]).filter(t=>!t.done);
+function manusEnsure(now){ if(!current||!manusPending(current.result).length){ manusStatusLine(); return; } manusStatusLine(); if(MANUS.timer&&!now) return; clearTimeout(MANUS.timer); MANUS.timer=setTimeout(manusTick, now?2500:(window.__manusPoll||15000)); }
+function manusStatusLine(){
+  const st=$("board-status"), txt=$("board-status-text"), list=current&&current.result.manus_tasks||[]; if(!st||!txt||!list.length) return;
+  const recent=list.filter(t=>!t.done||Date.now()-t.at<6*3600e3); if(!recent.length) return;
+  const label={running:"en cours", waiting:"attend ta réponse (ouvre la tâche)", stopped:"terminée", error:"erreur"};
+  st.hidden=false; st.classList.remove("err");
+  txt.innerHTML=`🤖 <b>Manus</b> · ${recent.map(t=>`${t.of>1?`partie ${t.part} : `:""}${esc(label[t.status]||t.status||"en cours")}${t.got&&t.got.length?` · ${t.got.length} image${t.got.length>1?"s":""} reçue${t.got.length>1?"s":""}`:""}${t.status==="error"&&t.error?` (${esc(clip(t.error,90))})`:""} · <a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">ouvrir →</a>`).join(" | ")}${manusPending(current.result).length?`<br><span class="hint">Les images arrivent toutes seules dans leur plan dès que Manus les termine.</span>`:""}`;
+}
+async function manusTick(){
+  MANUS.timer=null; const proj=current; if(!proj||proj.isExample) return; const r=proj.result; let changed=false, fresh=0;
+  for(const t of manusPending(r)){
+    try{ const res=await fetch(`/api/manus/status?task_id=${encodeURIComponent(t.id)}`), s=await res.json().catch(()=>({})); if(!res.ok) continue;
+      t.status=s.status; t.credits=s.credits||0; t.error=s.error||""; t.got=t.got||[]; changed=true;
+      if((s.images||[]).some(im=>!t.got.includes(im.id))){
+        const imp=await fetch("/api/manus/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task_id:t.id, project:proj.id||slug(r.titre), skip:t.got})}), x=await imp.json().catch(()=>({}));
+        (x.images||[]).forEach(im=>{ t.got.push(im.id); const plans=r.plans||[]; r.generated_images=r.generated_images||{};
+          let n=plans.some(p=>p.n===im.plan)?im.plan:null;
+          if(n==null){ const free=plans.find(p=>!(r.generated_images[String(p.n)]&&r.generated_images[String(p.n)].url)); n=free?free.n:null; }   /* fichier sans numéro : premier plan sans image */
+          if(n!=null){ r.generated_images[String(n)]={url:im.url, model:"Manus AI", at:Date.now(), manus:t.id}; fresh++; } }); }
+      if(s.status==="stopped"||s.status==="error") t.done=true;
+    }catch(e){}
+  }
+  if(changed){ proj.updatedAt=Date.now(); await saveProject(proj,{quiet:true}); }
+  if(current===proj){
+    if(fresh){ const tab=pv.tab; renderProject(); projTab(tab); toast(`${fresh} image${fresh>1?"s":""} de Manus rangée${fresh>1?"s":""} dans le Storyboard.`); }
+    const broke=(r.manus_tasks||[]).find(t=>t.done&&t.status==="error"&&/credit|crédit|quota/i.test(t.error||"")&&!t.relais);
+    if(broke){ broke.relais=true; await saveProject(proj,{quiet:true}); toast("Manus n'a plus de crédits : relais Nano Banana, puis GPT Image, pour les plans sans image."); await generateBoardImages(true); }
+    manusEnsure();
+  }
+}
 let boardCtl=null;
 async function boardPart(file){ const u=new Uint8Array(await file.arrayBuffer()); let bin=""; for(let i=0;i<u.length;i+=0x8000) bin+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return {mime:file.type||"image/jpeg",data:btoa(bin)}; }
 async function generateBoardImages(onlyMissing,oneIndex){
   if(!current||current.isExample) return; const r=current.result, plans=r.plans||[], input=$("board-refs"), files=input&&input.files?Array.from(input.files).slice(0,4):[];
   const refs=await Promise.all(files.map(boardPart)), todo=plans.map((p,i)=>({p,i})).filter(x=>oneIndex!=null?x.i===oneIndex:!onlyMissing||!(r.generated_images&&r.generated_images[String(x.p.n)]&&r.generated_images[String(x.p.n)].url));
   if(!todo.length){ toast("Toutes les images sont déjà prêtes."); return; }
-  boardCtl=new AbortController(); const stop=$("board-stop"); if(stop) stop.hidden=false; r.generated_images=r.generated_images||{}; let ok=0,failed=0;
+  boardCtl=new AbortController(); const stop=$("board-stop"); if(stop) stop.hidden=false; r.generated_images=r.generated_images||{}; let ok=0,failed=0,provider="gemini",abortMsg="";
   for(let k=0;k<todo.length;k++){
     if(boardCtl.signal.aborted) break; const {p}=todo[k], shot=`P${String(p.n).padStart(2,"0")}`; showStatus("board-",`${shot} · image ${k+1} sur ${todo.length}…`,false,Math.round(100*k/todo.length));
     try{
-      const res=await fetch("/api/images/generate",{method:"POST",headers:{"Content-Type":"application/json"},signal:boardCtl.signal,body:JSON.stringify({projectId:current.id||slug(r.titre),shotId:shot,prompt:keyframePrompt(r,p,view)+" Preserve the exact identity, face, hair, body type and wardrobe of every supplied character reference. This is one clean start frame, not a collage or storyboard sheet.",aspectRatio:view.format,references:refs})});
-      const out=await res.json().catch(()=>({})); if(!res.ok||!out.url) throw new Error(out.message||`Erreur ${res.status}`);
+      const ask=prov=>fetch("/api/images/generate",{method:"POST",headers:{"Content-Type":"application/json"},signal:boardCtl.signal,body:JSON.stringify({provider:prov,projectId:current.id||slug(r.titre),shotId:shot,prompt:keyframePrompt(r,p,view)+" Preserve the exact identity, face, hair, body type and wardrobe of every supplied character reference. This is one clean start frame, not a collage or storyboard sheet.",aspectRatio:view.format,references:refs})});
+      let res=await ask(provider), out=await res.json().catch(()=>({}));
+      if(!res.ok&&provider==="gemini"&&/billing|no_key/.test(out.code||"")){ provider="gpt"; showStatus("board-",`Nano Banana indisponible (${out.code==="billing"?"facturation Google non activée":"pas de clé"}) : relais GPT Image…`,false,Math.round(100*k/todo.length)); res=await ask(provider); out=await res.json().catch(()=>({})); }   /* relais d'images */
+      if(!res.ok&&/no_credit|no_key|billing|budget/.test(out.code||"")){ abortMsg=out.code==="budget"?out.message:`Aucun service d'images automatique disponible pour le moment (${out.message||"crédits épuisés"}). Méthode gratuite : crée les images dans l'application Gemini, puis dépose-les dans « Importer mes images ».`; break; }
+      if(!res.ok||!out.url) throw new Error(out.message||`Erreur ${res.status}`);
       r.generated_images[String(p.n)]={url:out.url,model:out.model,at:Date.now(),references:out.references}; ok++; current.updatedAt=Date.now(); await saveProject(current);
     }catch(err){ if(err&&err.name==="AbortError") break; r.generated_images[String(p.n)]={error:String(err.message||err),at:Date.now()}; failed++; }
   }
-  boardCtl=null; if(stop) stop.hidden=true; renderProject(); projTab("board"); toast(`${ok} image${ok>1?"s":""} prête${ok>1?"s":""}${failed?` · ${failed} à relancer`:""}.`);
+  boardCtl=null; if(stop) stop.hidden=true; renderProject(); projTab("board");
+  if(abortMsg){ showStatus("board-",abortMsg,true); toast(ok?`${ok} image${ok>1?"s":""} prête${ok>1?"s":""}, puis plus de service disponible.`:"Aucun service d'images disponible pour le moment."); }
+  else toast(`${ok} image${ok>1?"s":""} prête${ok>1?"s":""}${provider==="gpt"&&ok?" (GPT Image)":""}${failed?` · ${failed} à relancer`:""}.`);
 }
 document.addEventListener("click", async e=>{
   const t = e.target.closest("button,a");
@@ -7038,13 +7076,17 @@ document.addEventListener("click", async e=>{
         const rawTxt=await res.text(); let data;
         try{ data=JSON.parse(rawTxt); }catch(e){ data={ok:false, message:res.status===404||res.status===405?"Le serveur local doit être redémarré (ferme la fenêtre noire et relance 'Lancer Studio Prompt.bat').":`Réponse inattendue (${res.status}).`}; }
         if(!res.ok&&!links.length&&/trop longue/.test(data.message||"")&&size>2500){ size=Math.round(size/2); tasks=manusBoardPrompts(r,v,size); k=-1; continue; }   /* Manus trouve encore trop long : parties deux fois plus petites */
-        if(!res.ok||!data.ok) throw new Error(`${tasks.length>1?`partie ${k+1} : `:""}${data.message||"Erreur Manus"}`);
+        if(!res.ok||!data.ok) throw Object.assign(new Error(`${tasks.length>1?`partie ${k+1} : `:""}${data.message||"Erreur Manus"}`),{code:data.code});
         links.push(data);
       }
       if(bar) bar.style.width="100%";
-      if(stTxt) stTxt.innerHTML=`🚀 <b>${links.length>1?`${links.length} tâches Manus créées`:"Tâche Manus créée"}</b> : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700;text-decoration:underline">${links.length>1?`partie ${k+1}`:"ouvrir Manus"} →</a>`).join(" · ")}<br><span class="hint">Quand les images sont prêtes, télécharge-les (elles sont nommées P01, P02…) puis dépose-les toutes dans « Importer mes images » ci-dessus : chacune ira dans son plan.</span>`;
+      r.manus_tasks=(r.manus_tasks||[]).filter(x=>!x.done).concat(links.map((d,k)=>({id:d.task_id, url:d.url, part:k+1, of:links.length, at:Date.now(), status:"running", got:[]})));
+      proj.updatedAt=Date.now(); await saveProject(proj,{quiet:true}); manusEnsure(true);
+      if(stTxt) stTxt.innerHTML=`🚀 <b>${links.length>1?`${links.length} tâches Manus créées`:"Tâche Manus créée"}</b> : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700;text-decoration:underline">${links.length>1?`partie ${k+1}`:"ouvrir Manus"} →</a>`).join(" · ")}<br><span class="hint">Studio Prompt surveille Manus : chaque image prête arrive toute seule dans son plan, ci-dessous. Tu peux continuer à travailler.</span>`;
       toast(links.length>1?`${links.length} tâches Manus lancées.`:"Tâche Manus lancée avec succès !");
-    }catch(err){ if(stTxt) stTxt.innerHTML=`Erreur Manus : ${esc(err.message||String(err))}${links.length?` · déjà envoyées : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">partie ${k+1}</a>`).join(" · ")}`:""}`; toast("Erreur lors de l'envoi à Manus."); }
+    }catch(err){
+      if(err&&err.code==="no_credit"&&!links.length){ toast("Manus n'a plus de crédits : relais Nano Banana, puis GPT Image."); t.disabled=false; await generateBoardImages(true); return; }
+      if(stTxt) stTxt.innerHTML=`Erreur Manus : ${esc(err.message||String(err))}${links.length?` · déjà envoyées : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">partie ${k+1}</a>`).join(" · ")}`:""}`; toast("Erreur lors de l'envoi à Manus."); }
     finally{ t.disabled=false; }
     return;
   }

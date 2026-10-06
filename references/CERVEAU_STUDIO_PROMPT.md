@@ -51,6 +51,17 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 - Pas de faux témoignages.
 - Pas de conseil pour se faire passer pour un faux pays avec un VPN.
 
+**Toujours une alternative gratuite** (règle de l'utilisateur, 6 octobre 2026) : chaque page qui utilise un service payant ou limité propose un relais gratuit (automatique quand c'est possible, sinon une méthode à la main clairement expliquée). Exemples en place :
+- texte : relais des moteurs, puis Gemini gratuit ;
+- web : flux RSS ;
+- transcription : Whisper local ;
+- analyse vidéo : images clés et Whisper local ;
+- images : application Gemini puis « Importer », ou photos libres de droits ;
+- vidéos : Google Flow puis « Importer » ;
+- voix : quota gratuit de Gemini (une voix locale gratuite est à ajouter).
+
+**Utiliser le cerveau de l'agent** : toute nouvelle fonction réutilise les briques existantes (Director V4, `keyframePrompt` et le compilateur, fiches des personnages, `learningBlock`, critiques) plutôt que des consignes isolées.
+
 **Interface**
 - Français simple, pensée pour le téléphone d'abord (390 px), sans défilement horizontal.
 - Mode sombre et mode clair.
@@ -212,6 +223,12 @@ Règle des paroles :
 - Limite de Manus : 5 000 « tokens » par message. `manusBoardPrompts` envoie seulement les fiches des personnages et le prompt d'image de chaque plan (P01…), en tâches de 10 000 caractères au plus. Si Manus refuse encore, les parties sont deux fois plus petites et l'envoi recommence. Les images sont demandées nommées P01.png, P02.png…, pour l'import automatique. Test : `manus-test.js` (faux Manus, `MANUS_BASE_URL`).
 - Les images restent sur le site de Manus : l'utilisateur les télécharge puis les dépose avec « Importer mes images » (`genImportFiles`).
 - Les crédits Manus ne sont pas comptés dans le budget de sécurité de la fabrication.
+- **Images rapatriées toutes seules** :
+  - le serveur suit chaque tâche avec `/api/manus/status` (`task.detail` et `task.listMessages`, images trouvées dans les fichiers joints) ;
+  - `/api/manus/import` télécharge chaque nouvelle image dans le projet ; le numéro du plan vient du nom du fichier (P01, plan 2…), et une image sans numéro va au premier plan sans image ;
+  - côté page, `manusTick` passe toutes les 15 s et chaque image n'est importée qu'une fois ;
+  - une ligne d'état s'affiche dans le Storyboard, et le suivi reprend à l'ouverture du projet.
+- **Relais d'images** (`generateBoardImages`) : Manus sans crédits → Nano Banana → GPT Image (`provider:"gpt"`, gpt-image-2 puis gpt-image-1, compté dans le budget) → message clair avec la méthode gratuite (application Gemini puis « Importer mes images »).
 - `manus-mcp.js` : serveur MCP séparé, pour les agents d'Antigravity ; il n'est pas utilisé par l'application.
 
 ### 4.4 Autres ajouts du 5 octobre
