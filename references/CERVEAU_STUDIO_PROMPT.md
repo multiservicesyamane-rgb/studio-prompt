@@ -190,6 +190,14 @@ Règle des paroles :
 - avec la propre vidéo de l'utilisateur, les paroles sont verrouillées (`audioLockedOf`) ;
 - avec la vidéo d'un autre (`remakeSrc === "autre"`), elles servent seulement de contexte, et rien n'est recopié.
 
+**Étudier des vidéos YouTube à forte audience** (page « Depuis une vidéo », champ « Ou des liens YouTube à étudier », jusqu'à 5 liens ; demande de l'utilisateur du 6 octobre avec trois Shorts éducatifs de plus d'un milliard de vues chacun) :
+- `POST /api/video/analyze-url` : métadonnées publiques (`youtubeMeta` : oEmbed + page : titre, chaîne, vues, durée, date) puis analyse complète par Gemini **directement depuis le lien** (`fileData.fileUri`, sans téléchargement), avec la consigne partagée `videoAnalysisPrompt` et la consigne d'étude `learnPrompt` (objet `succes` : format, accroche, rythme, structure, visuel, son, texte à l'écran, boucle, titre et hashtags, public, pourquoi ça marche, leçons, idées originales) ;
+- relais des modèles : chaque modèle gratuit a son quota du jour (20 demandes pour gemini-2.5-flash le 6 octobre) ; `GEMINI_VIDEO_FALLBACKS` (par défaut gemini-3.5-flash-lite, gemini-3.1-flash-lite) lit aussi les liens YouTube, vérifié en vrai ;
+- secours gratuit : `GET /api/video/yt-frames` découpe les planches d'aperçu publiques de YouTube (environ une image par seconde, `ytFrames`) ; l'agent étudie alors ces images (`learnFramesPrompt`) et la reconstruction s'en sert comme de captures ;
+- `renderRmLearn` montre pour chaque vidéo pourquoi elle marche, les leçons (fusionnées sans doublon) à cocher et les idées originales ; « 🧠 Apprendre ces leçons à mon agent » les range dans la mémoire (`storeLesson`, `source:"modele"`, `cible:"strategie"`, origine = titre et vues), et le bloc `learningBlock(…, "strategie")` les injecte dans les idées, les histoires, la veille et la revue de presse ;
+- « Créer cette idée » envoie l'idée dans « Depuis une idée » avec le format gagnant (`rmFormatText`) et l'obligation d'un contenu entièrement nouveau ; « 2. Reconstruire » part de la première vidéo étudiée, toujours en mode « vidéo d'un autre » (réinventée), avec le format gagnant dans la demande ;
+- éthique : on apprend le savoir-faire, jamais le contenu ; les personnes réelles ne sont jamais identifiées ; aucun nom de chaîne ni de personne dans les leçons.
+
 ### 4.2 Entrée « Depuis des infos » (revue de presse)
 
 1. **Matière**, au choix :
@@ -458,6 +466,7 @@ Ce que le code corrige :
 | `remake-test.js` | Page « Depuis une vidéo » : vraie petite vidéo, rapport, transcription, découpage, reconstruction, quota épuisé |
 | `presse-unes-test.js` | Unes du jour face à une fausse page : recherche web, images en hauteur gardées, lecture des unes, une ancienne écartée, import de photos, nom corrigé à la main, titres dans la matière, vraie une avant les images et dans la vidéo |
 | `manus-clips-test.js` | Clips par Manus face à un faux Manus : prompts H3 et Seedance dans chaque plan (format officiel, paroles balisées, caméra), images de départ jointes, clips rapatriés dans leur plan, crédits épuisés → méthode gratuite |
+| `youtube-learn-test.js` | Étude de liens YouTube face à un faux YouTube et un faux Gemini : lien lu en entier, quota épuisé → images de la vidéo, leçons fusionnées et gardées en mémoire, idée originale avec le format gagnant, reconstruction réinventée, bloc « ce qui marche » |
 | `voix-gratuite-test.js` | Voix gratuite sur l'ordinateur face à un faux Google sans quota : relais automatique de la revue, choix direct, essai, fusion, crédit de licence, reprise ; onglet Paroles (refaire gratuitement, une voix par personnage, crédit YouTube) ; Connexions |
 | `../tests/director-pipeline.test.js` | Contrôles de structure de l'autre assistant (`npm test` à la racine) |
 | `v4-prompts-test.js` | Prompts réellement affichés pour 8 styles × 3 outils : ni lampes, ni LED, ni figurants, ni micro-mouvements ; un seul mouvement de caméra ; état de fin transmis |
