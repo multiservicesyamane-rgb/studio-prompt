@@ -416,6 +416,30 @@ async function handleNewsRead(req, res){
   if(text.length < 200) return sendJson(res, 422, {code:"bad_request", message:"Impossible d'extraire le texte de cet article (site protégé ou réservé aux abonnés) : copie le texte à la main."});
   sendJson(res, 200, {url:url.href, site:url.hostname.replace(/^www\./, ""), site_name:htmlDecode(meta("og:site_name")).trim().slice(0, 80), title, text, published:meta("article:published_time")});
 }
+/* Images d'une page (une page qui publie les unes du jour, par exemple) : liste filtrée, sans logos, icônes ni pixels de suivi */
+async function handleNewsImages(req, res){
+  let input; try{ input = JSON.parse(await readBody(req, 20000)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible."}); }
+  let url; try{ url = new URL(String(input.url || "").trim()); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Lien invalide : colle l'adresse complète de la page (https://…)."}); }
+  const blocked = u => !/^https?:$/.test(u.protocol) || (privateHost(u.hostname) && !process.env.NEWS_ALLOW_LOCAL);
+  if(blocked(url)) return sendJson(res, 400, {code:"bad_request", message:"Ce lien ne peut pas être lu."});
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000); let html = "", final = url;
+  try{ const r = await fetch(url, {signal:ctl.signal, redirect:"follow", headers:{"User-Agent":"Mozilla/5.0 (StudioPrompt)", "Accept-Language":"fr,en;q=0.8"}});
+    if(!r.ok) return sendJson(res, 502, {code:"server_error", message:`Le site a refusé la lecture (erreur ${r.status}) : enregistre les unes sur ton téléphone puis importe-les.`});
+    try{ final = new URL(r.url || url.href); }catch(e){} html = Buffer.from(await r.arrayBuffer()).slice(0, 4e6).toString("utf8"); }
+  catch(e){ return sendJson(res, 502, {code:"network", message:"Page injoignable : vérifie le lien, ou importe les photos des unes."}); }
+  finally{ clearTimeout(t); }
+  if(blocked(final)) return sendJson(res, 400, {code:"bad_request", message:"Ce lien ne peut pas être lu."});
+  const out = [], seen = new Set(), BAD = /logo|icon|favicon|avatar|sprite|banner|banniere|\bpub\b|advert|\/ads?\/|gravatar|emoji|placeholder|loader|pixel|tracking|blank\./i;
+  const add = (src, alt, w, h) => { src = htmlDecode(String(src || "").trim()); if(!src || /^data:/i.test(src)) return; let u; try{ u = new URL(src, final); }catch(e){ return; }
+    if(!/^https?:$/.test(u.protocol)) return; const k = u.href.split("#")[0];
+    if(seen.has(k) || BAD.test(k) || BAD.test(alt || "") || /\.(svg|gif)(\?|$)/i.test(u.pathname) || (w && w < 200) || (h && h < 200)) return;
+    seen.add(k); out.push({url:k, alt:htmlDecode(alt || "").replace(/\s+/g, " ").trim().slice(0, 140)}); };
+  for(const m of html.matchAll(/<img\b[^>]*>/gi)){ const tag = m[0], at = n => (tag.match(new RegExp(`\\s${n}=["']([^"']*)["']`, "i")) || [])[1] || "";
+    const set = at("data-srcset") || at("srcset"), best = set ? set.split(",").map(x => x.trim().split(/\s+/)).sort((a, b) => (parseInt(b[1]) || 0) - (parseInt(a[1]) || 0))[0][0] : "";
+    add(at("data-src") || at("data-lazy-src") || at("data-original") || best || at("src"), at("alt") || at("title"), parseInt(at("width")) || 0, parseInt(at("height")) || 0); }
+  const og = (html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i) || [])[1]; if(og) add(og, "", 0, 0);
+  sendJson(res, 200, {page:final.href, site:final.hostname.replace(/^www\./, ""), title:htmlDecode((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim().slice(0, 160), images:out.slice(0, 40)});
+}
 
 /* ---------- Photos réelles libres de droits (Openverse + Wikimedia Commons) : seulement les licences qui permettent un usage commercial ---------- */
 const OPENVERSE_BASE = (process.env.OPENVERSE_BASE || "https://api.openverse.org").replace(/\/$/, ""), COMMONS_BASE = (process.env.COMMONS_BASE || "https://commons.wikimedia.org").replace(/\/$/, "");
@@ -672,6 +696,7 @@ http.createServer((req, res) => {
   if(req.method === "GET" && req.url.startsWith("/api/news?")) return handleNews(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Actualités indisponibles pour le moment."}); });
   if(req.method === "GET" && req.url.startsWith("/api/photos?")) return handlePhotos(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Recherche de photos indisponible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/photos/import")) return handlePhotoImport(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Import de la photo impossible."}); });
+  if(req.method === "POST" && req.url.startsWith("/api/news/images")) return handleNewsImages(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de la page impossible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/news/read")) return handleNewsRead(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de l'article impossible."}); });   /* /api/gen/* (vidéos, voix, imports, budget) et lecture des fichiers de /generated/ */
   if(req.method === "POST" && req.url.startsWith("/api/video/analyze")) return handleVideoAnalyze(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant l'analyse vidéo."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/images/generate")) return handleImageGenerate(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant la génération de l'image."}); else res.end(); });
