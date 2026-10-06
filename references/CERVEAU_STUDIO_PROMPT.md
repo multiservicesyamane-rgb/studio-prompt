@@ -255,7 +255,22 @@ Règle des paroles :
   - côté page, `manusTick` passe toutes les 15 s et chaque image n'est importée qu'une fois ;
   - une ligne d'état s'affiche dans le Storyboard, et le suivi reprend à l'ouverture du projet.
 - **Relais d'images** (`generateBoardImages`) : Manus sans crédits → Nano Banana → GPT Image (`provider:"gpt"`, gpt-image-2 puis gpt-image-1, compté dans le budget) → message clair avec la méthode gratuite (application Gemini puis « Importer mes images »).
+- **Clips par Manus (MiniMax H3)** (demande de l'utilisateur, 6 octobre ; Manus lui a confirmé que MiniMax H3 est activé dans son compte, pas Seedance) :
+  - onglet Plans, carte « Clips par Manus · MiniMax H3 », bouton « 🎬 Créer les clips avec Manus » (`clips-manus-go`) ;
+  - `manusClipTasks` regroupe les plans sous la limite de Manus ; chaque plan porte sa durée (5 à 15 s), son prompt au format officiel H3 (`h3Prompt`) et, s'il existe, son image de départ du Storyboard ;
+  - `handleManusTask` accepte `files` : les images du projet (seulement sous `/generated/`, 19 Mo au plus) sont jointes au message en `file_data` (contenu « text » + « file » de l'API v2) ;
+  - `manusFiles` trouve images et vidéos dans les messages ; `/api/manus/import` télécharge aussi les vidéos (mp4, mov, webm ; 300 Mo au plus) ;
+  - `manusTick` range chaque clip dans `r.generated_videos[n]` (`model:"Manus · MiniMax H3"`), le clip sans numéro dans le premier plan de la tâche sans clip ; Video Critic et pré-montage les prennent comme les clips importés ;
+  - tâches marquées `kind:"video"` (ligne d'état dans les Plans, pas dans le Storyboard) ; sans crédits Manus : message avec la méthode gratuite (Google Flow ou application Hailuo avec les prompts « MiniMax H3 », puis « Importer mes clips »), jamais de relais payant automatique.
 - `manus-mcp.js` : serveur MCP séparé, pour les agents d'Antigravity ; il n'est pas utilisé par l'application.
+
+### 4.3 bis Adaptateurs MiniMax H3 et Seedance 2.5
+- Registre `MODEL_CAPABILITIES` (version `2026-10-06.local.3`) : entrées `minimax` et `seedance`, vérifiées le 6 octobre 2026, listées dans `adapter_models` et **pas** dans `supported_models` (le routage automatique des plans ne change pas).
+- Sources : MiniMax H3 = guide officiel de MiniMax (dépôt GitHub `MiniMax-AI/MiniMax-H3`, `.claude/skills/h3-prompt-writing/references/base-en.txt`) ; Seedance 2.5 = guide de fal.ai (aucun guide officiel de ByteDance trouvé), sorti le 31 juillet 2026.
+- `h3Prompt` : phrase d'alignement `<Picture 1>` quand l'image de départ existe, puis les trois champs `integrated_multimodal_description` / `overall_soundscape` / `non_diegetic_music` ; `[Shot N]` avec heure de coupe pour les plans à plusieurs prises ; caméra au vocabulaire officiel (`h3Camera` : type + amplitude + vitesse) ; paroles `Nom (S1) says, ton: <d>[French] mots exacts</d>` avec des identifiants de voix stables pour tout le projet (`h3Speakers`) ; voix off « says in an off-screen voiceover … lips remain completely closed » ; aucune consigne négative (H3 n'en tient pas compte) ; musique `N/A` (elle est ajoutée au montage).
+- `seedancePrompt` : FORMAT, REFERENCE ROLES (`@Image1` = image de départ), STARTING STATE, TIMELINE, CAMERA, CONTINUITY, AUDIO, ENDING STATE, CONSTRAINTS (Seedance accepte les interdits explicites).
+- Dans chaque plan, un bloc replié « Autres outils : MiniMax H3 · Seedance 2.5 » montre les deux prompts à copier (relais gratuit à la main).
+- Les deux adaptateurs suivent `MODEL_ADAPTER_CONTRACT` : ils traduisent le plan maître (cadrage, action, repères, caméra, lumière, son, paroles, état de fin) sans rien inventer.
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -438,6 +453,7 @@ Ce que le code corrige :
 | `video-analyze-test.js` | Vrai `server.js` face à un faux Google : envoi reprenable, état ACTIVE, images/s, mode agentic en flux, schéma, suppression, quota, format refusé |
 | `remake-test.js` | Page « Depuis une vidéo » : vraie petite vidéo, rapport, transcription, découpage, reconstruction, quota épuisé |
 | `presse-unes-test.js` | Unes du jour face à une fausse page : recherche web, images en hauteur gardées, lecture des unes, une ancienne écartée, import de photos, nom corrigé à la main, titres dans la matière, vraie une avant les images et dans la vidéo |
+| `manus-clips-test.js` | Clips par Manus face à un faux Manus : prompts H3 et Seedance dans chaque plan (format officiel, paroles balisées, caméra), images de départ jointes, clips rapatriés dans leur plan, crédits épuisés → méthode gratuite |
 | `voix-gratuite-test.js` | Voix gratuite sur l'ordinateur face à un faux Google sans quota : relais automatique de la revue, choix direct, essai, fusion, crédit de licence, reprise ; onglet Paroles (refaire gratuitement, une voix par personnage, crédit YouTube) ; Connexions |
 | `../tests/director-pipeline.test.js` | Contrôles de structure de l'autre assistant (`npm test` à la racine) |
 | `v4-prompts-test.js` | Prompts réellement affichés pour 8 styles × 3 outils : ni lampes, ni LED, ni figurants, ni micro-mouvements ; un seul mouvement de caméra ; état de fin transmis |
@@ -493,7 +509,7 @@ Par ordre de valeur pour l'utilisateur :
 4. **Stockage IndexedDB, puis en ligne** derrière `claude-shim.js`, pour avoir plus de place et retrouver ses projets sur le téléphone.
 5. **Pipeline d'écriture côté serveur** (les agents) pour les vidéos longues : reprise si l'onglet se ferme. La fabrication l'a déjà.
 6. **Boutons « Fabriquer la vidéo »** (Veo, Runway) dans l'interface, le jour où l'utilisateur active un service payant. Le serveur est prêt ; il faudra brancher le Video Critic automatique sur le clip reçu.
-7. Adaptateurs **Kling** et **Seedance**, avec des capacités documentées, une source officielle et une date de vérification.
+7. Adaptateur **Kling**, avec des capacités documentées, une source officielle et une date de vérification (MiniMax H3 et Seedance 2.5 : faits le 6 octobre, §4.3 bis). Plus tard : MiniMax H3 et Seedance comme outils de rédaction à part entière (aujourd'hui, l'histoire s'écrit pour Veo puis les adaptateurs traduisent).
 
 Idées de l'utilisateur (5 octobre), à faire avec la même méthode :
 8. **Temps forts d'un long match** (45 min et plus) : l'analyse complète (agentic) repère les moments les plus denses, et l'application propose les coupes, avec leur minutage, pour une vidéo courte.

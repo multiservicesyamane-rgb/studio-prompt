@@ -1443,8 +1443,9 @@ const WAN_GUIDE = `ADAPTATEUR WAN 3.0 :
    sont positives. Une absence de preuve vaut "unknown", jamais false ni true par déduction. */
 const MODEL_CAPABILITY_STATES = new Set([true,false,"conditional","unknown"]);
 const MODEL_CAPABILITIES = {
-  registry_version:"2026-10-04.local.2",
+  registry_version:"2026-10-06.local.3",
   supported_models:["veo","runway","wan"],
+  adapter_models:["minimax","seedance"],   /* adaptateurs pour les clips par Manus ou à copier ; pas dans le routage automatique */
   models:{
     veo:{
       label:"Veo 3.1",product_version:"3.1",doc_version:"local-veo-r1",verified_at:null,
@@ -1463,6 +1464,18 @@ const MODEL_CAPABILITIES = {
       source_file:"WAN3_PROMPTING_GUIDE.md",source_url:null,access_note:"WanGP ou service compatible ; le mode exact doit être confirmé.",
       capabilities:{t2v:true,i2v:true,references:"conditional",character_consistency:"conditional",camera_control:true,native_audio:"conditional",multi_shot:true,start_end_frames:"conditional",editing:"conditional",motion_low:true,motion_medium:"unknown",motion_high:"unknown",accessibility:"unknown"},
       limits:{max_references:null,durations:{status:"conditional",values:[5]},resolutions:{status:"unknown",values:[]}}
+    },
+    minimax:{
+      label:"MiniMax H3 (Hailuo 3.0)",product_version:"H3",doc_version:"official-h3-prompt-guide",verified_at:"2026-10-06",
+      source_file:null,source_url:"https://github.com/MiniMax-AI/MiniMax-H3 (.claude/skills/h3-prompt-writing/references/base-en.txt)",access_note:"Manus (MiniMax H3 activé dans le compte de l'utilisateur le 6 octobre 2026) ou application Hailuo.",
+      capabilities:{t2v:true,i2v:true,references:true,character_consistency:"conditional",camera_control:true,native_audio:true,multi_shot:true,start_end_frames:true,editing:"unknown",motion_low:true,motion_medium:"unknown",motion_high:"unknown",accessibility:"unknown"},
+      limits:{max_references:9,durations:{status:"conditional",values:[5,15]},resolutions:{status:"conditional",values:["768p","2K"]}}
+    },
+    seedance:{
+      label:"Seedance 2.5",product_version:"2.5",doc_version:"fal-seedance-2.5-guide",verified_at:"2026-10-06",
+      source_file:null,source_url:"https://fal.ai/learn/devs/seedance-2-5-prompting-guide",access_note:"Dreamina, Jimeng, BytePlus ModelArk ou plateformes partenaires ; pas activé dans le compte Manus de l'utilisateur (6 octobre 2026).",
+      capabilities:{t2v:true,i2v:true,references:true,character_consistency:true,camera_control:true,native_audio:true,multi_shot:true,start_end_frames:"unknown",editing:"conditional",motion_low:true,motion_medium:"unknown",motion_high:"unknown",accessibility:"unknown"},
+      limits:{max_references:30,durations:{status:true,values:[4,30]},resolutions:{status:"conditional",values:["480p","720p","4K"]}}
     }
   }
 };
@@ -1824,6 +1837,69 @@ function ingrPrompt(r, p, v){
   if(p.ambiance_en) parts.push("Mood: "+p.ambiance_en);
   parts.push(`Style: ${S.vid(pal(r))}, ${FMT(v.format)}, 24fps, 8 seconds`);
   return veoTail(r, p, v, parts);
+}
+/* ---------- Adaptateurs MiniMax H3 et Seedance 2.5 (clips par Manus, ou prompts à copier) ----------
+   Le plan maître reste verrouillé (MODEL_ADAPTER_CONTRACT) : seuls la syntaxe officielle, l'ordre et le vocabulaire changent. */
+const h3Secs = p => Math.max(5, Math.min(15, Math.round(planSecs(p))));
+const sdSecs = p => Math.max(4, Math.min(30, Math.round(planSecs(p))));
+const h3Look = v => ["anim3d","hybride3d","fruits"].includes(v.style) ? "3D CG" : v.style==="motion" ? "2D-animated" : "Live-action, cinematic";
+const isSung = v => ["enfants","clip"].includes(baseVtype(v.vtype));
+/* Identifiants de voix stables pour tout le projet (S1, S2…) : un personnage garde le même numéro dans tous les plans */
+function h3Speakers(r){ const ids={}; let n=0; (r.plans||[]).forEach(p=>{ const reps=(Array.isArray(p.repliques)?p.repliques:[]).filter(x=>x&&String(x.texte||"").trim()); (reps.length?reps.map(x=>x.locuteur||"_narr"):String(p.voix_off||"").trim()?[p.locuteur||"_narr"]:[]).forEach(w=>{ if(!ids[w]) ids[w]="S"+(++n); }); }); return ids; }
+/* Caméra au vocabulaire officiel de H3 : type de mouvement + amplitude + vitesse, en phrase naturelle */
+function h3Camera(cam){
+  const c=String(cam||"").trim().replace(/[.\s]+$/,""); if(!c||(CAM_STATIC.test(c)&&!CAM_MOVE.test(c))) return "The camera holds a static shot.";
+  const sp=/\b(slow|slowly|gentle|gently)\b/i.test(c)?" at slow speed":/\b(fast|quick|rapid|whip)\b/i.test(c)?" at fast speed":"", am=/\b(slight|subtle|small|gentle)\b/i.test(c)?" with small amplitude":/\b(wide|large|sweeping|big)\b/i.test(c)?" with large amplitude":"";
+  const M=[[/push(es)?[- ]?in|dolly[- ]?in|moves? in/i,"pushes in"],[/pull(s)?[- ]?(back|out)|dolly[- ]?(out|back)/i,"pulls out"],[/zoom(s|ing)?[- ]?in/i,"zooms in"],[/zoom(s|ing)?[- ]?out/i,"zooms out"],[/pan(s|ning)? left/i,"pans left"],[/pan(s|ning)? right/i,"pans right"],[/tilt(s|ing)? up/i,"tilts up"],[/tilt(s|ing)? down/i,"tilts down"],[/truck(s|ing)? left/i,"trucks left"],[/truck(s|ing)? right/i,"trucks right"],[/crane(s)? up|pedestal up|rises/i,"pedestals up"],[/crane(s)? down|pedestal down|lowers/i,"pedestals down"],[/arc|orbit/i,"moves in an arc shot around the subject"],[/track|follow|handheld|hand-held|steadicam/i,"follows the subject in a tracking shot"],[/\bpov\b/i,"shows the subject's POV"]];
+  const m=M.find(([re])=>re.test(c)); return m ? `The camera ${m[1]}${am}${sp} (${lc(c)}).` : `The camera: ${lc(c)}.`;
+}
+/* Paroles au format officiel de H3 : (S1) hors des balises, seulement la langue et les mots exacts dans <d>…</d> */
+function h3Lines(r,p,v,withImage){
+  if(v.audio!=="voice") return [];
+  const lang=LANG_EN[v.langue]||"French", ids=h3Speakers(r), tone=t=>String(t||"").trim().replace(/^[,\s]+|[.,;:\s]+$/g,""), verb=isSung(v)?"sings":"says";
+  const one=(who,text,t,first)=>{ const c=(r.personnages||[]).find(x=>x.id===who), id=ids[who||"_narr"]||"S1", tt=tone(t);
+    if(c){ const g=guessGender(c); return `${c.nom}${first?`, ${g==="femme"?"the woman":g==="homme"?"the man":"the character"} ${withImage?"in <Picture 1>":"described above"},`:""} (${id}) ${first?verb:"replies"}${tt?`, ${tt}`:""}: <d>[${lang}] ${text}</d>`; }
+    return `A warm narrator (${id}) ${verb} in an off-screen voiceover${tt?`, ${tt}`:""}: <d>[${lang}] ${text}</d> while every on-screen character's lips remain completely closed.`; };
+  const reps=(Array.isArray(p.repliques)?p.repliques:[]).filter(x=>x&&String(x.texte||"").trim());
+  if(reps.length) return reps.map((x,i)=>one(x.locuteur,String(x.texte).trim(),x.ton_en,i===0));
+  const line=String(p.voix_off||"").trim(); return line?[one(p.locuteur,line,p.voix_ton_en,true)]:[];
+}
+function h3Prompt(r,p,v,withImage){
+  const S=STYLES[v.style]||STYLES.realiste, cs=charsOf(r,p.personnages), b=beatsOf(p), multi=multiShot(p), secs=h3Secs(p), lines=h3Lines(r,p,v,withImage), dec=decorOf(r,p);
+  const who=cs.map(ficheMid).join("; and ");
+  const shots=[]; let s1=withImage
+    ? `${h3Look(v)}, the scene shown in <Picture 1> continues, preserving ${cs.length?"every character's face, hair, body and clothing, ":""}the setting, the lighting and the composition.`
+    : `${h3Look(v)}, ${lc(p.cadrage_en||"a medium shot")} frames ${who||lc(dec||"the scene").replace(/\.$/,"")}${who&&dec?`, in ${lc(dec).replace(/\.$/,"")}`:""}.`;
+  if(multi){
+    const cuts=b.length===2?[0,0.5]:b.length===3?[0,0.375,0.75]:[0,0.25,0.5,0.75], at=k=>{ const t=cuts[k]*secs; return `00:${String(Math.floor(t)).padStart(2,"0")}.${String(Math.round((t%1)*1000)).padStart(3,"0")}`; };
+    b.forEach((x,k)=>{ const ln=lines.filter((_,i)=>Math.min(b.length-1,Math.floor(i*b.length/Math.max(1,lines.length)))===k).join(" "); shots.push(k ? `[Shot ${k+1}] At ${at(k)}, the camera cuts to ${lc(sent(x))}.${ln?" "+ln:""}` : `[Shot 1] ${s1} ${sent(x)}${ln?" "+ln:""}`); });
+  } else {
+    const timed = b.length>=2 ? b.map((x,k)=>{ const a=Math.round(k*secs/b.length), z=Math.round((k+1)*secs/b.length); return `From ${a} to ${z} seconds, ${lc(sent(x))}.`; }).join(" ") : sent(p.action_en);
+    shots.push(`[Shot 1] ${s1} ${timed} ${h3Camera(cameraOne(p.camera_en))}${lines.length?" "+lines.join(" "):""}`);
+  }
+  const tail=[p.lumiere_en?`The light: ${lc(sent(p.lumiere_en))}.`:"", p.ambiance_en?`The mood stays ${lc(String(p.ambiance_en).replace(/\.$/,""))}.`:"", p.fin_en?`By the end of the shot, ${lc(sent(p.fin_en))}.`:"", `${sent(S.vid(pal(r)))} The frame stays clean, with natural anatomy, well-formed hands and the same faces and clothes in every frame.`].filter(Boolean).join(" ");
+  shots[shots.length-1]+=" "+tail;
+  const snd=String(p.son_en||"").trim().replace(/^sound of /i,"").replace(/^(SFX|Ambient noise)\s*:\s*/i,"");
+  const body=`integrated_multimodal_description: ${shots.join(" ")}\n\noverall_soundscape: ${snd?sent(snd.replace(/^./,m=>m.toUpperCase())):"Soft natural ambience of the setting continues underneath the action."}\n\nnon_diegetic_music: N/A`;
+  return withImage ? `For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\n${body}` : body;
+}
+/* Seedance 2.5 : format, rôle des références, état de départ, chronologie, caméra, continuité, son, état final, contraintes */
+function seedancePrompt(r,p,v,withImage){
+  const S=STYLES[v.style]||STYLES.realiste, cs=charsOf(r,p.personnages), b=beatsOf(p), multi=multiShot(p), secs=sdSecs(p), lang=LANG_EN[v.langue]||"French", tone=t=>String(t||"").trim().replace(/^[,\s]+|[.,;:\s]+$/g,"");
+  const L=["FORMAT", `${secs} seconds, ${v.format}, ${multi?"cuts only at the timestamps below":"single continuous take"}, real-time speed`];
+  if(withImage) L.push("", "REFERENCE ROLES", `@Image1 is the first frame of the shot: keep its composition, ${cs.length?"the characters' faces, hair, bodies and clothing, ":""}the setting and the lighting. Do not copy any text or logo from it.`);
+  L.push("", "STARTING STATE", joinS([`${p.cadrage_en||"Medium shot"}${cs.length?` featuring ${cs.map(ficheMid).join("; and ")}`:""}`, decorOf(r,p)?`Setting: ${decorOf(r,p)}`:"", p.depart_en||""]));
+  L.push("", "TIMELINE"); if(b.length>=2) b.forEach((x,k)=>L.push(`${Math.round(k*secs/b.length)}-${Math.round((k+1)*secs/b.length)} seconds: ${sent(x)}`)); else L.push(`0-${secs} seconds: ${sent(p.action_en)}`);
+  L.push("", "CAMERA", cameraOne(p.camera_en)?sent(cameraOne(p.camera_en)):"Locked camera, no camera movement.");
+  L.push("", "CONTINUITY", `${cs.length?`${cs.map(c=>c.nom).join(" and ")} ${cs.length>1?"keep":"keeps"} exactly the same face, hair, body and clothing for the whole shot. `:""}${p.lumiere_en?`Lighting: ${sent(p.lumiere_en)} `:""}Style: ${sent(S.vid(pal(r)))}`);
+  const reps=(Array.isArray(p.repliques)?p.repliques:[]).filter(x=>x&&String(x.texte||"").trim()), who=id=>((r.personnages||[]).find(c=>c.id===id)||{}).nom;
+  const say=(id,text,t)=>{ const n=who(id), tt=tone(t), q=String(text).trim().replace(/"/g,"'"); return n?`${n} ${isSung(v)?"sings":"says"} in ${lang}${tt?`, ${tt}`:""}: "${q}"`:`Off-screen narrator voiceover in ${lang}${tt?`, ${tt}`:""}: "${q}" Nobody on screen speaks.`; };
+  const talk=v.audio!=="voice"?[]:reps.length?reps.map(x=>say(x.locuteur,x.texte,x.ton_en)):String(p.voix_off||"").trim()?[say(p.locuteur,p.voix_off,p.voix_ton_en)]:[];
+  const snd=String(p.son_en||"").trim().replace(/^sound of /i,"").replace(/^(SFX|Ambient noise)\s*:\s*/i,"");
+  L.push("", "AUDIO", [talk.length?`${talk.join(" ")}${talk.some(x=>!/^Off-screen narrator/.test(x))?" Only the speaking character moves their lips; everyone else keeps their mouth closed.":""}`:"No dialogue.", snd?`Sound: ${sent(snd)}`:"", "No music."].filter(Boolean).join(" "));
+  if(p.fin_en) L.push("", "ENDING STATE", sent(p.fin_en));
+  L.push("", "CONSTRAINTS", "No subtitles, no on-screen text, no logos, no watermarks, no slow motion, no extra people, no identity or clothing changes, no duplicated props; natural anatomy and well-formed hands.");
+  return L.join("\n");
 }
 /* Mode réellement utilisé : les photos de référence n'existent que pour Veo 3.1 */
 const vmodeOf = v => (v.vmode==="ingr" && !isVeo(v)) ? "both" : (v.vmode||"both");
@@ -3560,6 +3636,7 @@ function renderProject(){
       ? `<li>${ktag("image")}<span><b>Une seule fois :</b> crée la photo de référence de chaque personnage (onglet Personnages).</span></li><li>${ktag("video")}<span><b>Pour chaque plan :</b> dans Google Flow, « Ingredients to Video », joins les photos indiquées et colle le prompt.</span></li>`
       : `<li>${ktag("image")}<span><b>1. Crée l'image de départ</b>${(r.personnages||[]).length?" (joins la photo du personnage)":""}.</span></li><li>${ktag("video")}<span><b>2. Transforme-la en vidéo</b> (joins l'image obtenue).</span></li>`}</ol>
       <span class="hint">${vm==="both"?"Sans image : prends « Vidéo directe ». ":""}${vm==="ingr"?"Plans sans personnage : vidéo directe. ":""}${v.outil==="wan"?"Wan : structure temporelle et prompt négatif séparé.":v.outil==="runway"?"Runway I2V : l'image porte le style, le prompt contrôle surtout le mouvement.":"Veo : clips de 8 s avec son."} Fais 3 à 4 essais par plan.</span></div>
+    ${genOn(proj)?`<div class="card gen-import"><div><span class="label">Clips par Manus · MiniMax H3</span><p class="hint">Studio Prompt envoie chaque plan à Manus avec son image de départ du Storyboard et un prompt au format officiel de MiniMax H3 (caméra, paroles, sons). Manus fabrique les clips dans son environnement et ils reviennent tout seuls dans leur plan, prêts pour le Video Critic et le pré-montage.${(()=>{ const miss=(r.plans||[]).filter(p=>!((r.generated_images||{})[String(p.n)]||{}).url).length; return miss?` <b>${miss} plan${miss>1?"s":""} sans image de départ</b> : fais d’abord le Storyboard pour garder les mêmes visages.`:""; })()} Sans crédits Manus : méthode gratuite juste en dessous.</p></div><div class="actions"><button type="button" class="btn primary" id="clips-manus-go">🎬 Créer les clips avec Manus (MiniMax H3)</button></div><p class="hint" id="clips-manus"></p></div>`:""}
     ${genOn(proj)?`<div class="card gen-import"><div><span class="label">Méthode gratuite · Google Flow</span><p class="hint">Fais chaque plan dans Google Flow avec son prompt (tes crédits gratuits du jour), nomme les clips P01, P02… ou garde l’ordre, puis importe-les tous d’un coup : chacun se range dans son plan, prêt pour le Video Critic et le pré-montage.</p></div><div class="field"><label for="clips-import">Importer mes clips</label><input type="file" id="clips-import" accept="video/*,.mp4,.mov,.webm" multiple><span class="hint" id="clips-msg"></span></div></div>`:""}
     ${lintSummary(r, v)}
     ${plans.length?`<div class="pager" id="pager"><div class="pg-top"><b id="pg-count">Plan 1 sur ${plans.length}</b><button type="button" class="btn small quiet" id="pg-all">Voir tous les plans</button></div>
@@ -3586,6 +3663,7 @@ function renderProject(){
       ${vm==="both"||vm==="i2v"?pblock(`i2v-${i}`, "2. Transforme l'image en vidéo", i2vPrompt(r,p,v), {kind:"video", where:vw, join:"l'image créée à l'étape 1"}):""}
       ${vm==="both"||vm==="t2v"||(vm==="ingr"&&!cs.length)?pblock(`t2v-${i}`, vm==="both"?"Ou : vidéo directe, sans image":"Vidéo directe", t2vPrompt(r,p,v), {kind:"video", where:vw, join:""}):""}
       ${v.outil==="wan"?pblock(`neg-${i}`,"Prompt négatif",negPrompt(v),{kind:"neg", where:"Wan, case « Negative prompt » (Mode avancé)"}):""}
+      ${(()=>{ const img=!!((r.generated_images||{})[String(p.n)]||{}).url; return `<details class="fix other-tools"><summary>Autres outils : MiniMax H3 (Manus, Hailuo) · Seedance 2.5</summary><div class="fix-body">${pblock(`h3-${i}`,"MiniMax H3 · image → vidéo"+(img?"":" (sans image : texte → vidéo)"),h3Prompt(r,p,v,img),{where:`Manus ou l’application Hailuo, ${h3Secs(p)} s, ${v.format}${img?" ; joins l’image de départ du plan":""}`})}${pblock(`sd-${i}`,"Seedance 2.5",seedancePrompt(r,p,v,img),{where:`Dreamina ou une plateforme partenaire, ${sdSecs(p)} s, ${v.format}${img?" ; joins l’image de départ comme @Image1":""}`})}</div></details>`; })()}
       ${clipHtml(proj,p,i)}
       ${p.detail_type?`<p class="risk"><b class="edit">${esc(DETAIL_LABEL[baseVtype((proj.params&&proj.params.vtype)||"histoire")]||"Détail")} :</b> ${esc(p.detail_type)}</p>`:""}
       ${p.texte_ecran?`<p class="risk"><b class="edit">Texte à l'écran (montage) :</b> ${esc(p.texte_ecran)}</p>`:""}
@@ -7349,35 +7427,57 @@ PLANS :
   if(cur.length) groups.push(cur);
   return groups.map((g,k)=>head(k+1,groups.length)+g.join("\n\n"));
 }
+/* Clips par Manus (MiniMax H3) : plans regroupés sous la limite de Manus, image de départ de chaque plan jointe, prompts au format officiel H3 */
+function manusClipTasks(r, v, max){
+  const MAX=max||9000, pad2=n=>String(n).padStart(2,"0"), imgs=r.generated_images||{};
+  const head=(k,n)=>`Tu es le réalisateur de ma vidéo « ${r.titre||"Sans titre"} »${n>1?` (partie ${k} sur ${n})`:""}.
+Fabrique UNE vidéo par plan ci-dessous avec le modèle MiniMax H3 (Hailuo 3.0). S'il n'est pas disponible, prends le meilleur modèle vidéo que tu as et dis lequel dans ta réponse.
+RÈGLES : format ${v.format} ; durée indiquée pour chaque plan ; son${v.audio==="voice"?" et paroles":""} générés avec la vidéo ; quand l'image de départ d'un plan est jointe (fichier P01-depart…), utilise-la comme première image (image → vidéo) ; mêmes visages, mêmes coiffures et mêmes vêtements dans tous les plans ; copie chaque prompt mot pour mot, sans changer l'histoire, les paroles ni l'ordre ; aucun texte, sous-titre, logo ni filigrane.
+Nomme chaque vidéo avec le numéro de son plan (P01.mp4, P02.mp4…) et joins toutes les vidéos MP4 à ta réponse finale. Ne pose pas de question : fais tous les plans.
+PLANS :
+`;
+  const items=(r.plans||[]).map(p=>{ const img=(imgs[String(p.n)]||{}).url||""; return {n:p.n, img, text:`P${pad2(p.n)} · ${h3Secs(p)} s${img?` · image de départ jointe : P${pad2(p.n)}-depart`:" · sans image de départ"}\n${h3Prompt(r,p,v,!!img)}`}; });
+  const groups=[], base=head(9,9).length; let cur=[], size=0;
+  items.forEach(it=>{ if(cur.length && base+size+it.text.length+2>MAX){ groups.push(cur); cur=[]; size=0; } cur.push(it); size+=it.text.length+2; }); if(cur.length) groups.push(cur);
+  return groups.map((g,k)=>({prompt:head(k+1,groups.length)+g.map(x=>x.text).join("\n\n"), files:g.filter(x=>x.img).map(x=>({url:x.img, name:`P${pad2(x.n)}-depart${(x.img.match(/\.\w+$/)||[".png"])[0]}`})), plans:g.map(x=>x.n)}));
+}
 /* Manus travaille dans son propre environnement : Studio Prompt interroge ses tâches et range chaque image prête dans son plan */
 const MANUS={timer:null};
 const manusPending = r => (r&&r.manus_tasks||[]).filter(t=>!t.done);
 function manusEnsure(now){ if(!current||!manusPending(current.result).length){ manusStatusLine(); return; } manusStatusLine(); if(MANUS.timer&&!now) return; clearTimeout(MANUS.timer); MANUS.timer=setTimeout(manusTick, now?2500:(window.__manusPoll||15000)); }
 function manusStatusLine(){
-  const st=$("board-status"), txt=$("board-status-text"), list=current&&current.result.manus_tasks||[]; if(!st||!txt||!list.length) return;
-  const recent=list.filter(t=>!t.done||Date.now()-t.at<6*3600e3); if(!recent.length) return;
+  const list=current&&current.result.manus_tasks||[]; if(!list.length) return;
   const label={running:"en cours", waiting:"attend ta réponse (ouvre la tâche)", stopped:"terminée", error:"erreur"};
-  st.hidden=false; st.classList.remove("err");
-  txt.innerHTML=`🤖 <b>Manus</b> · ${recent.map(t=>`${t.of>1?`partie ${t.part} : `:""}${esc(label[t.status]||t.status||"en cours")}${t.got&&t.got.length?` · ${t.got.length} image${t.got.length>1?"s":""} reçue${t.got.length>1?"s":""}`:""}${t.status==="error"&&t.error?` (${esc(clip(t.error,90))})`:""} · <a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">ouvrir →</a>`).join(" | ")}${manusPending(current.result).length?`<br><span class="hint">Les images arrivent toutes seules dans leur plan dès que Manus les termine.</span>`:""}`;
+  const line=(ts,what)=>ts.map(t=>`${t.of>1?`partie ${t.part} : `:""}${esc(label[t.status]||t.status||"en cours")}${t.got&&t.got.length?` · ${t.got.length} ${what}${t.got.length>1?"s":""} reçu${what==="image"?"e":""}${t.got.length>1?"s":""}`:""}${t.status==="error"&&t.error?` (${esc(clip(t.error,90))})`:""} · <a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">ouvrir →</a>`).join(" | ");
+  const recent=list.filter(t=>!t.done||Date.now()-t.at<6*3600e3), imgs=recent.filter(t=>t.kind!=="video"), vids=recent.filter(t=>t.kind==="video");
+  const st=$("board-status"), txt=$("board-status-text");
+  if(st&&txt&&imgs.length){ st.hidden=false; st.classList.remove("err"); txt.innerHTML=`🤖 <b>Manus</b> · ${line(imgs,"image")}${imgs.some(t=>!t.done)?`<br><span class="hint">Les images arrivent toutes seules dans leur plan dès que Manus les termine.</span>`:""}`; }
+  const cl=$("clips-manus"); if(cl&&vids.length) cl.innerHTML=`🎬 <b>Manus</b> · ${line(vids,"clip")}${vids.some(t=>!t.done)?`<br>Les clips arrivent tout seuls dans leur plan dès que Manus les termine (quelques minutes par clip).`:""}`;
 }
 async function manusTick(){
-  MANUS.timer=null; const proj=current; if(!proj||proj.isExample) return; const r=proj.result; let changed=false, fresh=0;
+  MANUS.timer=null; const proj=current; if(!proj||proj.isExample) return; const r=proj.result; let changed=false, fresh=0, freshV=0;
   for(const t of manusPending(r)){
     try{ const res=await fetch(`/api/manus/status?task_id=${encodeURIComponent(t.id)}`), s=await res.json().catch(()=>({})); if(!res.ok) continue;
       t.status=s.status; t.credits=s.credits||0; t.error=s.error||""; t.got=t.got||[]; changed=true;
-      if((s.images||[]).some(im=>!t.got.includes(im.id))){
+      if((s.images||[]).concat(s.videos||[]).some(im=>!t.got.includes(im.id))){
         const imp=await fetch("/api/manus/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task_id:t.id, project:proj.id||slug(r.titre), skip:t.got})}), x=await imp.json().catch(()=>({}));
         (x.images||[]).forEach(im=>{ t.got.push(im.id); const plans=r.plans||[]; r.generated_images=r.generated_images||{};
           let n=plans.some(p=>p.n===im.plan)?im.plan:null;
           if(n==null){ const free=plans.find(p=>!(r.generated_images[String(p.n)]&&r.generated_images[String(p.n)].url)); n=free?free.n:null; }   /* fichier sans numéro : premier plan sans image */
-          if(n!=null){ r.generated_images[String(n)]={url:im.url, model:"Manus AI", at:Date.now(), manus:t.id}; fresh++; } }); }
+          if(n!=null){ r.generated_images[String(n)]={url:im.url, model:"Manus AI", at:Date.now(), manus:t.id}; fresh++; } });
+        (x.videos||[]).forEach(vd=>{ t.got.push(vd.id); const plans=r.plans||[]; r.generated_videos=r.generated_videos||{};
+          let n=plans.some(p=>p.n===vd.plan)?vd.plan:null;
+          if(n==null){ const free=plans.find(p=>(!t.plans||t.plans.includes(p.n))&&!(r.generated_videos[String(p.n)]&&r.generated_videos[String(p.n)].url)); n=free?free.n:null; }   /* clip sans numéro : premier plan de la tâche sans clip */
+          if(n!=null){ r.generated_videos[String(n)]={url:vd.url, name:vd.filename||`P${String(n).padStart(2,"0")}.mp4`, model:"Manus · MiniMax H3", manus:t.id, at:Date.now()}; freshV++; } }); }
       if(s.status==="stopped"||s.status==="error") t.done=true;
     }catch(e){}
   }
   if(changed){ proj.updatedAt=Date.now(); await saveProject(proj,{quiet:true}); }
   if(current===proj){
-    if(fresh){ const tab=pv.tab; renderProject(); projTab(tab); toast(`${fresh} image${fresh>1?"s":""} de Manus rangée${fresh>1?"s":""} dans le Storyboard.`); }
-    const broke=(r.manus_tasks||[]).find(t=>t.done&&t.status==="error"&&/credit|crédit|quota/i.test(t.error||"")&&!t.relais);
+    if(fresh||freshV){ const tab=pv.tab; renderProject(); projTab(tab); toast([fresh?`${fresh} image${fresh>1?"s":""} de Manus rangée${fresh>1?"s":""} dans le Storyboard`:"", freshV?`${freshV} clip${freshV>1?"s":""} de Manus rangé${freshV>1?"s":""} dans leur plan`:""].filter(Boolean).join(" · ")+"."); }
+    const brokeV=(r.manus_tasks||[]).find(t=>t.kind==="video"&&t.done&&t.status==="error"&&/credit|crédit|quota/i.test(t.error||"")&&!t.relais);
+    if(brokeV){ brokeV.relais=true; await saveProject(proj,{quiet:true}); toast("Manus n'a plus de crédits : fais les clips restants gratuitement dans Google Flow, puis « Importer mes clips »."); }
+    const broke=(r.manus_tasks||[]).find(t=>t.kind!=="video"&&t.done&&t.status==="error"&&/credit|crédit|quota/i.test(t.error||"")&&!t.relais);
     if(broke){ broke.relais=true; await saveProject(proj,{quiet:true}); toast("Manus n'a plus de crédits : relais Nano Banana, puis GPT Image, pour les plans sans image."); await generateBoardImages(true); }
     manusEnsure();
   }
@@ -7436,6 +7536,31 @@ document.addEventListener("click", async e=>{
     }catch(err){
       if(err&&err.code==="no_credit"&&!links.length){ toast("Manus n'a plus de crédits : relais Nano Banana, puis GPT Image."); t.disabled=false; await generateBoardImages(true); return; }
       if(stTxt) stTxt.innerHTML=`Erreur Manus : ${esc(err.message||String(err))}${links.length?` · déjà envoyées : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">partie ${k+1}</a>`).join(" · ")}`:""}`; toast("Erreur lors de l'envoi à Manus."); }
+    finally{ t.disabled=false; }
+    return;
+  }
+  if(t.id==="clips-manus-go"){
+    if(!current) return;
+    const proj=current, r=proj.result, v=view, msg=$("clips-manus"); let size=9000, tasks=manusClipTasks(r,v,size); const links=[];
+    t.disabled=true;
+    try{
+      for(let k=0;k<tasks.length;k++){ const tk=tasks[k];
+        if(msg) msg.textContent=tasks.length>1?`Envoi à Manus : partie ${k+1} sur ${tasks.length} (${tk.plans.length} plans, ${tk.files.length} image${tk.files.length>1?"s":""} de départ)…`:"Envoi des plans à Manus…";
+        const res=await fetch("/api/manus/task",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:tk.prompt, files:tk.files, locale:"fr"})});
+        const data=await res.json().catch(()=>({ok:false, message:res.status===404||res.status===405?"Le serveur local doit être redémarré (ferme la fenêtre noire et relance « Lancer Studio Prompt »).":`Réponse inattendue (${res.status}).`}));
+        if(!res.ok&&!links.length&&/trop longue/.test(data.message||"")&&size>2500){ size=Math.round(size/2); tasks=manusClipTasks(r,v,size); k=-1; continue; }
+        if(!res.ok||!data.ok) throw Object.assign(new Error(`${tasks.length>1?`partie ${k+1} : `:""}${data.message||"Erreur Manus"}`),{code:data.code});
+        links.push(Object.assign({plans:tk.plans}, data));
+      }
+      r.manus_tasks=(r.manus_tasks||[]).filter(x=>!x.done).concat(links.map((d,k)=>({id:d.task_id, url:d.url, part:k+1, of:links.length, at:Date.now(), status:"running", got:[], kind:"video", plans:d.plans})));
+      proj.updatedAt=Date.now(); await saveProject(proj,{quiet:true}); manusEnsure(true);
+      if(msg) msg.innerHTML=`🚀 <b>${links.length>1?`${links.length} tâches Manus créées`:"Tâche Manus créée"}</b> : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">${links.length>1?`partie ${k+1}`:"ouvrir Manus"} →</a>`).join(" · ")}<br>Studio Prompt surveille Manus : chaque clip prêt arrive tout seul dans son plan. Tu peux continuer à travailler.`;
+      toast(links.length>1?`${links.length} tâches de clips lancées sur Manus.`:"Clips lancés sur Manus.");
+    }catch(err){
+      const free="Méthode gratuite : fais les clips dans Google Flow (crédits du jour) ou dans l’application Hailuo avec les prompts « MiniMax H3 » de chaque plan, puis « Importer mes clips ».";
+      if(msg) msg.innerHTML=`${err&&err.code==="no_credit"?"Manus n’a plus de crédits.":`Erreur Manus : ${esc(err.message||String(err))}.`} ${free}${links.length?` Déjà envoyées : ${links.map((d,k)=>`<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">partie ${k+1}</a>`).join(" · ")}`:""}`;
+      toast(err&&err.code==="no_credit"?"Manus n'a plus de crédits : méthode gratuite affichée.":"Erreur lors de l'envoi à Manus.");
+    }
     finally{ t.disabled=false; }
     return;
   }

@@ -55,7 +55,7 @@ async function run(label, viewport){
   // Prompt replié, Afficher / Masquer
   const fold = await page.evaluate(() => {
     const pb = document.querySelector("#plan-4 .pb.fold"); const pre = pb.querySelector("pre");
-    return {folded: pre.clientHeight < pre.scrollHeight, h: pre.clientHeight, full: pre.scrollHeight, kinds: [...document.querySelectorAll("#plan-4 .pb .ktag")].map(x => x.textContent), labels: [...document.querySelectorAll("#plan-4 .pb-label")].map(x => x.textContent), joins: [...document.querySelectorAll("#plan-4 .pb-info .join")].map(x => x.textContent.trim())};
+    return {folded: pre.clientHeight < pre.scrollHeight, h: pre.clientHeight, full: pre.scrollHeight, kinds: [...document.querySelectorAll("#plan-4 .pb .ktag")].filter(x => !x.closest("details:not([open])")).map(x => x.textContent), labels: [...document.querySelectorAll("#plan-4 .pb-label")].map(x => x.textContent), joins: [...document.querySelectorAll("#plan-4 .pb-info .join")].map(x => x.textContent.trim())};
   });
   check(`[${label}] prompt replié (premières lignes)`, fold.folded, `${fold.h}px affichés sur ${fold.full}px`);
   check(`[${label}] types visibles dans le plan`, fold.kinds.join() === "Image,Vidéo,Vidéo", fold.kinds.join(" | "));

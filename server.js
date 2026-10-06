@@ -245,19 +245,22 @@ async function manusGet(pathq){
   try{ const r = await fetch(`${MANUS_BASE()}${pathq}`, {signal:ctl.signal, headers:{"x-manus-api-key":key}}); return {ok:r.ok, status:r.status, json:await r.json().catch(() => ({}))}; }
   catch(e){ return {ok:false, status:0, json:{}}; } finally{ clearTimeout(t); }
 }
-/* Toutes les images jointes par Manus, où qu'elles soient dans les messages (type image, type MIME image/*, ou extension) */
-function manusImages(json){
+/* Toutes les images et vidéos jointes par Manus, où qu'elles soient dans les messages (type, type MIME ou extension) */
+function manusFiles(json){
   const out = [], seen = new Set();
   (function walk(x){ if(!x || typeof x !== "object") return; if(Array.isArray(x)){ x.forEach(walk); return; }
-    if(typeof x.url === "string" && /^https?:/.test(x.url) && (x.type === "image" || /^image\//.test(String(x.content_type || "")) || /\.(png|jpe?g|webp)$/i.test(String(x.filename || "")))){ const k = String(x.file_uid || x.version_uid || x.url); if(!seen.has(k)){ seen.add(k); out.push({id:k, filename:String(x.filename || ""), url:x.url}); } }
+    if(typeof x.url === "string" && /^https?:/.test(x.url)){ const ct = String(x.content_type || ""), fn = String(x.filename || "");
+      const kind = x.type === "image" || /^image\//.test(ct) || /\.(png|jpe?g|webp)$/i.test(fn) ? "image" : x.type === "video" || /^video\//.test(ct) || /\.(mp4|mov|m4v|webm)$/i.test(fn) ? "video" : "";
+      const k = String(x.file_uid || x.version_uid || x.url); if(kind && !seen.has(k)){ seen.add(k); out.push({id:k, filename:fn, url:x.url, kind}); } }
     Object.values(x).forEach(walk); })(json);
   return out;
 }
+const manusImages = json => manusFiles(json).filter(x => x.kind === "image");
 async function manusInfo(taskId){
   const q = encodeURIComponent(taskId), [d, m] = await Promise.all([manusGet(`/v2/task.detail?task_id=${q}`), manusGet(`/v2/task.listMessages?task_id=${q}&limit=200`)]);
   const task = (d.json && d.json.task) || {}, errs = [];
   (function walk(x){ if(!x || typeof x !== "object") return; if(Array.isArray(x)){ x.forEach(walk); return; } if(x.type === "error_message") errs.push(JSON.stringify(x.error_message || x).replace(/[{}"]/g, " ").replace(/\s+/g, " ").trim()); Object.values(x).forEach(walk); })(m.json);
-  return {ok:d.ok || m.ok, http:d.status || m.status, status:String(task.status || (errs.length ? "error" : "running")), credits:Number(task.credit_usage) || 0, title:String(task.title || ""), images:manusImages(m.json), error:errs.join(" · ").slice(0, 300)};
+  return {ok:d.ok || m.ok, http:d.status || m.status, status:String(task.status || (errs.length ? "error" : "running")), credits:Number(task.credit_usage) || 0, title:String(task.title || ""), images:manusImages(m.json), videos:manusFiles(m.json).filter(x => x.kind === "video"), error:errs.join(" · ").slice(0, 300)};
 }
 async function handleManusStatus(req, res){
   if(!(process.env.MANUS_API_KEY || "").trim()) return sendJson(res, 400, {code:"no_key", message:"La clé MANUS_API_KEY est manquante dans votre fichier .env."});
@@ -267,31 +270,41 @@ async function handleManusStatus(req, res){
   if(!info.ok) return sendJson(res, info.http === 401 || info.http === 403 ? 401 : 502, {code:info.http === 401 || info.http === 403 ? "bad_key" : "network", message:info.http === 401 || info.http === 403 ? "Clé Manus refusée : vérifie MANUS_API_KEY dans le fichier .env." : "Manus ne répond pas : nouvel essai dans un instant."});
   sendJson(res, 200, info);
 }
-/* Télécharge les nouvelles images d'une tâche dans le projet ; le numéro du plan vient du nom du fichier (P01, plan 2…) */
+/* Télécharge les nouvelles images et vidéos d'une tâche dans le projet ; le numéro du plan vient du nom du fichier (P01, plan 2…) */
 async function handleManusImport(req, res){
   let input; try{ input = JSON.parse(await readBody(req, 50000)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible."}); }
   const id = String(input.task_id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80); if(!id) return sendJson(res, 400, {code:"bad_request", message:"Tâche Manus inconnue."});
   const skip = new Set(Array.isArray(input.skip) ? input.skip.map(String) : []), info = await manusInfo(id), key = (process.env.MANUS_API_KEY || "").trim(), out = [];
   const project = safePart(input.project, "project"), dir = path.join(GENERATED, project); fs.mkdirSync(dir, {recursive:true});
-  for(const im of info.images.filter(x => !skip.has(x.id)).slice(0, 60)){
+  const TYPES = {"image/jpeg":"jpg", "image/png":"png", "image/webp":"webp", "video/mp4":"mp4", "video/quicktime":"mov", "video/webm":"webm", "video/x-m4v":"m4v"};
+  for(const im of info.images.concat(info.videos || []).filter(x => !skip.has(x.id)).slice(0, 80)){
     try{ let url; try{ url = new URL(im.url); }catch(e){ continue; } if(privateHost(url.hostname) && !process.env.NEWS_ALLOW_LOCAL) continue;
       let r = await fetch(url, {redirect:"follow"}); if(r.status === 401 || r.status === 403) r = await fetch(url, {redirect:"follow", headers:{"x-manus-api-key":key}});
-      const type = String(r.headers.get("content-type") || "").split(";")[0], ext = {"image/jpeg":"jpg", "image/png":"png", "image/webp":"webp"}[type] || (im.filename.match(/\.(png|jpe?g|webp)$/i) || [])[1];
-      const buf = Buffer.from(await r.arrayBuffer()); if(!r.ok || !ext || buf.length < 500 || buf.length > 25e6) continue;
+      const type = String(r.headers.get("content-type") || "").split(";")[0], ext = TYPES[type] || (im.filename.match(/\.(png|jpe?g|webp|mp4|mov|m4v|webm)$/i) || [])[1], video = /^(mp4|mov|m4v|webm)$/i.test(ext || "");
+      const buf = Buffer.from(await r.arrayBuffer()); if(!r.ok || !ext || buf.length < 500 || buf.length > (video ? 300e6 : 25e6)) continue;
       const m = im.filename.match(/(?:^|[^a-z0-9])(?:p|plan|shot|scene|sc[eè]ne)[\s_-]*0*(\d{1,3})(?![0-9])/i) || im.filename.match(/^0*(\d{1,3})(?![0-9])/), plan = m ? Number(m[1]) : null;
       const name = `${plan ? "P" + String(plan).padStart(2, "0") : "manus"}-manus-${Date.now().toString(36)}${out.length}.${String(ext).toLowerCase().replace("jpeg", "jpg")}`;
-      fs.writeFileSync(path.join(dir, name), buf); out.push({id:im.id, filename:im.filename, plan, url:`/generated/${project}/${name}`});
+      fs.writeFileSync(path.join(dir, name), buf); out.push({id:im.id, filename:im.filename, plan, url:`/generated/${project}/${name}`, kind:video ? "video" : "image"});
     }catch(e){}
   }
-  sendJson(res, 200, {status:info.status, images:out});
+  sendJson(res, 200, {status:info.status, images:out.filter(x => x.kind === "image"), videos:out.filter(x => x.kind === "video")});
 }
 async function handleManusTask(req,res){
   const key = process.env.MANUS_API_KEY ? process.env.MANUS_API_KEY.trim() : "";
   if(!key) return sendJson(res,400,{code:"no_key",message:"La clé MANUS_API_KEY est manquante dans votre fichier .env."});
-  let input; try{ input=JSON.parse(await readBody(req,1e6)); }catch(e){ return sendJson(res,400,{code:"bad_request",message:"Requête JSON invalide."}); }
+  let input; try{ input=JSON.parse(await readBody(req,2e6)); }catch(e){ return sendJson(res,400,{code:"bad_request",message:"Requête JSON invalide."}); }
   const prompt=String(input.prompt||input.content||"").trim();
   if(!prompt) return sendJson(res,400,{code:"bad_request",message:"Le prompt est obligatoire."});
-  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);   /* Manus ne répond pas : on n'attend pas indéfiniment */
+  /* Images du projet jointes à la tâche (image de départ de chaque plan) : lues sur le disque, jamais en dehors du dossier des médias */
+  const parts = [], root = path.resolve(GENERATED) + path.sep, MIME = {png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", webp:"image/webp"};
+  for(const f of (Array.isArray(input.files) ? input.files : []).slice(0, 20)){
+    const rel = String(f && f.url || ""); if(!rel.startsWith("/generated/")) continue;
+    let abs; try{ abs = path.resolve(GENERATED, decodeURIComponent(rel.slice(11))); }catch(e){ continue; }
+    const mime = MIME[path.extname(abs).slice(1).toLowerCase()]; if(!abs.startsWith(root) || !mime || !fs.existsSync(abs)) continue;
+    const buf = fs.readFileSync(abs); if(buf.length > 19e6) continue;
+    parts.push({type:"file", filename:String(f.name || path.basename(abs)).replace(/[^\w.-]+/g, "-").slice(0, 80), mime_type:mime, file_data:`data:${mime};base64,${buf.toString("base64")}`});
+  }
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 60000);   /* Manus ne répond pas : on n'attend pas indéfiniment */
   try {
     const resp = await fetch(`${(process.env.MANUS_BASE_URL || "https://api.manus.ai").replace(/\/$/, "")}/v2/task.create`, {   /* MANUS_BASE_URL : faux Manus pour les tests */
       method: "POST", signal: ctl.signal,
@@ -300,7 +313,7 @@ async function handleManusTask(req,res){
         "x-manus-api-key": key
       },
       body: JSON.stringify({
-        message: { content: prompt },
+        message: { content: parts.length ? [{type:"text", text:prompt}, ...parts] : prompt },
         locale: input.locale || "fr"
       })
     });
