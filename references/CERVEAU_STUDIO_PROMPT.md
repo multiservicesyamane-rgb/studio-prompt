@@ -491,3 +491,9 @@ Idées de l'utilisateur (5 octobre), à faire avec la même méthode :
 8. **Temps forts d'un long match** (45 min et plus) : l'analyse complète (agentic) repère les moments les plus denses, et l'application propose les coupes, avec leur minutage, pour une vidéo courte.
 9. **Plusieurs vidéos → une vidéo virale** : analyser jusqu'à 5 vidéos, choisir les meilleurs moments et les enchaîner (ordre, raccords, accroche, rythme), dans le respect des droits de chaque source.
 10. **Revue de presse automatique chaque jour** : par pays, à heure fixe (avec la veille), voix d'or comprise.
+
+Ordre fixé par l'utilisateur (6 octobre), chaque étape terminée et validée avant la suivante :
+11. **Partie infos** (revue de presse) : une du journal, vidéo montée, voix vive, MP3 et autres formats, infos et images sûres. Fait le 6 octobre (commit aa3523f), en attente de l'avis de l'utilisateur.
+12. **Page des niches** : la niche « infos, revue de presse » d'abord ; suivi de chaque chaîne (CRM : publications, rendez-vous, idées) et performances par chaîne (en réutilisant la lecture des statistiques YouTube et `learningBlock(…, "strategie")`).
+13. **Pages YouTube, TikTok, etc.**, quand chaque niche marche bien.
+14. **Partie histoires** : les plus belles histoires du Coran et des grands livres, lues par une voix de sage, avec images et vidéos pour le montage. Règles : aucune représentation des prophètes ni de leurs compagnons (paysages, calligraphie, symboles) ; textes du domaine public ou racontés avec nos propres mots, jamais une traduction protégée ; versets cités exactement avec leur référence.
