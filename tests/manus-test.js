@@ -78,7 +78,7 @@ const post = (pth, o) => new Promise((ok, ko) => { const d = JSON.stringify(o), 
     await pg.click('#list-projects [data-open="manus2"]'); await pg.waitForSelector('[data-ptab="board"]'); await pg.click('[data-ptab="board"]');
     await pg.click("#board-manus"); await pg.waitForFunction(() => /Aucun service d'images/.test((document.getElementById("board-status-text") || {}).textContent || ""), {timeout: 30000}).catch(() => {});
     const none = await pg.evaluate(() => (document.getElementById("board-status-text") || {}).textContent || "");
-    check("Manus, Nano Banana et GPT épuisés : message clair avec la méthode gratuite (application Gemini puis Importer)", /Aucun service d'images automatique/.test(none) && /Importer mes images/.test(none), none.slice(0, 160));
+    check("Manus, Nano Banana et GPT épuisés : message clair avec la méthode à la main (ChatGPT avec l'abonnement ou Gemini, puis Importer)", /Aucun service d'images automatique/.test(none) && /Importer mes images/.test(none) && /abonnement ChatGPT/.test(none), none.slice(0, 160));
     check("aucune erreur JavaScript", !errs.length, errs.join(" | "));
   }finally{ await b.close(); srv.kill(); fake.close(); }
   console.log(out.join("\n")); process.exit(0);

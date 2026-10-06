@@ -56,7 +56,7 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 - web : flux RSS ;
 - transcription : Whisper local ;
 - analyse vidéo : images clés et Whisper local ;
-- images : application Gemini puis « Importer », ou photos libres de droits ;
+- images : application ChatGPT (avec l'abonnement de l'utilisateur) ou application Gemini, en envoyant les messages préparés du Storyboard un par un, puis « Importer » ; ou photos libres de droits ;
 - vidéos : Google Flow puis « Importer » ;
 - voix : quota gratuit de Gemini, puis **voix gratuite sur l'ordinateur** (Piper, voir ci-dessous).
 
@@ -67,6 +67,8 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 - revue de presse : choix direct (`local:<voix>`) ou **relais automatique** quand les voix Gemini échouent avec « Quota du jour » (`prWatch` → `prVoiceLocal`, même genre que la voix choisie) ; sans serveur, la voix gratuite est choisie d'office ;
 - onglet Paroles : voix gratuites dans la distribution (`local|<voix>`), essai, et bouton « Refaire ces voix gratuitement » (`genVoicesFree`) : chaque personnage refusé passe sur une voix gratuite du même genre et **tous** ses plans sont refaits, pour garder une seule voix par personnage ;
 - tests : `window.__localTtsMock` remplace le moteur (aucun téléchargement).
+
+**Abonnement ChatGPT de l'utilisateur** (vérifié le 6 octobre 2026 dans la documentation d'OpenAI, « Sign in with ChatGPT », page Preview limitations) : un abonnement Plus ou Pro peut payer les demandes de **texte** (Responses API) d'une application open source hébergée localement, après connexion OAuth avec retour sur `http://127.0.0.1:<port>/auth/callback` ; la **génération d'images n'est pas prise en charge** par ce chemin (« Unsupported tools: Image generation… »). Les images avec l'abonnement se font donc dans l'application ChatGPT (méthode à la main du Storyboard) ; l'API d'images (`OPENAI_API_KEY`) reste payante à part.
 
 **Utiliser le cerveau de l'agent** : toute nouvelle fonction réutilise les briques existantes (Director V4, `keyframePrompt` et le compilateur, fiches des personnages, `learningBlock`, critiques) plutôt que des consignes isolées.
 
@@ -515,6 +517,8 @@ Idées de l'utilisateur (5 octobre), à faire avec la même méthode :
 8. **Temps forts d'un long match** (45 min et plus) : l'analyse complète (agentic) repère les moments les plus denses, et l'application propose les coupes, avec leur minutage, pour une vidéo courte.
 9. **Plusieurs vidéos → une vidéo virale** : analyser jusqu'à 5 vidéos, choisir les meilleurs moments et les enchaîner (ordre, raccords, accroche, rythme), dans le respect des droits de chaque source.
 10. **Revue de presse automatique chaque jour** : par pays, à heure fixe (avec la veille), voix d'or comprise.
+
+Proposé le 6 octobre (à confirmer par l'utilisateur) : **connexion ChatGPT pour le texte** (« Sign in with ChatGPT », gratuit pour les applications open source locales) : les agents écrivent avec l'abonnement Plus de l'utilisateur quand le quota gratuit de Gemini est épuisé. Pas d'images par ce chemin.
 
 Ordre fixé par l'utilisateur (6 octobre), chaque étape terminée et validée avant la suivante :
 11. **Partie infos** (revue de presse) : une du journal, vidéo montée, voix vive, MP3 et autres formats, infos et images sûres. Fait le 6 octobre (commit aa3523f), en attente de l'avis de l'utilisateur.
