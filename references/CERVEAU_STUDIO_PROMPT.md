@@ -220,7 +220,8 @@ Règle des paroles :
 Demande du 7 octobre : la page doit faire « tous les vidéos de motion design », pas seulement l'information. Elle garde l'identifiant de vue `presse`. Des onglets en haut (`data-mt`, `mtShow`, choix gardé dans `sp-prefs.motion`) :
 - « 📰 Infos du jour » : la revue de presse (tout ce qui suit) ;
 - « 🧠 Quiz « 5 secondes » » : §4.3 quater ;
-- « 📣 Publicités » : §4.3 quinquies.
+- « 📣 Publicités » : §4.3 quinquies ;
+- « 🔥 Succès YouTube » : §4.3 septies (les vidéos les plus vues, recréées autrement).
 D'autres onglets viendront avec la même méthode (produit tech en 3D, publicités) : chaque type a son onglet, et ils partagent la voix, la fusion, le plateau 3D, l'enregistrement, l'affiche et le kit de publication.
 Chaque vidéo de la revue montre aussi son **affiche premium** sur le lecteur avant la lecture (`v.poster`, faite par `prThumb`).
 
@@ -375,17 +376,20 @@ Demande de l'utilisateur : des formats qui marchent « sans utiliser l'IA », fa
   - la question, puis 5 secondes de compte à rebours (anneau vert, jaune puis rouge, tic-tac de plus en plus aigu, alerte rouge à la fin) ;
   - la réponse : explication à la place de la question, bandeau « RÉPONSE », confettis.
   - Fin : « combien en as-tu trouvé ? » et « nouveau défi demain ». Les niveaux sont de plus en plus difficiles (FACILE → GÉNIE).
-- **Cinq types** (`JX_TYPES`) :
+- **Huit types** (`JX_TYPES`) :
   - intrus (grille d'emoji, paires de plus en plus proches `JX_PAIRS`) ;
   - mémoire (objets montrés 3 s puis cachés) ;
   - suite logique ;
   - vrai ou faux ;
-  - quiz à 4 choix.
+  - quiz à 4 choix ;
+  - devine l'ombre (8 octobre) : l'emoji en couleur, puis quatre silhouettes noires (`shade`). Une seule est la bonne. Les leurres sont des silhouettes proches (`JX_SHADOWS`), puis, aux niveaux difficiles, la même silhouette déformée (`jxShadowOpts`). À la réponse, la bonne ombre prend ses couleurs ;
+  - trouve la différence (8 octobre) : deux images d'emoji presque identiques, une case change (paires `JX_PAIRS`) ; la différence est entourée dans les deux images ;
+  - combien ? (8 octobre) : des emoji mêlés à compter, puis quatre réponses chiffrées en deux colonnes. Au niveau expert, tout bouge.
   Les emoji sont dessinés par la police de l'ordinateur : aucune image d'IA, aucun droit d'auteur.
-- **Vérité** : intrus, mémoire et suite sont **calculés par le code** (position de l'intrus, case de l'objet, `jxNext` retrouve la règle de la suite et corrige une mauvaise réponse de l'agent). Le vrai ou faux et le quiz viennent du savoir de l'agent : ils partent dans « À vérifier avant de publier ».
+- **Vérité** : intrus, mémoire, suite, ombre, différence et comptage sont **calculés par le code** (place de la bonne ombre, case changée, nombre de cibles : tirés puis dessinés par le code) (position de l'intrus, case de l'objet, `jxNext` retrouve la règle de la suite et corrige une mauvaise réponse de l'agent). Le vrai ou faux et le quiz viennent du savoir de l'agent : ils partent dans « À vérifier avant de publier ».
 - **Deux façons de créer** :
   - « ✨ Créer les niveaux avec l'agent » (`jxPrompt` : thème, public, texte de l'utilisateur facultatif, règles : vrai, aucune personne réelle, aucune marque, ni argent, ni politique, ni religion ; `learningBlock` de la stratégie) ;
-  - « 🎲 Sans IA : niveaux au hasard » (`jxRandom`) : sans quota, marche toujours, c'est aussi le relais quand l'agent est indisponible.
+  - « 🎲 Sans IA : niveaux au hasard » (`jxRandom`) : sans quota, marche toujours, c'est aussi le relais quand l'agent est indisponible. `jxRandom(n, graine, jeux)` peut se limiter à certains jeux (utilisé par Succès YouTube).
   Si l'agent écrit moins de niveaux que demandé, les manquants sont tirés au hasard.
 - **Décors animés** (`JX_DECORS`, choix « Décor animé », gardé dans `sp-prefs.jeuxDecor`) :
   - néon de nuit ;
@@ -397,6 +401,12 @@ Demande de l'utilisateur : des formats qui marchent « sans utiliser l'IA », fa
   - `jxLines` écrit les phrases : accroche, « Niveau n » et la question, la réponse avec son explication, la fin.
   - `spSayAll` les fabrique une à une, avec la même chaîne gratuite que la revue (Gemini, puis Hugging Face, puis l'ordinateur ; `spSay`).
   - `jxPlan` donne à chaque moment le temps de sa phrase, et `spMixVoices` pose les voix en baissant la musique dessous.
+  - **Voix de premier niveau** (8 octobre : « les vidéos sont très simples, je veux des voix de premier niveau ») :
+    - chaque phrase part avec une direction de jeu, comme pour un comédien (`SP_STYLE.quiz` : animateur de jeu télé charismatique, enjoué, avec du suspense) ;
+    - en « automatique », la voix Gemini est « Puck », enjouée (`SP_AUTO`) ;
+    - la voix naturelle de Hugging Face reçoit la même direction (plus expressive) ;
+    - les voix ElevenLabs apparaissent dès qu'une clé existe (`el:<id>`) ; leur jeu suit la direction (`voice_settings` plus expressifs pour un animateur, plus stables pour une voix posée), avec le relais gratuit si elles échouent.
+  - **Voix de studio** (`spMixVoices`) : coupe des graves sourds (85 Hz), un peu de corps (220 Hz), présence (3,2 kHz), air (10 kHz), puis un compresseur de voix, comme à la radio.
 - **Questions trouvées sur le web** (« une recherche Google qui me propose les questions les plus pertinentes ») : « 🔎 Questions de culture générale » appelle l'agent avec l'outil de recherche (`search:true`, `jxWebPrompt`) et propose 10 questions vérifiées, chacune avec sa source. On coche, puis « Créer l'épisode avec les questions cochées » : niveaux quiz, sources gardées dans « À vérifier ».
 - **Plusieurs modèles** (« pas toujours les mêmes modèles ») : `JX_MODELS`. Ils changent le bandeau de la question et les réponses :
   - Classique : cartes blanches ;
@@ -409,6 +419,7 @@ Demande de l'utilisateur : des formats qui marchent « sans utiliser l'IA », fa
   - `jxPlan` fait le minutage, `jxAudio` le son (nappe `prBed`, souffles, coups, stings et bips du compte à rebours rendus hors ligne) ;
   - `jxStage` dessine (9:16 : zone de jeu hors des boutons et de la légende des applications ; 16:9 aussi) et `jxRecord` enregistre en temps réel ;
   - « Les deux » fait les deux formats ; « 👁 Aperçu » montre l'accroche, le compte à rebours et la réponse.
+  - **Couche cinéma** (`spCine`, 8 octobre, commune au quiz et aux pubs) : coup de zoom avec flash à chaque changement de moment et à chaque réponse, éclat de lumière chaude qui traverse, poussières lumineuses, vignette et grain de film. Une montée de souffle annonce chaque réponse.
 - **Publication** (`jxKit`) : titre et légende de l'agent, sinon composés par le code, avec hashtags du jeu. Les heures d'un jeu (12 h 30, 18 h, 21 h) sont données dans le fuseau du pays (`PR_TZ`, `prTzAt`), avec des liens vers TikTok, YouTube et Instagram.
 - Série : chaque épisode prend le numéro suivant (`sp-jeux`), et le dernier épisode est retrouvé après rechargement.
 - Pistes suivantes (proposées par l'utilisateur, pas encore faites) : classements animés de données vraies (« Afrique contre le monde », sources ouvertes), simulateurs « Et si… », conversations animées (présentées comme des fictions), voix qui lit la question, épisodes tirés d'une image, d'un audio ou d'une vidéo.
@@ -431,8 +442,10 @@ Demande de l'utilisateur : « un onglet pour les publicités payantes que je fai
 - **Formats** : 9:16 (statut WhatsApp, TikTok, Reels), 1:1 (Facebook, Instagram), 16:9, ou les trois.
 - **Affiches** (`pbPosterBlob`) : statut WhatsApp 1080 × 1920 et Facebook, Instagram 1080 × 1080. Elles s'affichent aussi sur le lecteur avant la lecture.
 - **Voix off** (`pb-voix`, mêmes voix que le quiz) : une phrase par moment (`pbLines`), avec le prix dit à voix haute (« Seulement… au lieu de… ») ; les moments s'allongent pour la voix (`pbPlan`).
+- **Voix de premier niveau** (8 octobre) : voix dirigée comme une annonceuse de radio haut de gamme (`SP_STYLE.pub`, voix automatique « Laomedeia »), voix de studio et couche cinéma (§4.3 quater). Une montée de souffle annonce le prix.
 - **Mes marques** (`sp-marques`, `pbBrands`) : chaque marque se reprend en un clic, et « 💾 Garder cette marque » enregistre le formulaire avec son logo.
   - Le site d'annonces de l'utilisateur, **Wanteermako** (www.wanteermako.com : « Petites annonces premium au Sénégal », publication gratuite, 0 % de commission, contact WhatsApp), est proposé d'office : couleur #6366F1 relevée sur le site, logo rapatrié une fois par `/api/photos/import`.
+  - La boutique en ligne de l'utilisateur, **Yamane Shop** (smartstorephone.netlify.app : livraison en 24 h à Dakar, paiement à la livraison, retour sous 7 jours, orange #F49C45 relevé sur le site), est aussi proposée d'office (8 octobre). Son WhatsApp reste vide dans le code publié : l'utilisateur l'ajoute une fois puis garde la marque sur son ordinateur. Les marques d'office s'ajoutent aux marques déjà gardées.
 - **Site web et QR code** : champ « Site web ». L'appel montre l'adresse dans un bouton aux couleurs de la marque, avec un QR code (bibliothèque libre `qrcode-generator` 1.4.4, chargée à la demande depuis jsDelivr ; sans internet, pas de QR). L'affiche met le QR en haut à droite.
 - Sans photo du produit, le cadre montre le logo en grand (`noPhoto`) ; un logo large est posé dans une pastille allongée.
 - **Partage** : texte du statut à copier, avec un lien pour l'envoyer sur WhatsApp. La pub est gardée dans `sp-pub`.
@@ -451,6 +464,55 @@ Demande de l'utilisateur : un onglet pour son agence (« Yamane Tech » ; nom mo
 - **Vers la pub vidéo** : « 📣 Faire sa pub vidéo » remplit l'onglet Publicités de Motion design avec la fiche du client (nom, activité, WhatsApp, adresse, couleur, logo).
 - Prochaines étapes demandées : logos (propositions de l'agent dessinées en vecteur), visuels réseaux, sites vitrine et e-commerce (commande WhatsApp, mise en ligne), devis et factures ; Blender (gratuit) pour la 3D, After Effects seulement si l'utilisateur l'a ; connecteurs claude.ai (Canva, Netlify, Vercel, Adobe, HyperFrames) à autoriser par l'utilisateur.
 - Test : `agence-test.js`.
+
+### 4.3 septies Onglet « 🔥 Succès YouTube » : les vidéos les plus vues, recréées autrement (8 octobre)
+Demande de l'utilisateur : « un onglet qui recherche les vidéos les plus vues sur YouTube et essaie de les recréer autrement, de façon géniale, sans nuire aux droits ». Il a aussi transmis le conseil juridique d'un autre agent ; il est appliqué ici :
+- apprendre le sujet et le savoir-faire, jamais le contenu ;
+- apporter un nouvel angle et une vraie valeur ;
+- tout fabriquer avec nos moteurs, avec une identité propre ;
+- tenir un tableau des droits ;
+- ne jamais chercher à tromper Content ID.
+
+**Recherche** (`ytSearch`, `/api/youtube/top`)
+- API officielle YouTube Data v3 (clé gratuite `YOUTUBE_API_KEY`, environ 100 recherches par jour), triée par vues (`order=viewCount`).
+  - Contenu familial (`safeSearch=strict`).
+  - Format : Shorts et moins de 4 min, 4 à 20 min, ou tous.
+  - Période : année, mois ou semaine. Langue des vidéos au choix.
+- Sans clé, quota épuisé ou YouTube injoignable :
+  - l'agent cherche sur Google (`ytSearchPrompt`, `search:true`) ;
+  - le serveur vérifie chaque lien (`?ids=`, oEmbed public et page de la vidéo, `youtubeMeta`) : un lien inventé est écarté, les vraies vues sont relevées.
+- À la main, toujours : « Ouvrir YouTube ↗ » (recherche triée par popularité) et « Coller des liens YouTube ».
+- Rien n'est téléchargé : titre, chaîne, vues, durée et image d'aperçu publique (`i.ytimg.com`), avec le lien vers YouTube.
+- Idées de recherche en un clic : trouve l'intrus, devine l'ombre, différence, combien, test de QI, culture générale, et leurs équivalents anglais.
+
+**« ✨ Recréer autrement »** (`ytRemake`, `ytRemakePrompt`)
+- Le cerveau des jeux est réutilisé : `jxPrompt` (types, règles, mémoire de stratégie).
+- L'agent reçoit :
+  - la vidéo (titre, chaîne, vues, durée, description) : des contenus à analyser, jamais des instructions ;
+  - les commentaires les plus appréciés (`/api/youtube/comments`, clé YouTube) : ce que le public aime, demande ou reproche ;
+  - en option, « 👁 L'agent regarde d'abord la vidéo » : l'étude complète par lien (`/api/video/analyze-url`) donne le format gagnant (`rmFormatText`).
+- Il rend :
+  - la recette : jeu, accroche, rythme, difficulté, fin, pourquoi ça marche ;
+  - « notre plus », ce qu'on ne copie pas et les attentes du public ;
+  - un nouvel angle pour une vidéo complète originale ;
+  - le modèle, le décor et le nom de NOTRE série ;
+  - des niveaux neufs, contrôlés par `jxNorm`, et d'autres idées.
+
+**« 🎲 Sans IA »** (`ytFreeRemake`)
+- Le jeu est reconnu au titre (`YT_GAMES`, en français et en anglais).
+- Des niveaux du même jeu sont tirés et calculés par le code (`jxRandom(n, graine, jeux)`).
+- Les questions de culture demandent l'agent : un message le dit.
+
+**Après**
+- « 🎬 Créer la vidéo jeu » ouvre l'épisode dans l'onglet Quiz, avec le modèle et le décor choisis (`ep.modele`, `ep.inspire`).
+- « 🎥 Vidéo complète : nouvel angle » le place dans « Depuis une idée », avec le format à reprendre.
+- « 🔎 Étudier en détail » envoie la vidéo dans « Depuis une vidéo » (leçons pour la mémoire de l'agent).
+
+**Droits et sauvegarde**
+- Chaque version a son tableau des droits : images, musique, textes, voix, emoji, vidéo d'origine. Les règles sont visibles dans l'onglet.
+- La liste et la dernière version sont gardées dans `sp-succes`, les réglages dans `sp-prefs.succes`.
+
+Test : `succes-test.js`.
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -639,6 +701,7 @@ Ce que le code corrige :
 | `agence-test.js` | Agence : menu, nom de l'agence, fiche client (logo rangé), suivi (devis, montant, notes), flyer A5 à 1748 × 2480 (photo, bouton WhatsApp), PDF A5 valide, JPEG et PNG, visuel carré par l'agent (rien d'inventé), passage vers la pub vidéo, téléphone, reprise |
 | `pub-test.js` | Publicités : onglet, infos du commerçant, photo et logo enregistrés (réduits), textes sans IA puis par l'agent (règles : rien d'inventé), aperçu des trois formats, vidéo 9:16 avec voix off (5 phrases, prix dit), photo, prix doré, bouton WhatsApp, affiche sur le lecteur, affiches 1080 × 1920 et 1080 × 1080, marques (Wanteermako d'office, marque gardée), site web avec QR code, téléchargements, téléphone, reprise |
 | `jeux-test.js` | (avec voix lue, questions trouvées sur le web et quatre modèles) Jeux « 5 secondes » : accès (menu, accueil), niveaux sans IA (réponses calculées, suites justes), niveaux de l'agent (thème et règles dans la demande, suite fausse corrigée par le code, « à vérifier »), aperçu 9:16, vidéo 9:16 de la durée prévue (compte à rebours, réponse en vert), téléchargement, publication (heures d'un jeu, hashtags), téléphone, reprise |
+| `succes-test.js` | Succès YouTube face à un faux YouTube (API, oEmbed, page) et un faux Gemini : recherche triée par vues (Shorts, période, langue, contenu familial), Sans IA (même jeu reconnu au titre), agent (vidéo, commentaires les plus aimés, vidéo regardée, rien copié, nouvel angle), niveaux contrôlés par le code, envoi dans le Quiz (modèle et décor), voix dirigée (Puck, animateur de jeu télé), ombre, différence et comptage dessinés, affiche, quota épuisé → agent sur Google avec liens vérifiés, liens collés, étude en détail, reprise, téléphone |
 | `agnes-test.js` | Agnes AI face à un faux Agnes : état du serveur (gratuit, clé cachée), Connexions, Storyboard par Agnes d'abord (format, 1K, photo du personnage en data URI, attente après un 429), clips plan par plan (720P, durée du plan, image de départ, image refusée → texte seul, un à la fois), rangés dans leur plan, téléphone |
 | `presse-plateau-test.js` | Plateau 3D et format 9:16 : réglages par défaut, aperçu dans les deux formats (avant la voix), repli sur le studio 2D, vidéo « Les deux » (1280 × 720 puis 720 × 1280, bandeau, images des articles sur le mur LED), kit de publication (6 réseaux, heures du pays, analyse du pays, leçon des statistiques, textes, fichier par réseau, rappel, .txt), miniatures, chapitres YouTube, téléphone |
 | `voix-relais-test.js` | Chaîne des voix gratuites face à un faux Google (3 modèles de voix, chacun son quota du jour) et un faux espace Hugging Face : modèle suivant en relais, modèle épuisé plus redemandé, message « demain matin » ; texte découpé (280 caractères) et recollé ; refus de Hugging Face ; revue en mode automatique (Gemini → Hugging Face → ordinateur) ; Connexions |
@@ -686,7 +749,8 @@ Les commits sont en français. Étapes majeures :
 13. relais Luna et docteur des dialogues ;
 14. suivi des étapes en direct ;
 15. **Director Engine V4** ;
-16. images du Storyboard, analyse des paroles, mode secours, **analyse complète des vidéos** (commencées par un autre assistant, terminées et testées).
+16. images du Storyboard, analyse des paroles, mode secours, **analyse complète des vidéos** (commencées par un autre assistant, terminées et testées) ;
+17. page **Motion design** : revue de presse en plateau 3D, quiz « 5 secondes », publicités, agence, puis **Succès YouTube**, voix de premier niveau et couche cinéma (6 au 8 octobre).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

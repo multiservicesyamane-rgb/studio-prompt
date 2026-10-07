@@ -333,7 +333,9 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, buf, "audio/wav"), {seconds:wavSeconds(buf), model:"Chatterbox (Hugging Face)"}));
   }
   async function runEleven(j){
-    const r = await call(`${ELEVEN_BASE}/v1/text-to-speech/${encodeURIComponent(j.voice)}?output_format=mp3_44100_128`, post({"xi-api-key":ELEVEN_KEY, "Content-Type":"application/json", "Accept":"audio/mpeg"}, {text:j.text, model_id:ELEVEN_MODEL}), 120000);
+    /* jeu de la voix selon la direction donnée : animateur ou annonceur plus expressif, voix posée plus stable ; sinon, réglages de la voix */
+    const st = String(j.style || ""), vs = /energetic|lively|punchy|announcer|show host|dynamique/i.test(st) ? {stability:0.35, similarity_boost:0.8, style:0.45, use_speaker_boost:true} : /calm|grave|serious|measured|posé/i.test(st) ? {stability:0.6, similarity_boost:0.8, style:0.15, use_speaker_boost:true} : null;
+    const r = await call(`${ELEVEN_BASE}/v1/text-to-speech/${encodeURIComponent(j.voice)}?output_format=mp3_44100_128`, post({"xi-api-key":ELEVEN_KEY, "Content-Type":"application/json", "Accept":"audio/mpeg"}, Object.assign({text:j.text, model_id:ELEVEN_MODEL}, vs ? {voice_settings:vs} : {})), 120000);
     if(!r.ok || /json/.test(r.type) || r.buf.length < 200) throw errOf("elevenlabs", r);
     finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, r.buf, "audio/mpeg"), {seconds:Math.round(r.buf.length / 16000 * 10) / 10}));
   }

@@ -482,6 +482,57 @@ async function handleVideoAnalyzeUrl(req, res){
     return sendJson(res, 504, Object.assign(out, {code:"timeout", message:"Analyse du lien trop longue : les images de la vidéo prennent le relais."}));
   }finally{ clearTimeout(timer); res.removeListener("close", onClose); }
 }
+/* ---------- Onglet « Succès YouTube » : les vidéos les plus vues sur un sujet, pour en apprendre la recette (jamais pour les copier) ----------
+   API officielle YouTube Data v3 (clé gratuite YOUTUBE_API_KEY : environ 100 recherches par jour), triée par nombre de vues, et commentaires
+   les plus appréciés (ce que le public aime et demande). Sans clé, la page fait chercher l'agent sur Google et le serveur vérifie chaque lien
+   (oEmbed public + page de la vidéo). Aucune vidéo n'est téléchargée : titre, chaîne, vues, durée et image d'aperçu publique, avec le lien. */
+const YT_API = (process.env.YOUTUBE_API_BASE || "https://www.googleapis.com/youtube/v3").replace(/\/$/, "");
+const ytKey = () => String(process.env.YOUTUBE_API_KEY || "").trim();
+const isoSeconds = d => { const m = String(d || "").match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/); return m ? (+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0) : 0; };
+const ytItem = m => ({id:m.id, url:`https://www.youtube.com/watch?v=${m.id}`, title:String(m.title || "").slice(0, 200), channel:String(m.channel || "").slice(0, 120), views:Number(m.views) || 0, duration:Number(m.duration) || 0, published:String(m.published || "").slice(0, 10),
+  short:!!m.short || (Number(m.duration) > 0 && Number(m.duration) <= 180), thumb:`https://i.ytimg.com/vi/${m.id}/mqdefault.jpg`, description:String(m.description || "").slice(0, 400)});
+async function ytApi(path, params){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
+  try{ const r = await fetch(`${YT_API}/${path}?${new URLSearchParams(Object.assign({}, params, {key:ytKey()}))}`, {signal:ctl.signal}); return {status:r.status, json:await r.json().catch(() => null)}; }
+  catch(e){ return {status:0, json:null}; } finally{ clearTimeout(t); }
+}
+function ytApiError(r){
+  const e = (r.json && r.json.error) || {}, why = `${((e.errors || [])[0] || {}).reason || ""} ${e.message || ""}`;
+  if(/quota/i.test(why)) return [429, "quota_day", "Quota du jour de l'API YouTube atteint (environ 100 recherches) : l'agent cherche sur Google à la place."];
+  if(/accessNotConfigured|has not been used|is disabled/i.test(why)) return [403, "no_key", "Active « YouTube Data API v3 » pour ta clé dans Google Cloud. En attendant, l'agent cherche sur Google."];
+  if(r.status === 400 || r.status === 401 || r.status === 403) return [401, "no_key", "Clé YouTube refusée : vérifie YOUTUBE_API_KEY dans le fichier .env. En attendant, l'agent cherche sur Google."];
+  return [502, "network", "YouTube ne répond pas : l'agent cherche sur Google à la place."];
+}
+async function handleYoutubeTop(req, res){
+  const u = new URL(req.url, "http://x"), p = k => String(u.searchParams.get(k) || "").trim();
+  const ids = [...new Set(p("ids").split(/[\s,]+/).map(x => ytId(x) || (/^[A-Za-z0-9_-]{11}$/.test(x) ? x : "")).filter(Boolean))].slice(0, 12);
+  if(ids.length){   /* liens trouvés par l'agent ou collés : chacun vérifié sur YouTube ; un lien qui ne mène à aucune vidéo est écarté */
+    const items = (await Promise.all(ids.map(id => youtubeMeta(id).catch(() => null)))).filter(m => m && m.title).map(ytItem).sort((a, b) => b.views - a.views);
+    return sendJson(res, 200, {items, source:"liens"}); }
+  const q = p("q").replace(/[<>"]/g, " ").slice(0, 120); if(!q) return sendJson(res, 400, {code:"bad_request", message:"Écris un sujet à chercher."});
+  if(!ytKey()) return sendJson(res, 400, {code:"no_key", message:"Pas de clé YouTube (YOUTUBE_API_KEY, gratuite) : l'agent cherche sur Google à la place."});
+  const days = {semaine:7, mois:31, annee:365}[p("periode")], params = {part:"snippet", type:"video", order:"viewCount", maxResults:"25", q, safeSearch:"strict"};
+  if(days) params.publishedAfter = new Date(Date.now() - days * 864e5).toISOString().replace(/\.\d+Z$/, "Z");
+  if(p("format") === "court") params.videoDuration = "short"; else if(p("format") === "moyen") params.videoDuration = "medium";
+  if(/^[a-z]{2}$/.test(p("langue"))) params.relevanceLanguage = p("langue");
+  const s = await ytApi("search", params); if(s.status !== 200 || !s.json){ const [code, c, message] = ytApiError(s); return sendJson(res, code, {code:c, message}); }
+  const found = (s.json.items || []).map(x => x && x.id && x.id.videoId).filter(Boolean); if(!found.length) return sendJson(res, 200, {items:[], source:"api"});
+  const v = await ytApi("videos", {part:"snippet,statistics,contentDetails", id:found.join(",")}); if(v.status !== 200 || !v.json){ const [code, c, message] = ytApiError(v); return sendJson(res, code, {code:c, message}); }
+  const items = (v.json.items || []).map(x => { const sn = x.snippet || {}; return ytItem({id:x.id, title:sn.title, channel:sn.channelTitle, views:(x.statistics || {}).viewCount, duration:isoSeconds((x.contentDetails || {}).duration), published:sn.publishedAt, description:sn.description}); })
+    .filter(x => x.id && x.title).sort((a, b) => b.views - a.views).slice(0, 12);
+  sendJson(res, 200, {items, source:"api"});
+}
+/* Les commentaires les plus appréciés d'une vidéo : lus pour trouver un nouvel angle (ce que le public aime, demande ou reproche), jamais republiés */
+async function handleYoutubeComments(req, res){
+  const id = ytId(new URL(req.url, "http://x").searchParams.get("url")); if(!id) return sendJson(res, 400, {code:"bad_request", message:"Lien YouTube non reconnu."});
+  if(!ytKey()) return sendJson(res, 400, {code:"no_key", message:"Les commentaires demandent la clé YouTube gratuite (YOUTUBE_API_KEY)."});
+  const r = await ytApi("commentThreads", {part:"snippet", videoId:id, order:"relevance", maxResults:"30", textFormat:"plainText"});
+  if(r.status === 403 && /commentsDisabled/.test(JSON.stringify(r.json || ""))) return sendJson(res, 200, {comments:[]});
+  if(r.status !== 200 || !r.json){ const [code, c, message] = ytApiError(r); return sendJson(res, code, {code:c, message}); }
+  const comments = (r.json.items || []).map(x => { const c = ((x.snippet || {}).topLevelComment || {}).snippet || {}; return {texte:String(c.textOriginal || c.textDisplay || "").replace(/\s+/g, " ").trim().slice(0, 220), likes:Number(c.likeCount) || 0}; })
+    .filter(c => c.texte).sort((a, b) => b.likes - a.likes).slice(0, 15);
+  sendJson(res, 200, {comments});
+}
 /* Images de la vidéo (planches d'aperçu publiques de YouTube, une image par seconde environ) : secours gratuit quand Gemini ne peut pas lire le lien */
 async function handleYoutubeFrames(req, res){
   const id = ytId(new URL(req.url, "http://x").searchParams.get("url")); if(!id) return sendJson(res, 400, {code:"bad_request", message:"Lien YouTube non reconnu."});
@@ -877,6 +928,8 @@ http.createServer((req, res) => {
   if(req.method === "POST" && req.url.startsWith("/api/news/images")) return handleNewsImages(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de la page impossible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/news/read")) return handleNewsRead(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de l'article impossible."}); });   /* /api/gen/* (vidéos, voix, imports, budget) et lecture des fichiers de /generated/ */
   if(req.method === "POST" && req.url.startsWith("/api/video/analyze-url")) return handleVideoAnalyzeUrl(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Analyse du lien impossible."}); });
+  if(req.method === "GET" && req.url.startsWith("/api/youtube/top")) return handleYoutubeTop(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Recherche YouTube indisponible : l'agent cherche sur Google à la place."}); });
+  if(req.method === "GET" && req.url.startsWith("/api/youtube/comments")) return handleYoutubeComments(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Commentaires indisponibles."}); });
   if(req.method === "GET" && req.url.startsWith("/api/video/yt-frames")) return handleYoutubeFrames(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Images de la vidéo indisponibles."}); });
   if(req.method === "POST" && req.url.startsWith("/api/video/analyze")) return handleVideoAnalyze(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant l'analyse vidéo."}); else res.end(); });
   if(req.method === "POST" && req.url.startsWith("/api/images/generate")) return handleImageGenerate(req,res).catch(e=>{ console.error(e); if(!res.headersSent) sendJson(res,500,{code:"server_error",message:"Erreur interne pendant la génération de l'image."}); else res.end(); });

@@ -39,7 +39,7 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     // 1. onglet
     await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
     await pg.click('[data-mt="pub"]'); await pg.waitForFunction(() => !document.getElementById("mt-pub").hidden, {timeout: 10000});
-    check("page Motion design : onglet Publicités (avec Infos du jour et Quiz)", await pg.evaluate(() => [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join() === "infos,quiz,pub" && document.getElementById("mt-infos").hidden));
+    check("page Motion design : onglet Publicités (avec Infos du jour, Quiz et Succès YouTube)", await pg.evaluate(() => [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join() === "infos,quiz,pub,succes" && document.getElementById("mt-infos").hidden));
     // 2. infos du commerçant, photos et logo
     const fill = {"#pb-nom": "Boutique Awa", "#pb-act": "Téléphones", "#pb-prod": "Téléphone 128 Go", "#pb-prix": "85 000 FCFA", "#pb-ancien": "100 000 FCFA", "#pb-promo": "-15 % ce week-end", "#pb-wa": "77 000 00 00", "#pb-adr": "Marché central", "#pb-hor": "9 h à 21 h"};
     for(const [sel, v] of Object.entries(fill)) await pg.type(sel, v);
@@ -82,7 +82,7 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     check("texte du statut prêt à copier, avec les hashtags", /Nouveau stock chez Boutique Awa/.test(leg) && /#Dakar/.test(leg) && /#telephone/.test(leg), leg.replace(/\n/g, " / "));
     // 6 bis. marques : Wanteermako proposé d'office, marque gardée, site web avec QR code sur l'affiche
     const br = await pg.evaluate(() => [...document.querySelectorAll("[data-pb-brand]")].map(b => b.textContent.trim()));
-    check("« Mes marques » : le site d'annonces Wanteermako est proposé d'office", br.some(t => /Wanteermako/.test(t)), br.join(" | "));
+    check("« Mes marques » : le site d'annonces Wanteermako et la boutique Yamane Shop sont proposés d'office", br.some(t => /Wanteermako/.test(t)) && br.some(t => /Yamane Shop/.test(t)), br.join(" | "));
     await pg.evaluate(() => { document.getElementById("pb-site").value = "www.boutique-awa.sn"; document.getElementById("pb-brand-save").click(); });
     const kept = await pg.evaluate(() => (JSON.parse(localStorage.getItem("sp-marques") || "[]")).map(b => `${b.nom}|${b.site}|${b.logo ? "logo" : ""}`));
     check("« Garder cette marque » : la boutique est gardée avec son site et son logo, à côté de Wanteermako", kept.some(k => /^Boutique Awa\|www\.boutique-awa\.sn\|logo$/.test(k)) && kept.some(k => /^Wanteermako/.test(k)), kept.join(" ; "));
