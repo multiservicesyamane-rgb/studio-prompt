@@ -363,7 +363,7 @@ dl.kv dd{margin:0;font-size:15px}
 .pr-prev{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px;align-items:start}.pr-prev:empty{display:none}
 .mt-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.mt-tabs button{border:1px solid var(--line);background:var(--sunken);color:inherit;border-radius:999px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
 .mt-tabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
-.pb-thumbs img{max-height:120px;width:auto}
+.pb-thumbs img{max-height:120px;width:auto}.jx-wq{align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line)}.jx-wq span{overflow-wrap:anywhere}
 .ag-clients{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px;margin-top:10px}.ag-client{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--sunken);color:inherit;border-radius:12px;padding:10px 12px;font:inherit;cursor:pointer;min-width:0}
 .ag-client.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}.ag-client .hint{grid-column:2;overflow-wrap:anywhere}.ag-dot{width:14px;height:14px;border-radius:50%;display:inline-block;grid-row:span 2}.ag-dot.big{width:34px;height:34px}
 .ag-head{display:flex;gap:12px;align-items:center}.ag-head h2{margin:0}.ag-preview{margin:10px 0}.ag-preview img{max-width:min(100%,420px);max-height:560px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.25);display:block}
@@ -990,6 +990,8 @@ input[type=text].plain-in{background:var(--surface)}
               <div class="field"><label for="jx-pays">Public</label><div class="sel"><select id="jx-pays"></select></div></div></div>
             <div class="jx-ideas"><span class="hint">Idées :</span><button type="button" class="btn small quiet" data-jx-idea="logique et énigmes">Logique</button><button type="button" class="btn small quiet" data-jx-idea="géographie de l'Afrique : pays, capitales, fleuves, records">Afrique</button><button type="button" class="btn small quiet" data-jx-idea="football : règles, clubs, compétitions, stades (sans joueur réel)">Football</button><button type="button" class="btn small quiet" data-jx-idea="calcul mental rapide">Calcul mental</button><button type="button" class="btn small quiet" data-jx-idea="corps humain et science étonnante">Science</button><button type="button" class="btn small quiet" data-jx-idea="animaux et records de la nature">Animaux</button><button type="button" class="btn small quiet" data-jx-idea="manga et animation : les codes du genre, les techniques de dessin, l'histoire du manga (sans personnage protégé)">Manga</button></div>
             <details class="fix"><summary>Tirer les questions de mon texte (facultatif)</summary><div class="fix-body"><label class="hint" for="jx-text">Colle un cours, un article, une histoire : l’agent en tire les questions.</label><textarea id="jx-text" rows="4"></textarea></div></details>
+            <div class="actions"><button type="button" class="btn" id="jx-web">🔎 Questions de culture générale (recherche Google)</button></div>
+            <div id="jx-web-res"></div>
             <div class="actions"><button type="submit" class="btn primary" id="jx-go">✨ Créer les niveaux avec l’agent</button><button type="button" class="btn" id="jx-rand">🎲 Sans IA : niveaux au hasard</button><button type="button" class="btn quiet" id="jx-stop" hidden>Arrêter</button></div>
             <div class="status" id="jx-status" hidden><span id="jx-status-text"></span><div class="bar"><i id="jx-status-bar"></i></div></div>
           </form>
@@ -998,9 +1000,10 @@ input[type=text].plain-in{background:var(--surface)}
           <div id="mt-pub" hidden>
           <p class="hint">Publicités pour les commerces (tes clients du marché) : donne le nom, le produit, les photos, le prix, la promo et le WhatsApp. Le moteur fabrique une pub animée de 15 ou 30 secondes (logo, produit, avantages, prix qui claque, bouton WhatsApp) et son affiche, pour le statut WhatsApp, TikTok, Facebook et Instagram. Rien n’est inventé : prix, promo et avantages viennent du commerçant.</p>
           <form class="panel" id="pb-form" autocomplete="off">
+            <div class="jx-ideas" id="pb-brands"></div>
             <div class="pr-row"><div class="field"><label for="pb-nom">Nom du commerce</label><input type="text" id="pb-nom" placeholder="Exemple : Boutique Awa Téléphones"></div><div class="field"><label for="pb-act">Activité</label><input type="text" id="pb-act" placeholder="Téléphones, restaurant, mode, coiffure…"></div></div>
             <div class="pr-row"><div class="field"><label for="pb-prod">Produit ou offre</label><input type="text" id="pb-prod" placeholder="Exemple : téléphone 128 Go"></div><div class="field"><label for="pb-prix">Prix</label><input type="text" id="pb-prix" placeholder="85 000 FCFA"></div><div class="field"><label for="pb-ancien">Ancien prix <span class="hint">(facultatif)</span></label><input type="text" id="pb-ancien" placeholder="100 000 FCFA"></div></div>
-            <div class="pr-row"><div class="field"><label for="pb-promo">Promo <span class="hint">(facultatif)</span></label><input type="text" id="pb-promo" placeholder="-15 % ce week-end"></div><div class="field"><label for="pb-wa">WhatsApp</label><input type="tel" id="pb-wa" placeholder="77 000 00 00"></div></div>
+            <div class="pr-row"><div class="field"><label for="pb-promo">Promo <span class="hint">(facultatif)</span></label><input type="text" id="pb-promo" placeholder="-15 % ce week-end"></div><div class="field"><label for="pb-wa">WhatsApp</label><input type="tel" id="pb-wa" placeholder="77 000 00 00"></div><div class="field"><label for="pb-site">Site web <span class="hint">(facultatif : QR code)</span></label><input type="text" id="pb-site" placeholder="www.monsite.com"></div></div>
             <div class="pr-row"><div class="field"><label for="pb-adr">Adresse</label><input type="text" id="pb-adr" placeholder="Quartier, ville"></div><div class="field"><label for="pb-hor">Horaires</label><input type="text" id="pb-hor" placeholder="Tous les jours, 9 h à 21 h"></div></div>
             <div class="field"><label for="pb-av">Avantages <span class="hint">(un par ligne, facultatif)</span></label><textarea id="pb-av" rows="3" placeholder="Garantie 6 mois&#10;Livraison dans la ville"></textarea></div>
             <div class="pr-row"><div class="field"><label for="pb-color">Couleur de la marque</label><input type="color" id="pb-color" value="#e53935"></div><div class="field"><label for="pb-duree">Durée</label><div class="sel"><select id="pb-duree"><option value="15" selected>15 secondes</option><option value="30">30 secondes</option></select></div></div></div>
@@ -6344,9 +6347,36 @@ function onViewShown(name){
    - vrai ou faux et quiz à 4 choix : écrits par l'agent, à vérifier avant de publier.
    Deux façons de créer : l'agent invente les niveaux sur un thème (ou d'après un texte donné), ou « Sans IA », niveaux tirés au hasard (sans quota).
    Vidéo : canevas + son fabriqué (tic-tac, sting, souffle, nappe), enregistrés en temps réel comme la revue de presse ; formats 9:16 et 16:9. */
-const JX = {ep:null, videos:[], stop:false, ctl:null};
+/* ---------- Voix (« parleurs ») des onglets Quiz et Publicités : la même chaîne gratuite que la revue de presse (Gemini, puis Hugging Face, puis l'ordinateur) ---------- */
+function spVoiceOptions(sel){
+  const g=FAB.voices.gemini||[], o=(v,l)=>`<option value="${esc(v)}"${v===sel?" selected":""}>${esc(l)}</option>`;
+  return o("none","Sans voix (musique et effets seulement)")+`<optgroup label="Recommandé">${o("auto","⭐ La meilleure voix gratuite (automatique)")}</optgroup>`+(g.length?`<optgroup label="Voix Gemini (gratuites dans la limite du jour)">${g.map(v=>o(v.id,`${v.name} · ${v.desc}`)).join("")}</optgroup>`:"")
+    +`<optgroup label="Voix naturelle gratuite (Hugging Face)">${o("hf:fr_f1","Voix naturelle · femme, très naturelle")}</optgroup><optgroup label="Voix gratuites sur l'ordinateur (sans quota)">${LOCAL_VOICES.map(v=>o("local:"+v.id,`${v.name} · ${v.desc} · gratuite`)).join("")}</optgroup>`;
+}
+async function spSay(text, sel, project, base){
+  text=String(text||"").replace(/\s+/g," ").trim(); if(!text||!sel||sel==="none") return null;
+  const local=async id=>{ const x=await localSpeak(text,id,project,base); return {url:x.url, seconds:x.seconds, voice:id}; };
+  if(/^local:/.test(sel)||!genApi) return local(/^local:/.test(sel)?sel.slice(6):"fr_FR-siwis-medium");
+  const job=async(service,voice)=>{ let {job}=await genApi.start({kind:"voice", service, voice, text, project, plan:0, base}); for(let k=0;k<300&&/queued|running/.test(job.status);k++){ await new Promise(r=>setTimeout(r,window.__voicePoll||700)); job=((await genApi.jobs(project,[job.id])).jobs||[])[0]||job; } if(job.status!=="done"||!job.url) throw {code:job.code, message:job.error||"Voix impossible."}; return {url:job.url, seconds:job.seconds||0, voice}; };
+  if(/^hf:/.test(sel)){ try{ return await job("chatterbox",sel.slice(3)); }catch(e){ return local("fr_FR-siwis-medium"); } }
+  try{ return await job("gemini", sel==="auto"?"Charon":sel); }
+  catch(e){ if(sel==="auto"){ try{ return await job("chatterbox","fr_f1"); }catch(e2){} } const d=String(((FAB.voices.gemini||[]).find(v=>v.id===sel)||{}).desc||""); return local(sel==="auto"?"fr_FR-siwis-medium":localFor(/^femme/.test(d)?"femme":"homme")); }   /* relais gratuit jusqu'à la voix de l'ordinateur */
+}
+/* Toutes les phrases d'une vidéo, une par une (le quota gratuit le demande), gardées pour le mixage */
+async function spSayAll(lines, sel, project, say){
+  const out={}, keys=Object.keys(lines).filter(k=>lines[k]); let n=0;
+  for(const k of keys){ n++; if(say) say(`Voix ${n} sur ${keys.length}…`); try{ const v=await spSay(lines[k], sel, project, `voix-${k}`); if(v){ v.ab=await (await fetch(v.url)).arrayBuffer(); out[k]=v; } }catch(e){} }
+  return out;
+}
+/* Pose les voix dans le mixage, avec la musique qui baisse sous la voix */
+async function spMixVoices(ctx, dest, bedGain, vo, at, hi){
+  for(const [k,v] of Object.entries(vo||{})){ const t=at(k); if(t==null||!v.ab) continue; let buf; try{ buf=await ctx.decodeAudioData(v.ab.slice(0)); }catch(e){ continue; }
+    const s=ctx.createBufferSource(); s.buffer=buf; s.connect(dest); s.start(t); bedGain.gain.setTargetAtTime(hi*0.3,Math.max(0,t-0.08),0.05); bedGain.gain.setTargetAtTime(hi,t+buf.duration+0.05,0.25); }
+}
+const JX = {ep:null, videos:[], stop:false, ctl:null, web:[]};
 const JX_TYPES = {intrus:"Trouve l’intrus", memoire:"Mémoire", suite:"Suite logique", vrai_faux:"Vrai ou faux", choix:"Quiz"};
 const JX_DIFF = ["FACILE","MOYEN","DIFFICILE","EXPERT","GÉNIE"];
+const JX_MODELS = {hasard:"Au hasard (change à chaque épisode)", classique:"Classique", tele:"Jeu télé", bulles:"Bulles de BD", minimal:"Minimal"};   /* plusieurs modèles, pour que les vidéos ne se ressemblent pas */
 const JX_DECORS = {neon:"Néon de nuit", manga:"Manga (planche de BD)", nature:"Nature (lever de soleil)", espace:"Espace (étoiles et planète)"};   /* fonds animés, tous dessinés par le code */
 /* paires d'emoji de plus en plus proches (intrus) et objets pour la mémoire : rendus en couleur par Windows, Android et iPhone */
 const JX_PAIRS = [[["🍎","🍏"],["⚽","🏀"],["🐶","🐱"],["🌞","🌛"],["🚗","🚕"]],[["😀","😃"],["🙂","🙃"],["🐢","🐊"],["🍊","🍑"],["🌕","🌝"]],[["🕐","🕑"],["😐","😑"],["🌑","🌚"],["😃","😄"],["🕒","🕓"]]];
@@ -6402,13 +6432,31 @@ ${o.texte?`TEXTE DONNÉ PAR L'UTILISATEUR (tire les questions de ce texte seulem
 RÈGLES : faits vrais et vérifiables, rien d'inventé ; une question se lit en 2 secondes et se résout en 5 ; aucune personne réelle (ni célébrité, ni joueur, ni personnalité), aucune marque, aucun jeu d'argent, aucune politique, aucune religion ; respect de toutes les cultures ; emoji standards uniquement (pas de drapeaux). accroche = la phrase des 2 premières secondes (défi, chiffre, curiosité), vraie et sans racolage ; fin = l'appel à commenter son score et à revenir demain.
 ${learningBlock({outil:""},"strategie")}RÉPONDS UNIQUEMENT avec ce JSON : {"titre_serie":"5 SECONDES","accroche":"","niveaux":[{"type":"choix","question":"","options":["","","",""],"bonne":0,"emoji":"","explication":""}],"fin":"","publication":{"titre":"","legende":"","hashtags":[""]}}`;
 }
-/* ---------- minutage, son et image ---------- */
-function jxPlan(ep){
-  const parts=[]; let t=0; const add=(kind,d,x)=>{ parts.push(Object.assign({kind, start:t, end:t+d}, x||{})); t+=d; };
-  add("hook",2.6); ep.niveaux.forEach((l,i)=>{ const look=l.type==="memoire"?3:0; add("level",1.5+look+5+2.6,{i, q:1.5, look, timer:5, reveal:2.6}); }); add("fin",3.4);
-  return {parts, total:t};
+/* Recherche Google (outil de recherche du moteur) : les questions de culture générale qui intéressent le plus le public, vérifiées sur une source */
+function jxWebPrompt(o){
+  return `Tu es le documentaliste d'une série de quiz vidéo très regardée. Cherche sur le web (Google), aujourd'hui (${prDay()}), ce qui intéresse le plus le public de ${label("pays",o.pays)} en culture générale${o.theme?` sur le thème « ${o.theme} »`:""} : questions les plus posées, curiosités, records, dates du jour, actualité culturelle et sportive.
+Propose 10 questions de quiz, chacune vérifiée sur une source fiable : question courte (12 mots au plus), 4 réponses courtes (la bonne et 3 fausses crédibles), bonne = indice de la bonne, explication en une phrase, source (nom du site) et lien.
+RÈGLES : faits vrais et vérifiés ; aucune personne réelle au centre d'une question ; aucune marque ; ni politique, ni religion, ni jeu d'argent ; français simple.
+RÉPONDS UNIQUEMENT avec ce JSON : {"questions":[{"question":"","options":["","","",""],"bonne":0,"explication":"","source":"","lien":""}]}`;
 }
-async function jxAudio(plan){
+function jxWebHtml(){ const L=JX.web||[]; if(!L.length) return "";
+  return `<div class="card"><h3 class="sub-h">Questions trouvées sur le web</h3><p class="hint">Coche celles que tu veux mettre en vidéo (5 au plus), puis crée l’épisode. Chacune garde sa source : vérifie-la avant de publier.</p>
+    ${L.map((q,k)=>`<label class="check jx-wq"><input type="checkbox" data-jxq="${k}"${k<4?" checked":""}><span><b>${esc(q.question)}</b> → ${esc(q.options[q.bonne]||"")}${q.source?` · <span class="hint">${q.lien?`<a href="${esc(q.lien)}" target="_blank" rel="noopener">${esc(q.source)}</a>`:esc(q.source)}</span>`:""}</span></label>`).join("")}
+    <div class="actions"><button type="button" class="btn primary" id="jx-web-go">✨ Créer l’épisode avec les questions cochées</button></div></div>`; }
+/* ---------- minutage, son et image ---------- */
+function jxPlan(ep, vo){
+  vo=vo||{}; const sec=k=>(vo[k]&&vo[k].seconds)||0, parts=[]; let t=0; const add=(kind,d,x)=>{ parts.push(Object.assign({kind, start:t, end:t+d}, x||{})); t+=d; };
+  add("hook",Math.max(2.6,sec("hook")+0.6)); ep.niveaux.forEach((l,i)=>{ const look=l.type==="memoire"?3:0, q=Math.max(1.5,sec("q"+i)+0.35), rev=Math.max(2.6,sec("r"+i)+0.8); add("level",q+look+5+rev,{i, q, look, timer:5, reveal:rev}); }); add("fin",Math.max(3.4,sec("fin")+0.8));
+  return {parts, total:t};   /* avec une voix, chaque moment dure le temps de la phrase */
+}
+/* Ce que dit la voix qui pose les questions */
+function jxLines(ep){
+  const L={hook:ep.accroche||"Seulement 3 % trouvent le dernier niveau.", fin:ep.fin||"Combien en as-tu trouvé ? Écris ton score en commentaire."};
+  ep.niveaux.forEach((l,i)=>{ L["q"+i]=`Niveau ${i+1}. ${l.type==="vrai_faux"?`Vrai ou faux ? ${l.affirmation}`:l.type==="memoire"?"Mémorise bien ces objets.":l.type==="intrus"?"Trouve l'intrus !":l.question}`;
+    L["r"+i]=l.type==="intrus"?"Le voici !":l.type==="memoire"?"Il était ici !":l.type==="suite"?`La réponse était ${l.options[l.bonne]}.`:l.type==="vrai_faux"?`${l.vrai?"Vrai":"Faux"} ! ${l.explication||""}`:`La bonne réponse : ${l.options[l.bonne]}. ${l.explication||""}`; });
+  return L;
+}
+async function jxAudio(plan, vo){
   const SR=44100, C=window.OfflineAudioContext||window.webkitOfflineAudioContext, ctx=new C(2,Math.ceil((plan.total+0.4)*SR),SR), M=PR_MOODS.energique||PR_MOODS.journal;
   const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=3; comp.connect(ctx.destination);
   const bed=ctx.createGain(); bed.gain.value=0.55; bed.connect(comp); prBed(ctx,M,bed,plan.total); const fx=ctx.createGain(); fx.gain.value=0.75; fx.connect(comp);
@@ -6418,11 +6466,14 @@ async function jxAudio(plan){
     for(let s=0;s<5;s++) beep(t0+s,s<3?880:1175,0.09,s<3?0.16:0.22);   /* tic-tac du compte à rebours, plus aigu à la fin */
     const rv=t0+p.timer; prHit(ctx,fx,rv,0.9); prSting(ctx,fx,rv+0.05,M,1); beep(rv+0.12,1568,0.35,0.12); });
   const fin=plan.parts[plan.parts.length-1]; prSting(ctx,fx,fin.start+0.2,M,0.9);
+  if(vo&&Object.keys(vo).length){ const vb=ctx.createGain(); vb.gain.value=1.15; vb.connect(comp); const L=plan.parts.filter(p=>p.kind==="level");
+    await spMixVoices(ctx, vb, bed, vo, k=>k==="hook"?0.3:k==="fin"?fin.start+0.3:/^q\d/.test(k)?(L[+k.slice(1)]||{}).start+0.1:/^r\d/.test(k)?(p=>p&&p.start+p.q+p.look+p.timer+0.2)(L[+k.slice(1)]):null, 0.55); }
   const out=await ctx.startRendering(); return {blob:prWav(out), buf:out};
 }
 /* Dessin de l'épisode à l'instant t (vidéo, aperçu, miniature) */
-function jxStage(ep, format, decor, big){
-  const V=format!=="16:9", W=V?(big?1080:720):1280, H=V?(big?1920:1280):720, U=Math.min(W,H)/720, D=JX_DECORS[decor]?decor:"neon", LIGHT=D==="manga", INK=LIGHT?"#141414":"#fff", HALO=LIGHT?"#fff":"rgba(0,0,0,.6)", plan=jxPlan(ep), c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
+function jxStage(ep, format, decor, big, vo, model){
+  const V=format!=="16:9", W=V?(big?1080:720):1280, H=V?(big?1920:1280):720, U=Math.min(W,H)/720, D=JX_DECORS[decor]?decor:"neon", LIGHT=D==="manga", INK=LIGHT?"#141414":"#fff", HALO=LIGHT?"#fff":"rgba(0,0,0,.6)", plan=jxPlan(ep,vo),
+    MOD=JX_MODELS[model]&&model!=="hasard"?model:["classique","tele","bulles","minimal"][(ep.numero||1)%4], c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
   const F=(w,s)=>`${w} ${Math.round(s*U)}px "Segoe UI", Arial, sans-serif`, E=s=>`${Math.round(s*U)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
   const HUES=[215,265,330,20,160], GOOD="#2ecc71", ACC="#ffd23f", serie=ep.titre_serie||"5 SECONDES", N=ep.niveaux.length;
   const rr=(X,Y,w,h,r)=>{ x.beginPath(); x.moveTo(X+r,Y); x.arcTo(X+w,Y,X+w,Y+h,r); x.arcTo(X+w,Y+h,X,Y+h,r); x.arcTo(X,Y+h,X,Y,r); x.arcTo(X,Y,X+w,Y,r); x.closePath(); };
@@ -6487,8 +6538,12 @@ function jxStage(ep, format, decor, big){
     else if(l.type==="choix"){ if(l.emoji){ const ey=area.y+60*U+Math.sin(lt*4)*6*U; x.save(); x.textAlign="center"; x.textBaseline="middle"; x.font=E((V?110:80)*Math.min(1,appear)); x.fillText(l.emoji,W/2,ey); x.restore(); x.textBaseline="alphabetic"; if(!rv) sparkle(W/2,ey,(V?78:58)*U,lt); } opts(l.options,l.bonne,rv,lt,area.y+(l.emoji?140:40)*U); }
   };
   const opts=(o,good,rv,lt,y0)=>{ const two=V?1:2, bw=V?area.w:area.w*0.48, bh=V?78*U:80*U, gap=14*U; o.forEach((txt,k)=>{ const col=k%two, row=Math.floor(k/two), bx=V?area.x:area.x+col*(bw+area.w*0.04), by=y0+row*(bh+gap), d=prBack(Math.min(1,Math.max(0,lt*2.2-k*0.25))); if(d<=0) return; const ok=k===good;
-      x.save(); x.translate(bx+bw/2,by+bh/2); x.scale(d,d); x.globalAlpha=rv&&!ok?1-0.6*rv:1; x.fillStyle=rv&&ok?GOOD:"rgba(255,255,255,.95)"; rr(-bw/2,-bh/2,bw,bh,18*U); x.fill(); if(LIGHT){ x.strokeStyle="#111"; x.lineWidth=4*U; x.stroke(); }
-      x.fillStyle=rv&&ok?"#fff":"#1c2240"; x.textAlign="left"; x.font=F("900",30); x.fillText(`${"ABCD"[k]}`,-bw/2+22*U,12*U); x.font=F("800",28); let fs=28; while(x.measureText(txt).width>bw-110*U&&fs>16){ fs-=2; x.font=F("800",fs); } x.fillText(txt,-bw/2+70*U,11*U); if(rv&&ok){ x.textAlign="right"; x.font=F("900",34); x.fillText("✓",bw/2-20*U,13*U); } x.restore(); }); };
+      x.save(); x.translate(bx+bw/2,by+bh/2); x.scale(d,d); x.globalAlpha=rv&&!ok?1-0.6*rv:1;
+      if(MOD==="tele"){ const g2=x.createLinearGradient(0,-bh/2,0,bh/2); g2.addColorStop(0,rv&&ok?"#1db954":"#163a8f"); g2.addColorStop(1,rv&&ok?"#0b7a33":"#081a4f"); x.fillStyle=g2; x.strokeStyle="#d4af37"; x.lineWidth=3*U; x.beginPath(); x.moveTo(-bw/2,0); x.lineTo(-bw/2+24*U,-bh/2); x.lineTo(bw/2-24*U,-bh/2); x.lineTo(bw/2,0); x.lineTo(bw/2-24*U,bh/2); x.lineTo(-bw/2+24*U,bh/2); x.closePath(); x.fill(); x.stroke(); x.fillStyle="#d4af37"; }   /* barres du jeu télé */
+      else if(MOD==="bulles"){ x.rotate((k%2?1:-1)*0.02); x.fillStyle=rv&&ok?"#b9f6ca":"#fff"; x.strokeStyle="#111"; x.lineWidth=4*U; rr(-bw/2,-bh/2,bw,bh,bh/2); x.fill(); x.stroke(); x.fillStyle="#111"; }   /* bulles de BD */
+      else if(MOD==="minimal"){ x.strokeStyle=rv&&ok?GOOD:LIGHT?"rgba(0,0,0,.5)":"rgba(255,255,255,.55)"; x.lineWidth=(rv&&ok?5:2)*U; x.beginPath(); x.moveTo(-bw/2,bh/2-6*U); x.lineTo(bw/2,bh/2-6*U); x.stroke(); x.fillStyle=rv&&ok?GOOD:INK; }   /* juste une ligne */
+      else { x.fillStyle=rv&&ok?GOOD:"rgba(255,255,255,.95)"; rr(-bw/2,-bh/2,bw,bh,18*U); x.fill(); if(LIGHT){ x.strokeStyle="#111"; x.lineWidth=4*U; x.stroke(); } x.fillStyle=rv&&ok?"#fff":"#1c2240"; }
+      if(MOD==="tele"&&!(rv&&ok)) x.fillStyle="#d4af37"; x.textAlign="left"; x.font=F("900",30); x.fillText(`${"ABCD"[k]}`,-bw/2+22*U,12*U); if(MOD==="tele") x.fillStyle="#fff"; x.font=F("800",28); let fs=28; while(x.measureText(txt).width>bw-110*U&&fs>16){ fs-=2; x.font=F("800",fs); } x.fillText(txt,-bw/2+70*U,11*U); if(rv&&ok){ x.textAlign="right"; x.font=F("900",34); x.fillText("✓",bw/2-20*U,13*U); } x.restore(); }); };
   const draw=t=>{ let p=plan.parts.find(z=>t>=z.start&&t<z.end)||plan.parts[plan.parts.length-1]; const lt=t-p.start;
     if(p.kind==="hook"){ bg(HUES[0],t,0); x.save(); x.textAlign="center"; const e=prBack(Math.min(1,lt/0.6)), sh=lt<0.6?Math.sin(lt*60)*6*U*(1-lt/0.6):0;
       x.translate(W/2+sh,H*0.38); x.scale(e,e); x.strokeStyle=INK; x.lineWidth=10*U; x.beginPath(); x.arc(0,-150*U,64*U,0,7); x.stroke(); x.fillStyle=INK; x.fillRect(-14*U,-236*U,28*U,22*U); x.beginPath(); x.moveTo(0,-150*U); x.lineTo(0,-150*U-48*U*Math.cos(lt*4)); x.stroke();   /* chronomètre */
@@ -6499,7 +6554,10 @@ function jxStage(ep, format, decor, big){
       const pw=pill(`NIVEAU ${p.i+1} · ${JX_DIFF[Math.min(JX_DIFF.length-1,Math.round(p.i*(JX_DIFF.length-1)/Math.max(1,N-1)))]}`,36*U,V?130*U:58*U,ACC);
       const qy=V?250*U:150*U, rvq=lt>t0+p.timer&&l.explication?Math.min(1,(lt-t0-p.timer)/0.4):0; x.save(); x.textAlign="center";
       ink(); if(rvq){ x.globalAlpha=rvq; x.font=F("800",V?32:30); wrapC(l.explication,qy-10*U,W*0.88,40*U,3,true); }   /* pendant la réponse, l'explication remplace la question */
-      else if(l.type!=="memoire"||lt<p.q+p.look){ x.font=F("900",V?44:40); popText(l.type==="memoire"?"Mémorise les objets !":l.question,qy,W*0.88,52*U,l.type==="choix"?3:2,lt); } x.restore();
+      else if(l.type!=="memoire"||lt<p.q+p.look){ x.font=F("900",V?44:40); const qt=l.type==="memoire"?"Mémorise les objets !":l.question, nl=Math.min(l.type==="choix"?3:2,prWrap(x,qt,W*0.84).length);
+        if(MOD==="tele"){ const bw=W*0.94, bh=(nl*52+40)*U, by=qy-46*U, a=Math.min(1,lt/0.3); x.save(); x.globalAlpha=a; const g2=x.createLinearGradient(0,by,0,by+bh); g2.addColorStop(0,"#13286b"); g2.addColorStop(1,"#071442"); x.fillStyle=g2; x.strokeStyle="#d4af37"; x.lineWidth=4*U; x.beginPath(); x.moveTo(W/2-bw/2,by+bh/2); x.lineTo(W/2-bw/2+30*U,by); x.lineTo(W/2+bw/2-30*U,by); x.lineTo(W/2+bw/2,by+bh/2); x.lineTo(W/2+bw/2-30*U,by+bh); x.lineTo(W/2-bw/2+30*U,by+bh); x.closePath(); x.fill(); x.stroke(); x.restore(); x.fillStyle="#fff"; x.strokeStyle="rgba(0,0,0,.4)"; x.lineWidth=6*U; }
+        else if(MOD==="bulles"){ const bw=W*0.92, bh=(nl*52+46)*U, by=qy-48*U; x.save(); x.fillStyle="#fff"; x.strokeStyle="#111"; x.lineWidth=5*U; rr(W/2-bw/2,by,bw,bh,36*U); x.fill(); x.stroke(); x.beginPath(); x.moveTo(W*0.3,by+bh-2*U); x.lineTo(W*0.24,by+bh+40*U); x.lineTo(W*0.4,by+bh-2*U); x.closePath(); x.fill(); x.stroke(); x.restore(); x.fillStyle="#111"; x.strokeStyle="#fff"; x.lineWidth=2*U; }
+        popText(qt,qy,W*0.84,52*U,l.type==="choix"?3:2,lt); } x.restore();
       drawLevel(l,p,lt);
       if(inT){ const R=V?62*U:52*U; ring(V?W/2:W-90*U, V?area.y+area.h+100*U:H-90*U, R, Math.max(0,left/p.timer), Math.max(1,Math.ceil(left)), alarm); }
       if(lt>=t0+p.timer){ const e=prBack(Math.min(1,(lt-t0-p.timer)/0.45)); x.save(); x.translate(V?W/2:W-140*U,V?area.y+area.h+100*U:H-90*U); x.scale(e,e); x.font=F("900",V?40:32); const tw=x.measureText("RÉPONSE").width+60*U; x.fillStyle=GOOD; rr(-tw/2,-34*U,tw,62*U,31*U); x.fill(); x.fillStyle="#fff"; x.textAlign="center"; x.fillText("RÉPONSE",0,12*U); x.restore(); confetti(p.start+t0+p.timer,t); }
@@ -6554,10 +6612,11 @@ function jxLevelHtml(l,i){
 }
 function jxRender(){
   const ep=JX.ep, el=$("jx-res"); if(!ep||!el) return; const plan=jxPlan(ep), k=jxKit(ep);
-  el.innerHTML=`<section class="section"><div class="card"><span class="kicker">${esc(ep.titre_serie)} · épisode ${ep.numero||1}</span><h2>${esc(ep.accroche||"Seulement 3 % trouvent le dernier niveau")}</h2><p class="hint">${ep.niveaux.length} niveaux · vidéo de ${Math.round(plan.total)} s · ${ep.source==="hasard"?"niveaux tirés au hasard, sans IA":"niveaux écrits par l’agent, contrôlés par le code"}</p>
+  el.innerHTML=`<section class="section"><div class="card"><span class="kicker">${esc(ep.titre_serie)} · épisode ${ep.numero||1}</span><h2>${esc(ep.accroche||"Seulement 3 % trouvent le dernier niveau")}</h2><p class="hint">${ep.niveaux.length} niveaux · vidéo de ${Math.round(plan.total)} s · ${ep.source==="hasard"?"niveaux tirés au hasard, sans IA":ep.source==="web"?"questions trouvées sur le web, avec leurs sources":"niveaux écrits par l’agent, contrôlés par le code"}</p>
     ${ep.niveaux.map(jxLevelHtml).join("")}
     ${ep.a_verifier.length?`<div class="alert"><b>À vérifier avant de publier :</b><ul class="plain">${ep.a_verifier.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:""}</div>
     <div class="card"><h3 class="sub-h">La vidéo</h3><p class="hint">Fabriquée en temps réel avec la musique, le tic-tac et les effets : garde cet onglet ouvert et visible.</p>
+      <div class="pr-row"><div class="field"><label for="jx-voix">Voix (qui pose les questions)</label><div class="sel"><select id="jx-voix">${spVoiceOptions(loadPrefs().jeuxVoix||(genApi?"auto":"local:fr_FR-siwis-medium"))}</select></div></div><div class="field"><label for="jx-vmodel">Modèle</label><div class="sel"><select id="jx-vmodel">${Object.entries(JX_MODELS).map(([v,l])=>`<option value="${v}"${v===(loadPrefs().jeuxModele||"hasard")?" selected":""}>${l}</option>`).join("")}</select></div></div></div>
       <div class="pr-row"><div class="field"><label for="jx-vdecor">Décor animé</label><div class="sel"><select id="jx-vdecor">${Object.entries(JX_DECORS).map(([v,l])=>`<option value="${v}"${v===(ep.decor||loadPrefs().jeuxDecor||"neon")?" selected":""}>${l}</option>`).join("")}</select></div></div><div class="field"><label for="jx-vfmt">Format</label><div class="sel"><select id="jx-vfmt">${[["9:16","9:16 · TikTok, Shorts, Reels"],["16:9","16:9 · YouTube"],["both","Les deux"]].map(([v,l])=>`<option value="${v}"${v===(loadPrefs().jeuxFormat||"9:16")?" selected":""}>${l}</option>`).join("")}</select></div></div></div>
       <div class="actions"><button type="button" class="btn primary" id="jx-video">🎬 Créer la vidéo</button><button type="button" class="btn" id="jx-preview">👁 Aperçu</button><button type="button" class="btn quiet" id="jx-vstop" hidden>Arrêter</button><span class="hint" id="jx-vmsg"></span></div>
       <div class="pr-prev" id="jx-prev"></div><div id="jx-vids">${jxVideosHtml()}</div></div>
@@ -6587,6 +6646,13 @@ $("jx-form").addEventListener("submit", async e=>{
 document.addEventListener("click", async e=>{
   const t=e.target.closest&&e.target.closest("#mt-quiz button"); if(!t) return;
   if(t.id==="jx-stop"){ if(JX.ctl) JX.ctl.abort(); return; }
+  if(t.id==="jx-web"){ if(!sample){ toast("La recherche Google passe par l’agent : ouvre Studio Prompt sur ton ordinateur."); return; } const o={theme:$("jx-theme").value.trim(), pays:$("jx-pays").value}, box=$("jx-web-res"); t.disabled=true; box.innerHTML=`<p class="hint">Recherche sur le web des questions qui intéressent le public…</p>`;
+    try{ const x=await sample.json(jxWebPrompt(o),{cache:false, search:true, web:webHint(o.pays,[o.theme||"culture générale"]), engine:"best"}); const S=v=>String(v||"").trim();
+      JX.web=((x&&x.questions)||[]).map(q=>({question:S(q.question), options:(q.options||[]).map(S).filter(Boolean).slice(0,4), bonne:Number(q.bonne), explication:S(q.explication), source:S(q.source), lien:/^https?:\/\//.test(S(q.lien))?S(q.lien):""})).filter(q=>q.question&&q.options.length>=2&&q.bonne>=0&&q.bonne<q.options.length).slice(0,10);
+      box.innerHTML=JX.web.length?jxWebHtml():`<p class="hint">Aucune question exploitable trouvée : réessaie, ou crée les niveaux avec l’agent.</p>`; }
+    catch(err){ box.innerHTML=`<p class="chip mid">${esc(errText(err))}</p>`; } finally{ t.disabled=false; } return; }
+  if(t.id==="jx-web-go"){ const keep=[...document.querySelectorAll("[data-jxq]:checked")].map(c=>JX.web[Number(c.dataset.jxq)]).filter(Boolean).slice(0,5); if(!keep.length){ toast("Coche au moins une question."); return; }
+    jxNew({titre_serie:"5 SECONDES", accroche:`Seulement 3 % trouvent le niveau ${keep.length}`, fin:"Combien en as-tu trouvé ? Écris ton score en commentaire !", niveaux:keep.map(q=>({type:"choix", question:q.question, options:q.options, bonne:q.bonne, explication:q.explication, emoji:""})), a_verifier:keep.map(q=>`Quiz : « ${clip(q.question,90)} » → ${q.options[q.bonne]}${q.source?` (source : ${q.source})`:""}`), publication:{titre:"", legende:"", hashtags:[]}, source:"web"}); return; }
   if(t.id==="jx-rand"){ const n=Number($("jx-n").value)||4; jxNew({titre_serie:"5 SECONDES", accroche:`Seulement 3 % trouvent le niveau ${n}`, fin:"Combien en as-tu trouvé ? Écris ton score en commentaire !", niveaux:jxRandom(n), a_verifier:[], publication:{titre:"", legende:"", hashtags:[]}, source:"hasard"}); return; }
   if(t.dataset.jxIdea){ $("jx-theme").value=t.dataset.jxIdea; return; }
   if(!JX.ep) return;
@@ -6597,14 +6663,15 @@ document.addEventListener("click", async e=>{
     try{ const b=await jxPosterBlob(JX.ep, f, decor, true), box=$("jx-posters"); if(box) box.insertAdjacentHTML("beforeend",`<figure><img src="${URL.createObjectURL(b)}" alt="${f==="9:16"?"Couverture TikTok":"Affiche YouTube"}"><figcaption class="hint">${f==="9:16"?"Couverture 9:16 · TikTok, Reels":"Affiche 16:9 · YouTube"}</figcaption></figure>`); await prSaveBlob(b, `5-secondes-episode-${JX.ep.numero||1}-${f==="9:16"?"couverture-tiktok":"affiche-youtube"}.jpg`); }
     catch(err){ toast(`Affiche impossible : ${String(err&&err.message||err).slice(0,100)}`); } finally{ t.disabled=false; } return; }
   if(t.id==="jx-preview"){ const sel=$("jx-vfmt").value, fmts=sel==="both"?["9:16","16:9"]:[sel], out=$("jx-prev"), ep=JX.ep;
-    const decor=$("jx-vdecor").value; savePrefs({jeuxDecor:decor}); ep.decor=decor; jxSave();
-    out.innerHTML=fmts.map(f=>{ const st=jxStage(ep,f,decor), lv=st.plan.parts.find(p=>p.kind==="level"), shots=[st.plan.parts[0].start+1.6, lv?lv.start+lv.q+lv.look+2:2, lv?lv.end-1.2:3];
+    const decor=$("jx-vdecor").value, model=$("jx-vmodel").value; savePrefs({jeuxDecor:decor, jeuxModele:model}); ep.decor=decor; jxSave();
+    out.innerHTML=fmts.map(f=>{ const st=jxStage(ep,f,decor,false,null,model), lv=st.plan.parts.find(p=>p.kind==="level"), shots=[st.plan.parts[0].start+1.6, lv?lv.start+lv.q+lv.look+2:2, lv?lv.end-1.2:3];
       return shots.map((tt,j)=>{ st.draw(tt); return `<figure class="${f==="9:16"?"v9":""}"><img src="${st.canvas.toDataURL("image/jpeg",0.86)}" alt="Aperçu ${f}"><figcaption class="hint">${f} · ${["accroche","compte à rebours","réponse"][j]}</figcaption></figure>`; }).join(""); }).join(""); return; }
   if(t.id==="jx-video"){ const sel=$("jx-vfmt").value, fmts=sel==="both"?["9:16","16:9"]:[sel], m=$("jx-vmsg"), ac=new (window.AudioContext||window.webkitAudioContext)();   /* créé pendant le clic : sinon le son est bloqué */
     savePrefs({jeuxFormat:sel}); t.disabled=true; $("jx-vstop").hidden=false; (JX.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); JX.videos=[]; $("jx-vids").innerHTML="";
-    const decor=$("jx-vdecor").value; savePrefs({jeuxDecor:decor}); JX.ep.decor=decor; jxSave();
-    try{ m.textContent="Fabrication du son (musique, tic-tac, effets)…"; const plan=jxPlan(JX.ep), au=await jxAudio(plan);
-      for(const [n,f] of fmts.entries()){ const v=await jxRecord(jxStage(JX.ep,f,decor), au.blob, ac, txt=>{ m.textContent=`${fmts.length>1?`Vidéo ${n+1} sur ${fmts.length} (${f}) · `:""}${txt}`; }); v.url=URL.createObjectURL(v.blob); try{ v.poster=URL.createObjectURL(await jxPosterBlob(JX.ep,f,decor)); }catch(e){} JX.videos.push(v); $("jx-vids").innerHTML=jxVideosHtml(); if(v.stopped) break; }   /* l'affiche s'affiche sur le lecteur avant la lecture */
+    const decor=$("jx-vdecor").value, model=$("jx-vmodel").value, vsel=$("jx-voix").value; savePrefs({jeuxDecor:decor, jeuxModele:model, jeuxVoix:vsel}); JX.ep.decor=decor; jxSave();
+    try{ let vo={}; if(vsel!=="none"){ m.textContent="Fabrication des voix…"; vo=await spSayAll(jxLines(JX.ep), vsel, "jeux", txt=>{ m.textContent=`Fabrication des voix : ${txt}`; }); }
+      m.textContent="Fabrication du son (musique, tic-tac, voix, effets)…"; const plan=jxPlan(JX.ep,vo), au=await jxAudio(plan,vo);
+      for(const [n,f] of fmts.entries()){ const v=await jxRecord(jxStage(JX.ep,f,decor,false,vo,model), au.blob, ac, txt=>{ m.textContent=`${fmts.length>1?`Vidéo ${n+1} sur ${fmts.length} (${f}) · `:""}${txt}`; }); v.url=URL.createObjectURL(v.blob); try{ v.poster=URL.createObjectURL(await jxPosterBlob(JX.ep,f,decor)); }catch(e){} JX.videos.push(v); $("jx-vids").innerHTML=jxVideosHtml(); if(v.stopped) break; }   /* l'affiche s'affiche sur le lecteur avant la lecture */
       m.textContent=JX.videos.map(v=>`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"}${JX.videos.length>1?` (${v.fmt})`:""} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo.`).join(" "); }
     catch(err){ m.textContent=err&&err.message?err.message:"La vidéo a échoué : réessaie."; }
     finally{ try{ ac.close(); }catch(e){} t.disabled=false; $("jx-vstop").hidden=true; } return; }
@@ -6615,14 +6682,21 @@ document.addEventListener("click", async e=>{
    avantages, prix qui claque, bouton WhatsApp) en 9:16 (statut WhatsApp, TikTok), 1:1 (Facebook, Instagram) ou 16:9, et son affiche.
    Règles : rien d'inventé (prix, promo, avantages viennent du commerçant), aucun faux témoignage, aucun « meilleur de la ville » non prouvé. */
 const PB = {d:null, photos:[], logo:"", videos:[], stop:false, ctl:null};
+/* Marques de l'utilisateur, prêtes à réutiliser ; son site d'annonces est proposé d'office */
+const PB_BRANDS0 = [{nom:"Wanteermako", activite:"Petites annonces premium au Sénégal", produit:"Publie ton annonce gratuitement", promo:"0 % de commission", whatsapp:"", adresse:"Tout le Sénégal", horaires:"", site:"www.wanteermako.com", couleur:"#6366F1", avantages:["Publication gratuite","Contact direct sur WhatsApp","Immobilier, voitures, téléphones, emploi"], logoUrl:"https://www.wanteermako.com/logo-og.jpg"}];
+function pbBrands(){ try{ const b=JSON.parse(localStorage.getItem("sp-marques")||"null"); if(Array.isArray(b)&&b.length) return b; }catch(e){} return PB_BRANDS0.slice(); }
+function pbBrandsHtml(){ return `<span class="hint">Mes marques :</span>${pbBrands().map((b,k)=>`<button type="button" class="btn small quiet" data-pb-brand="${k}">🏷 ${esc(b.nom)}</button>`).join("")}<button type="button" class="btn small quiet" id="pb-brand-save">💾 Garder cette marque</button>`; }
+/* QR code vers le site (bibliothèque libre qrcode-generator, chargée à la demande ; sans internet, la pub se fait sans QR) */
+async function spQr(text){ try{ if(!window.qrcode) await new Promise((ok,ko)=>{ const sc=document.createElement("script"); sc.src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"; sc.onload=ok; sc.onerror=ko; document.head.append(sc); }); const q=window.qrcode(0,"M"); q.addData(text); q.make(); return q; }catch(e){ return null; } }
+function spDrawQr(x, q, X, Y, size){ const n=q.getModuleCount(), m=size/(n+4); x.fillStyle="#fff"; x.fillRect(X,Y,size,size); x.fillStyle="#111"; for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(q.isDark(r,c)) x.fillRect(Math.floor(X+(c+2)*m),Math.floor(Y+(r+2)*m),Math.ceil(m),Math.ceil(m)); }
 const PB_FMT = {"9:16":[720,1280,"9:16 · statut WhatsApp, TikTok, Reels"], "1:1":[1080,1080,"1:1 · Facebook, Instagram"], "16:9":[1280,720,"16:9 · YouTube, Facebook"]};
 function pbSave(){ try{ localStorage.setItem("sp-pub", JSON.stringify({d:PB.d, photos:PB.photos, logo:PB.logo})); }catch(e){} }
 function pbLoad(){ try{ const s=JSON.parse(localStorage.getItem("sp-pub")||"null"); if(s){ PB.d=s.d||null; PB.photos=s.photos||[]; PB.logo=s.logo||""; } }catch(e){} }
-function pbForm(){ const v=id=>($(id)||{}).value||""; return {nom:v("pb-nom").trim(), activite:v("pb-act").trim(), produit:v("pb-prod").trim(), prix:v("pb-prix").trim(), ancien:v("pb-ancien").trim(), promo:v("pb-promo").trim(), whatsapp:v("pb-wa").trim(), adresse:v("pb-adr").trim(), horaires:v("pb-hor").trim(), couleur:v("pb-color")||"#e53935", duree:Number(v("pb-duree"))||15, avantages:v("pb-av").split("\n").map(x=>x.trim()).filter(Boolean).slice(0,4)}; }
+function pbForm(){ const v=id=>($(id)||{}).value||""; return {site:v("pb-site").trim(), nom:v("pb-nom").trim(), activite:v("pb-act").trim(), produit:v("pb-prod").trim(), prix:v("pb-prix").trim(), ancien:v("pb-ancien").trim(), promo:v("pb-promo").trim(), whatsapp:v("pb-wa").trim(), adresse:v("pb-adr").trim(), horaires:v("pb-hor").trim(), couleur:v("pb-color")||"#e53935", duree:Number(v("pb-duree"))||15, avantages:v("pb-av").split("\n").map(x=>x.trim()).filter(Boolean).slice(0,4)}; }
 /* Textes de la pub : l'agent les écrit à partir des seules infos du commerçant ; « Sans IA » les compose */
 function pbPrompt(o){
   return `Tu es le meilleur rédacteur publicitaire du marché : des pubs courtes qui font vendre, pour des commerces de quartier (statut WhatsApp, TikTok, Facebook). ${EXPERT}
-COMMERCE : ${o.nom} · activité : ${o.activite||"commerce"} · produit ou offre : ${o.produit||"(à dire de façon générale)"} · prix : ${o.prix||"non donné"}${o.ancien?` (avant : ${o.ancien})`:""} · promo : ${o.promo||"aucune"} · avantages donnés : ${o.avantages.join(" ; ")||"aucun"} · adresse : ${o.adresse||"non donnée"} · horaires : ${o.horaires||"non donnés"}.
+COMMERCE : ${o.nom} · activité : ${o.activite||"commerce"}${o.site?` · site : ${o.site}`:""} · produit ou offre : ${o.produit||"(à dire de façon générale)"} · prix : ${o.prix||"non donné"}${o.ancien?` (avant : ${o.ancien})`:""} · promo : ${o.promo||"aucune"} · avantages donnés : ${o.avantages.join(" ; ")||"aucun"} · adresse : ${o.adresse||"non donnée"} · horaires : ${o.horaires||"non donnés"}.
 ÉCRIS : slogan (6 mots au plus, qui se retient) ; accroche (la phrase des 2 premières secondes) ; points (3 avantages de 4 à 7 mots, tirés seulement des infos données, sinon des avantages évidents du produit, jamais un chiffre inventé) ; appel (l'appel à commander, court) ; legende (le texte du statut ou de la publication, 2 phrases) ; hashtags (3 à 5).
 RÈGLES : aucun prix, aucune promo, aucune garantie inventés ; aucun faux témoignage ; pas de « le meilleur de… » sans preuve ; aucune personne réelle ; ton chaleureux et énergique ; français simple.
 RÉPONDS UNIQUEMENT avec ce JSON : {"slogan":"","accroche":"","points":["","",""],"appel":"","legende":"","hashtags":[""]}`;
@@ -6630,21 +6704,25 @@ RÉPONDS UNIQUEMENT avec ce JSON : {"slogan":"","accroche":"","points":["","",""
 function pbTexts(o, x){ x=x||{}; const S=v=>String(v||"").trim();
   const points=(Array.isArray(x.points)?x.points.map(S).filter(Boolean):[]).concat(o.avantages).slice(0,3);
   return {slogan:S(x.slogan)||(o.produit?`Chez ${o.nom}`:o.nom), accroche:S(x.accroche)||(o.promo||`Découvre ${o.produit||o.nom}`), points:points.length?points:["Qualité garantie par la boutique","Prix juste","Service rapide"].slice(0,3),
-    appel:S(x.appel)||"Commande vite sur WhatsApp", legende:S(x.legende)||`${o.produit||o.nom}${o.prix?` à ${o.prix}`:""}${o.promo?` · ${o.promo}`:""}. Écris-nous sur WhatsApp${o.whatsapp?` au ${o.whatsapp}`:""}.`, hashtags:(Array.isArray(x.hashtags)?x.hashtags.map(S).filter(Boolean):[]).map(h=>"#"+h.replace(/^#+/,"").replace(/\s+/g,"")).slice(0,5)};
+    appel:S(x.appel)||(o.site?`Rendez-vous sur ${o.site.replace(/^https?:\/\//,"").replace(/\/$/,"")}`:"Commande vite sur WhatsApp"), legende:S(x.legende)||`${o.produit||o.nom}${o.prix?` à ${o.prix}`:""}${o.promo?` · ${o.promo}`:""}. Écris-nous sur WhatsApp${o.whatsapp?` au ${o.whatsapp}`:""}.`, hashtags:(Array.isArray(x.hashtags)?x.hashtags.map(S).filter(Boolean):[]).map(h=>"#"+h.replace(/^#+/,"").replace(/\s+/g,"")).slice(0,5)};
 }
-function pbPlan(dur){ const k=dur>=30?2:1, parts=[]; let t=0; [["intro",2],["produit",3.5],["avantages",3.5],["prix",3],["appel",3]].forEach(([kind,d])=>{ parts.push({kind, start:t, end:t+d*k}); t+=d*k; }); return {parts, total:t}; }
-async function pbAudio(plan){
+function pbPlan(dur, vo){ vo=vo||{}; const k=dur>=30?2:1, parts=[]; let t=0; [["intro",2],["produit",3.5],["avantages",3.5],["prix",3],["appel",3]].forEach(([kind,d])=>{ const dd=Math.max(d*k,((vo[kind]||{}).seconds||0)+0.7); parts.push({kind, start:t, end:t+dd}); t+=dd; }); return {parts, total:t}; }
+/* Voix off de la pub : une phrase par moment, avec les seules infos du commerçant */
+function pbLines(d){ const o=d.o, T=d.t, site=o.site?o.site.replace(/^https?:\/\//,"").replace(/\/$/,""):"";
+  return {intro:T.accroche, produit:o.produit?`${o.produit}. ${T.slogan}.`:T.slogan, avantages:T.points.join(". "), prix:[o.prix?`Seulement ${o.prix}${o.ancien?`, au lieu de ${o.ancien}`:""}.`:"", o.promo].filter(Boolean).join(" "), appel:`${T.appel}${!site&&o.whatsapp?`. WhatsApp : ${o.whatsapp}`:""}.`}; }
+async function pbAudio(plan, vo){
   const SR=44100, C=window.OfflineAudioContext||window.webkitOfflineAudioContext, ctx=new C(2,Math.ceil((plan.total+0.4)*SR),SR), M=PR_MOODS.energique||PR_MOODS.journal;
   const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=3; comp.connect(ctx.destination);
   const bed=ctx.createGain(); bed.gain.value=0.7; bed.connect(comp); prBed(ctx,M,bed,plan.total); const fx=ctx.createGain(); fx.gain.value=0.8; fx.connect(comp);
   plan.parts.forEach((p,i)=>{ prWhoosh(ctx,fx,Math.max(0,p.start-0.3),0.55,i%2===0,0.8); if(p.kind==="prix"){ prHit(ctx,fx,p.start+0.9,1.1); prSting(ctx,fx,p.start+0.95,M,1); } if(p.kind==="intro") prHit(ctx,fx,0.35,1); if(p.kind==="appel") prSting(ctx,fx,p.start+0.3,M,0.8); });
+  if(vo&&Object.keys(vo).length){ const vb=ctx.createGain(); vb.gain.value=1.15; vb.connect(comp); await spMixVoices(ctx, vb, bed, vo, k=>{ const p=plan.parts.find(z=>z.kind===k); return p?p.start+(k==="prix"?1.1:0.25):null; }, 0.7); }
   const out=await ctx.startRendering(); return {blob:prWav(out), buf:out};
 }
 /* Dessin de la pub à l'instant t ; affiche (poster) au même format, ou en grand pour publier */
-async function pbStage(d, fmt, big){
-  const [w0,h0]=PB_FMT[fmt]||PB_FMT["9:16"], W=big&&fmt==="9:16"?1080:w0, H=big&&fmt==="9:16"?1920:h0, U=Math.min(W,H)/720, V=H>W*1.2, SQ=Math.abs(W-H)<10, plan=pbPlan(d.o.duree), c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
+async function pbStage(d, fmt, big, vo){
+  const [w0,h0]=PB_FMT[fmt]||PB_FMT["9:16"], W=big&&fmt==="9:16"?1080:w0, H=big&&fmt==="9:16"?1920:h0, U=Math.min(W,H)/720, V=H>W*1.2, SQ=Math.abs(W-H)<10, plan=pbPlan(d.o.duree,vo), c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
   const F=(w,s)=>`${w} ${Math.round(s*U)}px "Segoe UI", Arial, sans-serif`, COL=d.o.couleur||"#e53935", WA="#25d366", GOLD="#ffd23f";
-  const photos=[]; for(const u of (PB.photos||[]).slice(0,5)){ const im=await prLoadImg(u); if(im) photos.push(im); } const logo=PB.logo?await prLoadImg(PB.logo):null;
+  const photos=[]; for(const u of (PB.photos||[]).slice(0,5)){ const im=await prLoadImg(u); if(im) photos.push(im); } const logo=PB.logo?await prLoadImg(PB.logo):null, site=(d.o.site||"").replace(/^https?:\/\//,"").replace(/\/$/,""), qr=site?await spQr(/^https?:/.test(d.o.site)?d.o.site:`https://${site}`):null;
   const rr=(X,Y,w,h,r)=>{ x.beginPath(); x.moveTo(X+r,Y); x.arcTo(X+w,Y,X+w,Y+h,r); x.arcTo(X+w,Y+h,X,Y+h,r); x.arcTo(X,Y+h,X,Y,r); x.arcTo(X,Y,X+w,Y,r); x.closePath(); };
   const cover=(im,X,Y,w,h,z,fx)=>{ x.save(); rr(X,Y,w,h,24*U); x.clip(); const s=Math.max(w/im.width,h/im.height)*(z||1), dw=im.width*s, dh=im.height*s; x.drawImage(im,X+(w-dw)/2+(fx||0)*(dw-w)/2,Y+(h-dh)/2,dw,dh); x.restore(); };
   const centerText=(txt,y,size,col,maxW,max,stroke)=>{ x.font=F("900",size); let fs=size; let ls=prWrap(x,txt,maxW); while(ls.length>(max||2)&&fs>14){ fs-=2; x.font=F("900",fs); ls=prWrap(x,txt,maxW); } ls=ls.slice(0,max||2); x.textAlign="center"; x.lineJoin="round"; ls.forEach((l,j)=>{ const yy=y+j*fs*1.15*U; if(stroke){ x.lineWidth=10*U; x.strokeStyle=stroke; x.strokeText(l,W/2,yy); } x.fillStyle=col; x.fillText(l,W/2,yy); }); return ls.length*fs*1.15*U; };
@@ -6652,15 +6730,21 @@ async function pbStage(d, fmt, big){
     x.save(); x.globalAlpha=0.1; x.fillStyle="#fff"; for(let k=-8;k<16;k++){ const off=(t*90*U)%(160*U); x.beginPath(); x.moveTo(k*160*U+off,0); x.lineTo(k*160*U+off+70*U,0); x.lineTo(k*160*U+off+70*U-H,H); x.lineTo(k*160*U+off-H,H); x.fill(); } x.restore(); };   /* bandes qui défilent */
   const burst=(cx,cy,r,col,t,n)=>{ x.save(); x.translate(cx,cy); x.rotate(t*0.6); x.fillStyle=col; x.beginPath(); for(let k=0;k<(n||16)*2;k++){ const a=k*Math.PI/(n||16), rr2=k%2?r*0.72:r; x.lineTo(Math.cos(a)*rr2,Math.sin(a)*rr2); } x.closePath(); x.fill(); x.restore(); };   /* étoile « promo » */
   const confetti=(t0,t)=>{ const e=t-t0; if(e<0||e>1.5) return; const rnd=jxRng(Math.floor(t0*1000)+3); for(let k=0;k<60;k++){ const a=rnd()*Math.PI*2, sp=(250+rnd()*550)*U, px=W/2+Math.cos(a)*sp*e, py=H*0.5+Math.sin(a)*sp*e+600*U*e*e; x.save(); x.globalAlpha=Math.max(0,1-e/1.5); x.fillStyle=`hsl(${Math.floor(rnd()*360)},90%,60%)`; x.translate(px,py); x.rotate(e*8+k); x.fillRect(-6*U,-3*U,12*U,6*U); x.restore(); } };
-  const logoBadge=(cx,cy,r,e)=>{ x.save(); x.translate(cx,cy); x.scale(e,e); x.shadowColor="rgba(0,0,0,.4)"; x.shadowBlur=30*U; x.fillStyle="#fff"; x.beginPath(); x.arc(0,0,r,0,7); x.fill(); x.shadowColor="transparent";
+  const logoBadge=(cx,cy,r,e)=>{ x.save(); x.translate(cx,cy); x.scale(e,e); x.shadowColor="rgba(0,0,0,.4)"; x.shadowBlur=30*U; x.fillStyle="#fff";
+    if(logo&&logo.width/logo.height>1.6){ const w=r*3.4, h=Math.max(r*1.1,w*logo.height/logo.width+r*0.4); rr(-w/2,-h/2,w,h,h/2); x.fill(); x.shadowColor="transparent"; const s=Math.min((w-r*0.5)/logo.width,(h-r*0.25)/logo.height); x.drawImage(logo,-logo.width*s/2,-logo.height*s/2,logo.width*s,logo.height*s); x.restore(); return; }   /* logo en largeur */
+    x.beginPath(); x.arc(0,0,r,0,7); x.fill(); x.shadowColor="transparent";
     if(logo){ x.save(); x.beginPath(); x.arc(0,0,r*0.9,0,7); x.clip(); const s=Math.min(1.8*r/logo.width,1.8*r/logo.height); x.drawImage(logo,-logo.width*s/2,-logo.height*s/2,logo.width*s,logo.height*s); x.restore(); }
     else { const ini=d.o.nom.split(/\s+/).map(w=>w[0]||"").join("").slice(0,2).toUpperCase(); x.fillStyle=COL; x.textAlign="center"; x.font=F("900",r*0.9/U); x.fillText(ini,0,r*0.32); } x.restore(); };
+  /* sans photo du produit : le logo en grand sur fond blanc, sinon les initiales */
+  const noPhoto=(fx,fy,fw,fh,z)=>{ x.save(); x.fillStyle="#fff"; rr(fx,fy,fw,fh,24*U); x.fill(); x.clip(); x.globalAlpha=0.08; x.fillStyle=COL; for(let yy=fy;yy<fy+fh;yy+=26*U) for(let xx=fx+(Math.round((yy-fy)/(26*U))%2)*13*U;xx<fx+fw;xx+=26*U){ x.beginPath(); x.arc(xx,yy,4*U,0,7); x.fill(); } x.globalAlpha=1;
+    if(logo){ const s=Math.min(fw*0.78/logo.width,fh*0.62/logo.height)*z; x.drawImage(logo,fx+fw/2-logo.width*s/2,fy+fh/2-logo.height*s/2,logo.width*s,logo.height*s); }
+    else { x.fillStyle=COL; x.textAlign="center"; x.font=F("900",Math.min(fw,fh)*0.42/U); x.fillText(d.o.nom.split(/\s+/).map(w=>w[0]||"").join("").slice(0,2).toUpperCase(),fx+fw/2,fy+fh*0.64); } x.restore(); };
   const T=d.t, o=d.o, P=k=>plan.parts.find(p=>p.kind===k);
   const draw=t=>{ const p=plan.parts.find(z=>t>=z.start&&t<z.end)||plan.parts[plan.parts.length-1], lt=t-p.start, dur=p.end-p.start;
     if(p.kind==="intro"){ bg(t,false); const e=prBack(Math.min(1,lt/0.7)); burst(W/2,H*0.4,Math.min(W,H)*0.32*e,"rgba(255,255,255,.18)",t,20); logoBadge(W/2,H*(V?0.36:0.38),Math.min(W,H)*0.17,e);
       x.save(); x.globalAlpha=Math.min(1,Math.max(0,(lt-0.4)/0.4)); centerText(o.nom.toUpperCase(),H*(V?0.56:0.66),V?64:SQ?60:56,"#fff",W*0.88,2,"rgba(0,0,0,.35)"); x.globalAlpha=Math.min(1,Math.max(0,(lt-0.8)/0.4)); centerText(T.accroche,H*(V?0.66:0.8),V?34:30,GOLD,W*0.86,2,"rgba(0,0,0,.4)"); x.restore(); }
     else if(p.kind==="produit"){ bg(t,true); const im=photos[0]; const e=prBack(Math.min(1,lt/0.6)), fw=V?W*0.86:SQ?W*0.7:W*0.46, fh=V?H*0.46:SQ?H*0.56:H*0.7, fx=V||SQ?(W-fw)/2:W*0.06, fy=V?H*0.16:SQ?H*0.08:H*0.15;
-      x.save(); x.translate((1-e)*W*0.6,0); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=40*U; x.fillStyle="#fff"; rr(fx-8*U,fy-8*U,fw+16*U,fh+16*U,30*U); x.fill(); x.shadowColor="transparent"; if(im) cover(im,fx,fy,fw,fh,1.04+0.1*lt/dur,0); else { x.fillStyle=COL; rr(fx,fy,fw,fh,24*U); x.fill(); x.font=`${Math.round(fh*0.5)}px "Segoe UI Emoji",sans-serif`; x.textAlign="center"; x.textBaseline="middle"; x.fillText("🛍️",fx+fw/2,fy+fh/2); x.textBaseline="alphabetic"; } x.restore();
+      x.save(); x.translate((1-e)*W*0.6,0); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=40*U; x.fillStyle="#fff"; rr(fx-8*U,fy-8*U,fw+16*U,fh+16*U,30*U); x.fill(); x.shadowColor="transparent"; if(im) cover(im,fx,fy,fw,fh,1.04+0.1*lt/dur,0); else noPhoto(fx,fy,fw,fh,1+0.05*lt/dur); x.restore();
       if(o.promo){ const se=prBack(Math.min(1,Math.max(0,(lt-0.6)/0.5))), br=(V?96:84)*U; x.save(); x.translate(Math.min(fx+fw-br*0.55,W-br*1.02),fy+br*0.55); x.rotate(-0.22+0.05*Math.sin(t*4)); x.scale(se,se); burst(0,0,br,GOLD,t,14); x.fillStyle="#111"; x.textAlign="center"; let pf=V?22:20; x.font=F("900",pf); let pl=prWrap(x,o.promo.toUpperCase(),br*1.2); while(pl.length>3&&pf>12){ pf-=2; x.font=F("900",pf); pl=prWrap(x,o.promo.toUpperCase(),br*1.2); } pl.slice(0,3).forEach((l,j,a)=>x.fillText(l,0,(j-(a.length-1)/2)*pf*1.15*U+pf*0.35*U,br*1.3)); x.restore(); }
       x.save(); x.globalAlpha=Math.min(1,Math.max(0,(lt-0.5)/0.4)); const ty=V?fy+fh+80*U:SQ?fy+fh+76*U:H*0.42; if(V||SQ){ const hh=centerText((o.produit||T.slogan).toUpperCase(),ty,V?52:46,"#fff",W*0.88,2); if(o.produit) centerText(T.slogan,ty+hh+18*U,V?34:28,GOLD,W*0.84,2,"rgba(0,0,0,.35)"); } else { x.textAlign="left"; x.font=F("900",48); prWrap(x,(o.produit||T.slogan).toUpperCase(),W*0.4).slice(0,3).forEach((l,j)=>{ x.fillStyle="#fff"; x.fillText(l,W*0.56,ty+j*56*U); }); } x.restore(); }
     else if(p.kind==="avantages"){ bg(t,true); if(photos[1]||photos[0]){ x.save(); x.globalAlpha=0.25; x.filter="blur(8px)"; x.drawImage(photos[1]||photos[0],-20*U,-20*U,W+40*U,H+40*U); x.restore(); }
@@ -6675,19 +6759,23 @@ async function pbStage(d, fmt, big){
       if(o.promo&&lt>hit+0.4){ x.save(); x.globalAlpha=Math.min(1,(lt-hit-0.4)/0.3); centerText(o.promo,H*(V?0.68:0.82),V?34:30,"#fff",W*0.86,2,"rgba(0,0,0,.4)"); x.restore(); } }
     else { bg(t,true); logoBadge(W/2,H*(V?0.18:0.2),Math.min(W,H)*0.1,1); centerText(T.appel.toUpperCase(),H*(V?0.33:0.4),V?50:44,"#fff",W*0.86,2,"rgba(0,0,0,.35)");
       const pulse=1+0.05*Math.sin(t*6), bw=Math.min(W*0.84,700*U), bh=(V?110:96)*U, by=H*(V?0.45:0.52); x.save(); x.translate(W/2,by+bh/2); x.scale(pulse,pulse); x.shadowColor="rgba(37,211,102,.6)"; x.shadowBlur=40*U; x.fillStyle=WA; rr(-bw/2,-bh/2,bw,bh,bh/2); x.fill(); x.shadowColor="transparent";
-        x.fillStyle="#fff"; x.textAlign="center"; let fs=V?40:36; x.font=F("900",fs); const lab=o.whatsapp?`WhatsApp ${o.whatsapp}`:"Écris-nous sur WhatsApp"; while(x.measureText(lab).width>bw-60*U&&fs>18){ fs-=2; x.font=F("900",fs); } x.fillText(lab,0,fs*0.36*U); x.restore();
-      const info=[o.adresse?`📍 ${o.adresse}`:"", o.horaires?`🕒 ${o.horaires}`:""].filter(Boolean); x.save(); x.textAlign="center"; x.font=F("800",V?30:26); x.fillStyle="#fff"; info.forEach((l,j)=>x.fillText(l,W/2,by+bh+(70+j*44)*U)); x.restore();
+        x.fillStyle="#fff"; x.textAlign="center"; let fs=V?40:36; x.font=F("900",fs); const lab=site?site:o.whatsapp?`WhatsApp ${o.whatsapp}`:"Écris-nous sur WhatsApp"; if(site){ x.fillStyle=COL; rr(-bw/2,-bh/2,bw,bh,bh/2); x.fill(); x.fillStyle="#fff"; } while(x.measureText(lab).width>bw-60*U&&fs>18){ fs-=2; x.font=F("900",fs); } x.fillText(lab,0,fs*0.36*U); x.restore();
+      const info=[site&&o.whatsapp?`WhatsApp ${o.whatsapp}`:"", o.adresse?`📍 ${o.adresse}`:"", o.horaires?`🕒 ${o.horaires}`:""].filter(Boolean); x.save(); x.textAlign="center"; x.font=F("800",V?30:26); x.fillStyle="#fff"; info.forEach((l,j)=>x.fillText(l,W/2,by+bh+(70+j*44)*U)); x.restore();
+      if(qr){ const qs=(V?200:SQ?170:150)*U, qx=V||SQ?W/2-qs/2:W-qs-50*U, qy=V?by+bh+(70+info.length*44+10)*U:SQ?by+bh+(60+info.length*40)*U:H*0.08; if(qy+qs<H-20*U){ x.save(); x.shadowColor="rgba(0,0,0,.4)"; x.shadowBlur=20*U; x.fillStyle="#fff"; x.fillRect(qx-8*U,qy-8*U,qs+16*U,qs+16*U); x.restore(); spDrawQr(x,qr,qx,qy,qs); } }   /* QR code vers le site */
       x.save(); x.globalAlpha=0.9; centerText(o.nom.toUpperCase(),H*(V?0.86:0.92),V?30:26,GOLD,W*0.86,1); x.restore(); }
     x.save(); x.fillStyle="rgba(255,255,255,.3)"; x.fillRect(0,H-6*U,W,6*U); x.fillStyle=GOLD; x.fillRect(0,H-6*U,W*Math.min(1,t/plan.total),6*U); x.restore(); };
   /* affiche : photo du produit, nom du commerce, offre, prix, promo, bouton WhatsApp, adresse */
   const poster=()=>{ bg(1.2,false); const im=photos[0], fw=V?W*0.84:SQ?W*0.62:W*0.44, fh=V?H*0.38:SQ?H*0.46:H*0.66, fx=V||SQ?(W-fw)/2:W*0.52, fy=V?H*0.2:SQ?H*0.2:H*0.17;
-    logoBadge(V||SQ?W*0.14:W*0.08,V?H*0.08:H*0.12,Math.min(W,H)*0.07,1); x.save(); x.textAlign="left"; x.font=F("900",V?44:36); x.fillStyle="#fff"; x.fillText(o.nom.toUpperCase(),(V||SQ?W*0.14:W*0.08)+Math.min(W,H)*0.09,(V?H*0.08:H*0.12)+15*U,W*0.62); x.restore();
-    x.save(); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=40*U; x.fillStyle="#fff"; rr(fx-10*U,fy-10*U,fw+20*U,fh+20*U,30*U); x.fill(); x.restore(); if(im) cover(im,fx,fy,fw,fh,1.05,0);
+    const wide=logo&&logo.width/logo.height>1.6, lr=Math.min(W,H)*0.07, lgx=(V||SQ?W*0.14:W*0.08)+(wide?lr*1.2:0), ngx=lgx+(wide?lr*1.9:lr*1.3), qsz=qr?(V?190:SQ?150:130)*U:0; logoBadge(lgx,V?H*0.08:H*0.12,lr,1);
+    x.save(); x.textAlign="left"; x.font=F("900",V?44:36); x.fillStyle="#fff"; x.fillText(o.nom.toUpperCase(),ngx,(V?H*0.08:H*0.12)+15*U,Math.max(80*U,(qr?W-qsz-60*U:W*0.92)-ngx)); x.restore();
+    x.save(); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=40*U; x.fillStyle="#fff"; rr(fx-10*U,fy-10*U,fw+20*U,fh+20*U,30*U); x.fill(); x.restore(); if(im) cover(im,fx,fy,fw,fh,1.05,0); else noPhoto(fx,fy,fw,fh,1);
     if(o.promo){ const br=(V?108:86)*U; x.save(); x.translate(Math.min(fx+fw-br*0.5,W-br*1.02),fy+br*0.45); x.rotate(-0.22); burst(0,0,br,GOLD,0.4,14); x.fillStyle="#111"; x.textAlign="center"; let pf=V?26:22; x.font=F("900",pf); let pl=prWrap(x,o.promo.toUpperCase(),br*1.2); while(pl.length>3&&pf>12){ pf-=2; x.font=F("900",pf); pl=prWrap(x,o.promo.toUpperCase(),br*1.2); } pl.slice(0,3).forEach((l,j,a)=>x.fillText(l,0,(j-(a.length-1)/2)*pf*1.15*U+pf*0.35*U,br*1.3)); x.restore(); }
-    const lx=V||SQ?W/2:W*0.27, ty=V?fy+fh+90*U:SQ?fy+fh+80*U:H*0.3; x.save(); x.textAlign="center"; x.font=F("900",V?58:SQ?50:46); x.lineJoin="round"; x.lineWidth=10*U; x.strokeStyle="rgba(0,0,0,.35)"; prWrap(x,(o.produit||T.slogan).toUpperCase(),V||SQ?W*0.86:W*0.44).slice(0,2).forEach((l,j)=>{ x.strokeText(l,lx,ty+j*62*U); x.fillStyle="#fff"; x.fillText(l,lx,ty+j*62*U); });
+    const lx=V||SQ?W/2:W*0.27, ty=V?fy+fh+90*U:SQ?fy+fh+80*U:H*0.3; x.save(); x.textAlign="center"; let tf=V?58:SQ?50:46; const tt=(o.produit||T.slogan).toUpperCase(), tw=V||SQ?W*0.86:W*0.44; x.font=F("900",tf); while(prWrap(x,tt,tw).length>2&&tf>24){ tf-=2; x.font=F("900",tf); }   /* le titre tient en entier sur deux lignes */
+      x.lineJoin="round"; x.lineWidth=10*U; x.strokeStyle="rgba(0,0,0,.35)"; prWrap(x,tt,tw).slice(0,2).forEach((l,j)=>{ x.strokeText(l,lx,ty+j*tf*1.07*U); x.fillStyle="#fff"; x.fillText(l,lx,ty+j*tf*1.07*U); });
       if(o.prix){ const py=ty+(V?150:SQ?130:140)*U; x.font=F("900",V?84:SQ?72:64); const pw=x.measureText(o.prix).width+60*U; x.fillStyle=GOLD; rr(lx-pw/2,py-70*U,pw,100*U,20*U); x.fill(); x.fillStyle="#111"; x.fillText(o.prix,lx,py+2*U); if(o.ancien){ x.font=F("800",V?36:30); x.fillStyle="rgba(255,255,255,.9)"; x.fillText(o.ancien,lx,py+64*U); const aw=x.measureText(o.ancien).width; x.strokeStyle="#ff1744"; x.lineWidth=5*U; x.beginPath(); x.moveTo(lx-aw/2,py+52*U); x.lineTo(lx+aw/2,py+48*U); x.stroke(); } }
       x.restore();
-    const bw=V||SQ?W*0.8:W*0.42, bh=(V?100:80)*U, bx=V||SQ?(W-bw)/2:W*0.06, by=V?H*0.86:SQ?H*0.86:H*0.78; x.fillStyle=WA; rr(bx,by,bw,bh,bh/2); x.fill(); x.fillStyle="#fff"; x.textAlign="center"; let fs=V?36:30; x.font=F("900",fs); const lab=o.whatsapp?`WhatsApp ${o.whatsapp}`:"Commande sur WhatsApp"; while(x.measureText(lab).width>bw-50*U&&fs>16){ fs-=2; x.font=F("900",fs); } x.fillText(lab,bx+bw/2,by+bh/2+fs*0.36*U);
+    const bw=V||SQ?W*0.8:W*0.42, bh=(V?100:80)*U, bx=V||SQ?(W-bw)/2:W*0.06, by=V?H*0.86:SQ?H*0.86:H*0.78; x.fillStyle=site?COL:WA; rr(bx,by,bw,bh,bh/2); x.fill(); x.fillStyle="#fff"; x.textAlign="center"; let fs=V?36:30; x.font=F("900",fs); const lab=site?site:o.whatsapp?`WhatsApp ${o.whatsapp}`:"Commande sur WhatsApp";
+    if(qr){ const qs=(V?190:SQ?150:130)*U, qx=W-qs-30*U, qy=V?H*0.025:SQ?H*0.03:H*0.05; x.save(); x.shadowColor="rgba(0,0,0,.4)"; x.shadowBlur=20*U; x.fillStyle="#fff"; x.fillRect(qx-6*U,qy-6*U,qs+12*U,qs+12*U); x.restore(); spDrawQr(x,qr,qx,qy,qs); x.fillStyle="#fff"; } while(x.measureText(lab).width>bw-50*U&&fs>16){ fs-=2; x.font=F("900",fs); } x.fillText(lab,bx+bw/2,by+bh/2+fs*0.36*U);
     if(o.adresse){ x.font=F("800",V?28:22); x.fillStyle="#fff"; x.fillText(`📍 ${o.adresse}`,bx+bw/2,by-20*U,bw); } };
   return {W, H, canvas:c, draw, plan, poster, fmt};
 }
@@ -6698,7 +6786,7 @@ function pbRender(){
   el.innerHTML=`<section class="section"><div class="card"><span class="kicker">Publicité · ${esc(o.nom)}</span><h2>${esc(T.slogan)}</h2><p class="hint">${esc(T.accroche)} · ${Math.round(plan.total)} s · ${d.source==="agent"?"textes écrits par l’agent à partir de tes infos":"textes composés sans IA à partir de tes infos"}</p>
       <ul class="plain">${T.points.map(p=>`<li>✓ ${esc(p)}</li>`).join("")}</ul><p><b>Appel :</b> ${esc(T.appel)}</p>${!(PB.photos||[]).length?`<p class="alert">Ajoute au moins une photo du produit : la pub sera bien plus forte.</p>`:""}</div>
     <div class="card"><h3 class="sub-h">La vidéo pub</h3><p class="hint">Fabriquée en temps réel avec la musique et les effets : garde cet onglet ouvert et visible.</p>
-      <div class="pr-row"><div class="field"><label for="pb-vfmt">Format</label><div class="sel"><select id="pb-vfmt">${Object.entries(PB_FMT).map(([k,v])=>`<option value="${k}"${k===(loadPrefs().pubFormat||"9:16")?" selected":""}>${v[2]}</option>`).join("")}<option value="tous"${(loadPrefs().pubFormat)==="tous"?" selected":""}>Les trois formats</option></select></div></div></div>
+      <div class="pr-row"><div class="field"><label for="pb-voix">Voix off</label><div class="sel"><select id="pb-voix">${spVoiceOptions(loadPrefs().pubVoix||(genApi?"auto":"local:fr_FR-siwis-medium"))}</select></div></div><div class="field"><label for="pb-vfmt">Format</label><div class="sel"><select id="pb-vfmt">${Object.entries(PB_FMT).map(([k,v])=>`<option value="${k}"${k===(loadPrefs().pubFormat||"9:16")?" selected":""}>${v[2]}</option>`).join("")}<option value="tous"${(loadPrefs().pubFormat)==="tous"?" selected":""}>Les trois formats</option></select></div></div></div>
       <div class="actions"><button type="button" class="btn primary" id="pb-video">🎬 Créer la vidéo pub</button><button type="button" class="btn" id="pb-preview">👁 Aperçu</button><button type="button" class="btn quiet" id="pb-vstop" hidden>Arrêter</button><span class="hint" id="pb-vmsg"></span></div>
       <div class="pr-prev" id="pb-prev"></div><div id="pb-vids">${pbVideosHtml()}</div></div>
     <div class="card"><h3 class="sub-h">📤 Affiche et partage</h3><div class="actions"><button type="button" class="btn" data-pb-poster="9:16">🖼 Affiche statut WhatsApp (1080 × 1920)</button><button type="button" class="btn" data-pb-poster="1:1">🖼 Affiche Facebook, Instagram (1080 × 1080)</button></div><div class="pr-kit-thumbs" id="pb-posters"></div>
@@ -6715,7 +6803,7 @@ async function pbFiles(files, kind){
   pbSave(); pbThumbs();
 }
 function pbThumbs(){ const el=$("pb-thumbs"); if(!el) return; el.innerHTML=`${PB.logo?`<figure><img src="${esc(PB.logo)}" alt="Logo"><figcaption class="hint">Logo</figcaption></figure>`:""}${(PB.photos||[]).map((u,k)=>`<figure><img src="${esc(u)}" alt="Photo ${k+1}"><figcaption class="hint">Photo ${k+1} <button type="button" class="btn small quiet" data-pb-del="${k}">Retirer</button></figcaption></figure>`).join("")}`; }
-function pbShow(){ if(!pbShow.done){ pbShow.done=true; pbLoad(); if(PB.d){ const o=PB.d.o, set=(id,v)=>{ const e=$(id); if(e&&v!=null) e.value=v; }; set("pb-nom",o.nom); set("pb-act",o.activite); set("pb-prod",o.produit); set("pb-prix",o.prix); set("pb-ancien",o.ancien); set("pb-promo",o.promo); set("pb-wa",o.whatsapp); set("pb-adr",o.adresse); set("pb-hor",o.horaires); set("pb-color",o.couleur); set("pb-duree",String(o.duree)); set("pb-av",(o.avantages||[]).join("\n")); } } pbThumbs(); if(PB.d) pbRender(); }
+function pbShow(){ const bb=$("pb-brands"); if(bb) bb.innerHTML=pbBrandsHtml(); if(!pbShow.done){ pbShow.done=true; pbLoad(); if(PB.d){ const o=PB.d.o, set=(id,v)=>{ const e=$(id); if(e&&v!=null) e.value=v; }; set("pb-nom",o.nom); set("pb-act",o.activite); set("pb-prod",o.produit); set("pb-prix",o.prix); set("pb-ancien",o.ancien); set("pb-promo",o.promo); set("pb-wa",o.whatsapp); set("pb-adr",o.adresse); set("pb-hor",o.horaires); set("pb-site",o.site); set("pb-color",o.couleur); set("pb-duree",String(o.duree)); set("pb-av",(o.avantages||[]).join("\n")); } } pbThumbs(); if(PB.d) pbRender(); }
 $("pb-form").addEventListener("submit", async e=>{
   e.preventDefault(); const o=pbForm(); if(!o.nom){ showStatus("pb-","Écris d’abord le nom du commerce.",true); return; }
   const finish=(t,source)=>{ PB.d={o, t, source, at:Date.now()}; (PB.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PB.videos=[]; pbSave(); $("pb-status").hidden=true; pbRender(); $("pb-res").scrollIntoView({behavior:"smooth",block:"start"}); };
@@ -6729,6 +6817,12 @@ document.addEventListener("change", e=>{ const t=e.target; if(t&&t.id==="pb-phot
 document.addEventListener("click", async e=>{
   const t=e.target.closest&&e.target.closest("#mt-pub button"); if(!t) return;
   if(t.dataset.pbDel!=null){ PB.photos.splice(Number(t.dataset.pbDel),1); pbSave(); pbThumbs(); return; }
+  if(t.dataset.pbBrand!=null){ const b=pbBrands()[Number(t.dataset.pbBrand)]; if(!b) return; const set=(id,v)=>{ const el=$(id); if(el) el.value=v||""; };
+    set("pb-nom",b.nom); set("pb-act",b.activite); set("pb-prod",b.produit); set("pb-prix",b.prix); set("pb-ancien",b.ancien); set("pb-promo",b.promo); set("pb-wa",b.whatsapp); set("pb-adr",b.adresse); set("pb-hor",b.horaires); set("pb-site",b.site); set("pb-color",b.couleur||"#e53935"); set("pb-av",(b.avantages||[]).join("\n"));
+    if(b.logo){ PB.logo=b.logo; pbSave(); pbThumbs(); }
+    else if(b.logoUrl&&genApi){ try{ const r=await fetch("/api/photos/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:b.logoUrl, project:"publicites", base:`logo-${slug(b.nom)}`})}), x=await r.json().catch(()=>({})); if(r.ok&&x.url){ PB.logo=x.url; const all=pbBrands(); all[Number(t.dataset.pbBrand)].logo=x.url; try{ localStorage.setItem("sp-marques",JSON.stringify(all)); }catch(e){} pbSave(); pbThumbs(); } }catch(e){} }   /* logo du site rapatrié une fois */
+    toast(`Marque « ${b.nom} » reprise : écris la pub.`); return; }
+  if(t.id==="pb-brand-save"){ const o=pbForm(); if(!o.nom){ toast("Écris d’abord le nom."); return; } const all=pbBrands().filter(b=>b.nom!==o.nom); all.push(Object.assign({}, o, {logo:PB.logo||""})); try{ localStorage.setItem("sp-marques",JSON.stringify(all)); }catch(e){} $("pb-brands").innerHTML=pbBrandsHtml(); toast(`Marque « ${o.nom} » gardée.`); return; }
   if(!PB.d) return;
   if(t.dataset.pbCopy){ const ta=$(t.dataset.pbCopy); if(ta) await copyText(ta.value, ta, t); return; }
   if(t.dataset.pbDl!=null){ const v=(PB.videos||[])[Number(t.dataset.pbDl)]; if(v) await prSaveBlob(v.blob, `pub-${slug(PB.d.o.nom)}-${v.fmt.replace(":","x")}.${v.ext}`); return; }
@@ -6738,9 +6832,10 @@ document.addEventListener("click", async e=>{
     for(const f of fmts){ const st=await pbStage(PB.d,f); for(const [k,lab] of [["produit","produit"],["prix","prix"],["appel","WhatsApp"]]){ const p=st.plan.parts.find(z=>z.kind===k); st.draw(p.start+Math.min(2.2,(p.end-p.start)*0.8)); h+=`<figure class="${f==="9:16"?"v9":""}"><img src="${st.canvas.toDataURL("image/jpeg",0.86)}" alt="Aperçu ${f}"><figcaption class="hint">${f} · ${lab}</figcaption></figure>`; } }
     out.innerHTML=h; return; }
   if(t.id==="pb-video"){ const sel=$("pb-vfmt").value, fmts=sel==="tous"?Object.keys(PB_FMT):[sel], m=$("pb-vmsg"), ac=new (window.AudioContext||window.webkitAudioContext)();   /* créé pendant le clic : sinon le son est bloqué */
-    savePrefs({pubFormat:sel}); t.disabled=true; $("pb-vstop").hidden=false; (PB.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PB.videos=[]; $("pb-vids").innerHTML=""; PB.stop=false;
-    try{ m.textContent="Fabrication du son (musique et effets)…"; const au=await pbAudio(pbPlan(PB.d.o.duree));
-      for(const [n,f] of fmts.entries()){ const st=await pbStage(PB.d,f), v=await jxRecord(st, au.blob, ac, txt=>{ m.textContent=`${fmts.length>1?`Vidéo ${n+1} sur ${fmts.length} (${f}) · `:""}${txt}`; }, ()=>PB.stop); v.fmt=f; v.url=URL.createObjectURL(v.blob); try{ v.poster=URL.createObjectURL(await pbPosterBlob(PB.d,f)); }catch(e){} PB.videos.push(v); $("pb-vids").innerHTML=pbVideosHtml(); if(v.stopped) break; }
+    const vsel=$("pb-voix").value; savePrefs({pubFormat:sel, pubVoix:vsel}); t.disabled=true; $("pb-vstop").hidden=false; (PB.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PB.videos=[]; $("pb-vids").innerHTML=""; PB.stop=false;
+    try{ let vo={}; if(vsel!=="none"){ m.textContent="Fabrication de la voix off…"; vo=await spSayAll(pbLines(PB.d), vsel, "publicites", txt=>{ m.textContent=`Voix off : ${txt}`; }); }
+      m.textContent="Fabrication du son (musique, voix, effets)…"; const au=await pbAudio(pbPlan(PB.d.o.duree,vo),vo);
+      for(const [n,f] of fmts.entries()){ const st=await pbStage(PB.d,f,false,vo), v=await jxRecord(st, au.blob, ac, txt=>{ m.textContent=`${fmts.length>1?`Vidéo ${n+1} sur ${fmts.length} (${f}) · `:""}${txt}`; }, ()=>PB.stop); v.fmt=f; v.url=URL.createObjectURL(v.blob); try{ v.poster=URL.createObjectURL(await pbPosterBlob(PB.d,f)); }catch(e){} PB.videos.push(v); $("pb-vids").innerHTML=pbVideosHtml(); if(v.stopped) break; }
       m.textContent=PB.videos.map(v=>`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"}${PB.videos.length>1?` (${v.fmt})`:""} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo.`).join(" "); }
     catch(err){ m.textContent=err&&err.message?err.message:"La vidéo a échoué : réessaie."; }
     finally{ try{ ac.close(); }catch(e){} t.disabled=false; $("pb-vstop").hidden=true; } return; }

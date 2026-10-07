@@ -393,6 +393,17 @@ Demande de l'utilisateur : des formats qui marchent « sans utiliser l'IA », fa
   - nature (lever de soleil, nuages, montagnes en parallaxe, feuilles, oiseaux) ;
   - espace (nébuleuses, étoiles qui scintillent, planète à anneau, étoile filante).
   La question arrive mot par mot (`popText`), et des étincelles tournent autour de l'emoji du quiz.
+- **Voix qui pose les questions** (demande du 7 octobre : « dans toutes les pages, les parleurs, pour que je choisisse les questionneurs ») : choix « Voix » (`jx-voix`, `spVoiceOptions`) : sans voix, la meilleure voix gratuite (automatique), les voix Gemini, la voix naturelle de Hugging Face, les voix de l'ordinateur.
+  - `jxLines` écrit les phrases : accroche, « Niveau n » et la question, la réponse avec son explication, la fin.
+  - `spSayAll` les fabrique une à une, avec la même chaîne gratuite que la revue (Gemini, puis Hugging Face, puis l'ordinateur ; `spSay`).
+  - `jxPlan` donne à chaque moment le temps de sa phrase, et `spMixVoices` pose les voix en baissant la musique dessous.
+- **Questions trouvées sur le web** (« une recherche Google qui me propose les questions les plus pertinentes ») : « 🔎 Questions de culture générale » appelle l'agent avec l'outil de recherche (`search:true`, `jxWebPrompt`) et propose 10 questions vérifiées, chacune avec sa source. On coche, puis « Créer l'épisode avec les questions cochées » : niveaux quiz, sources gardées dans « À vérifier ».
+- **Plusieurs modèles** (« pas toujours les mêmes modèles ») : `JX_MODELS`. Ils changent le bandeau de la question et les réponses :
+  - Classique : cartes blanches ;
+  - Jeu télé : bandeau et barres hexagonales dorées sur fond bleu nuit ;
+  - Bulles de BD : bulles avec contour et pointe ;
+  - Minimal : une simple ligne sous chaque réponse ;
+  - Au hasard : le modèle change à chaque épisode.
 - **Affiche premium** (`poster`, `jxPosterBlob`) : le décor, le nom de la série en très gros, l'accroche dans un bandeau rouge, le dernier niveau en aperçu, une flèche rouge, l'épisode et le niveau. Deux tailles : affiche YouTube 1280 × 720 et couverture TikTok 1080 × 1920. Elle s'affiche aussi sur le lecteur avant la lecture.
 - **Vidéo** :
   - `jxPlan` fait le minutage, `jxAudio` le son (nappe `prBed`, souffles, coups, stings et bips du compte à rebours rendus hors ligne) ;
@@ -419,6 +430,11 @@ Demande de l'utilisateur : « un onglet pour les publicités payantes que je fai
   Fond aux couleurs de la marque, bandes qui défilent, nappe énergique, souffles et coups.
 - **Formats** : 9:16 (statut WhatsApp, TikTok, Reels), 1:1 (Facebook, Instagram), 16:9, ou les trois.
 - **Affiches** (`pbPosterBlob`) : statut WhatsApp 1080 × 1920 et Facebook, Instagram 1080 × 1080. Elles s'affichent aussi sur le lecteur avant la lecture.
+- **Voix off** (`pb-voix`, mêmes voix que le quiz) : une phrase par moment (`pbLines`), avec le prix dit à voix haute (« Seulement… au lieu de… ») ; les moments s'allongent pour la voix (`pbPlan`).
+- **Mes marques** (`sp-marques`, `pbBrands`) : chaque marque se reprend en un clic, et « 💾 Garder cette marque » enregistre le formulaire avec son logo.
+  - Le site d'annonces de l'utilisateur, **Wanteermako** (www.wanteermako.com : « Petites annonces premium au Sénégal », publication gratuite, 0 % de commission, contact WhatsApp), est proposé d'office : couleur #6366F1 relevée sur le site, logo rapatrié une fois par `/api/photos/import`.
+- **Site web et QR code** : champ « Site web ». L'appel montre l'adresse dans un bouton aux couleurs de la marque, avec un QR code (bibliothèque libre `qrcode-generator` 1.4.4, chargée à la demande depuis jsDelivr ; sans internet, pas de QR). L'affiche met le QR en haut à droite.
+- Sans photo du produit, le cadre montre le logo en grand (`noPhoto`) ; un logo large est posé dans une pastille allongée.
 - **Partage** : texte du statut à copier, avec un lien pour l'envoyer sur WhatsApp. La pub est gardée dans `sp-pub`.
 - Test : `pub-test.js`.
 
@@ -621,8 +637,8 @@ Ce que le code corrige :
 | `youtube-learn-test.js` | Étude de liens YouTube face à un faux YouTube et un faux Gemini : lien lu en entier, quota épuisé → images de la vidéo, leçons fusionnées et gardées en mémoire, idée originale avec le format gagnant, reconstruction réinventée, bloc « ce qui marche » |
 | `presse-studio-test.js` | Revue « Grand écran » face à un faux Google Actualités et de faux sites : liens décodés, image og:image et image du titre, crédits, voix renforcée, vidéo 1280 × 720 avec décor, bandeau rouge et vraies images à l'écran, diaporama toujours disponible |
 | `agence-test.js` | Agence : menu, nom de l'agence, fiche client (logo rangé), suivi (devis, montant, notes), flyer A5 à 1748 × 2480 (photo, bouton WhatsApp), PDF A5 valide, JPEG et PNG, visuel carré par l'agent (rien d'inventé), passage vers la pub vidéo, téléphone, reprise |
-| `pub-test.js` | Publicités : onglet, infos du commerçant, photo et logo enregistrés (réduits), textes sans IA puis par l'agent (règles : rien d'inventé), aperçu des trois formats, vidéo 9:16 de 15 s (photo, prix doré, bouton WhatsApp, affiche sur le lecteur), affiches 1080 × 1920 et 1080 × 1080, téléchargements, téléphone, reprise |
-| `jeux-test.js` | Jeux « 5 secondes » : accès (menu, accueil), niveaux sans IA (réponses calculées, suites justes), niveaux de l'agent (thème et règles dans la demande, suite fausse corrigée par le code, « à vérifier »), aperçu 9:16, vidéo 9:16 de la durée prévue (compte à rebours, réponse en vert), téléchargement, publication (heures d'un jeu, hashtags), téléphone, reprise |
+| `pub-test.js` | Publicités : onglet, infos du commerçant, photo et logo enregistrés (réduits), textes sans IA puis par l'agent (règles : rien d'inventé), aperçu des trois formats, vidéo 9:16 avec voix off (5 phrases, prix dit), photo, prix doré, bouton WhatsApp, affiche sur le lecteur, affiches 1080 × 1920 et 1080 × 1080, marques (Wanteermako d'office, marque gardée), site web avec QR code, téléchargements, téléphone, reprise |
+| `jeux-test.js` | (avec voix lue, questions trouvées sur le web et quatre modèles) Jeux « 5 secondes » : accès (menu, accueil), niveaux sans IA (réponses calculées, suites justes), niveaux de l'agent (thème et règles dans la demande, suite fausse corrigée par le code, « à vérifier »), aperçu 9:16, vidéo 9:16 de la durée prévue (compte à rebours, réponse en vert), téléchargement, publication (heures d'un jeu, hashtags), téléphone, reprise |
 | `agnes-test.js` | Agnes AI face à un faux Agnes : état du serveur (gratuit, clé cachée), Connexions, Storyboard par Agnes d'abord (format, 1K, photo du personnage en data URI, attente après un 429), clips plan par plan (720P, durée du plan, image de départ, image refusée → texte seul, un à la fois), rangés dans leur plan, téléphone |
 | `presse-plateau-test.js` | Plateau 3D et format 9:16 : réglages par défaut, aperçu dans les deux formats (avant la voix), repli sur le studio 2D, vidéo « Les deux » (1280 × 720 puis 720 × 1280, bandeau, images des articles sur le mur LED), kit de publication (6 réseaux, heures du pays, analyse du pays, leçon des statistiques, textes, fichier par réseau, rappel, .txt), miniatures, chapitres YouTube, téléphone |
 | `voix-relais-test.js` | Chaîne des voix gratuites face à un faux Google (3 modèles de voix, chacun son quota du jour) et un faux espace Hugging Face : modèle suivant en relais, modèle épuisé plus redemandé, message « demain matin » ; texte découpé (280 caractères) et recollé ; refus de Hugging Face ; revue en mode automatique (Gemini → Hugging Face → ordinateur) ; Connexions |

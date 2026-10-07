@@ -11,6 +11,9 @@ const AGENT = {titre_serie: "5 SECONDES", accroche: "Seulement 3 % trouvent le n
     {type: "suite", nombres: [3, 6, 12, 24], options: [36, 30, 40, 44], bonne: 0},
     {type: "intrus", a: "😀", b: "😃"}],
   publication: {titre: "5 secondes pour tester ta culture africaine", legende: "Seulement 3 % trouvent le niveau 3 !", hashtags: ["#Afrique", "quiz"]}};
+const WEBQ = {questions: [{question: "Quelle est la capitale du Sénégal ?", options: ["Thiès", "Dakar", "Saint-Louis", "Ziguinchor"], bonne: 1, explication: "Dakar est la capitale depuis 1960.", source: "Encyclopédie", lien: "https://exemple.org/dakar"},
+  {question: "Combien de joueurs dans une équipe de football ?", options: ["9", "10", "11", "12"], bonne: 2, explication: "Onze joueurs sur le terrain.", source: "Règles du jeu", lien: "https://exemple.org/foot"},
+  {question: "Quel est le plus grand océan ?", options: ["Atlantique", "Indien", "Arctique", "Pacifique"], bonne: 3, explication: "Le Pacifique couvre un tiers du globe.", source: "Atlas", lien: ""}]};
 const PORT = 3000 + 1200 + Math.floor(Math.random() * 90), BASE = `http://127.0.0.1:${PORT}`;
 const fake = http.createServer((req, res) => { res.writeHead(req.url.includes("/models") ? 200 : 404, {"Content-Type": "application/json"}); res.end(JSON.stringify(req.url.includes("/models") ? {models: [{name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"]}]} : {error: {message: "inconnu"}})); });   /* faux Google : l'agent est « connecté », ses réponses sont simulées */
 const files = re => fs.readdirSync(OUT).filter(f => re.test(f)).map(f => ({f, n: fs.statSync(path.join(OUT, f)).size}));
@@ -22,14 +25,21 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], {env, stdio: ["ignore", "pipe", "pipe"]}); let log = ""; srv.stdout.on("data", d => log += d); srv.stderr.on("data", d => log += d);
   for(let k = 0; k < 50 && !/prêt/.test(log); k++) await new Promise(r => setTimeout(r, 100));
   const b = await p.launch({executablePath: EDGE, headless: true, protocolTimeout: 300000}); const pg = await b.newPage(); await require("./noauto")(pg);
-  const errs = []; pg.on("pageerror", e => errs.push(e.message)); let prompt = "";
+  const errs = []; pg.on("pageerror", e => errs.push(e.message)); let prompt = "", webAsked = false;
+  await pg.evaluateOnNewDocument(() => {   /* voix de l'ordinateur simulée : aucun téléchargement pendant le test */
+    const wav = secs => { const sr = 22050, n = Math.round(sr * secs), bf = new ArrayBuffer(44 + n * 2), dv = new DataView(bf), w = (o, s) => [...s].forEach((ch, i) => dv.setUint8(o + i, ch.charCodeAt(0)));
+      w(0, "RIFF"); dv.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, "data"); dv.setUint32(40, n * 2, true);
+      for(let i = 0; i < n; i++) dv.setInt16(44 + i * 2, Math.round(5000 * Math.sin(i / 7)), true); return bf; };
+    window.__voiceTexts = []; window.__localTtsMock = {predict: async ({text}) => { window.__voiceTexts.push(text); return new Blob([wav(Math.max(1.2, text.split(/\s+/).length / 2.6))], {type: "audio/x-wav"}); }};
+  });
+
   try{
     await pg.setViewport({width: 1366, height: 900});
     const cdp = await pg.target().createCDPSession(); await cdp.send("Browser.setDownloadBehavior", {behavior: "allow", downloadPath: OUT, eventsEnabled: true}).catch(() => cdp.send("Page.setDownloadBehavior", {behavior: "allow", downloadPath: OUT}));
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
     await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}})); }); await pg.reload({waitUntil: "networkidle0"});
     await pg.setRequestInterception(true);
-    pg.on("request", r => { if(/\/api\//.test(r.url()) && process.env.JX_DEBUG) console.log("DEMANDE", r.method(), r.url().replace(BASE, ""), (r.postData() || "").slice(0, 80)); if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){} return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(AGENT)}) + "\n"}); } r.continue(); });
+    pg.on("request", r => { if(/\/api\//.test(r.url()) && process.env.JX_DEBUG) console.log("DEMANDE", r.method(), r.url().replace(BASE, ""), (r.postData() || "").slice(0, 80)); if(r.url().includes("/api/sample") && r.method() === "POST"){ let b = {}; try{ b = JSON.parse(r.postData()); }catch(e){} if(b.search){ webAsked = true; return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(WEBQ)}) + "\n"}); } prompt = b.prompt || ""; return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(AGENT)}) + "\n"}); } r.continue(); });
     // 1. accès
     const acc = await pg.evaluate(() => ({side: (document.querySelector('.side-link[data-go="presse"]') || {}).textContent, home: !!document.querySelector('.welcome-action[data-go-inline="presse"]'), links: document.querySelectorAll(".side-link").length}));
     check("accès : « Motion design » dans le menu (même nombre de liens) et sur l'accueil", /Motion design/.test(acc.side) && acc.home && acc.links === 14, JSON.stringify(acc));
@@ -63,16 +73,18 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     await pg.waitForFunction(() => document.querySelectorAll("#jx-prev img").length === 3, {timeout: 20000});
     const pv = await pg.evaluate(async () => Promise.all([...document.querySelectorAll("#jx-prev img")].map(async im => { await im.decode().catch(() => {}); const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext("2d"); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let g = 0, w = 0; for(let i = 0; i < d.length; i += 16){ if(d[i + 1] > 170 && d[i] < 90 && d[i + 2] < 140) g++; if(d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235) w++; } return {w: im.naturalWidth, h: im.naturalHeight, green: g, white: w}; })));
     check("aperçu 9:16 (720 × 1280) : accroche, compte à rebours, réponse en vert", pv.length === 3 && pv.every(x => x.w === 720 && x.h === 1280 && x.white > 500) && pv[2].green > 300, pv.map(x => `${x.w}×${x.h} vert:${x.green}`).join(" | "));
-    // 5. vidéo 9:16 (son fabriqué : musique, tic-tac, effets)
-    await pg.evaluate(() => document.getElementById("jx-video").click());
+    // 5. vidéo 9:16 avec la voix qui pose les questions (son fabriqué : voix, musique, tic-tac, effets)
+    const vopts = await pg.evaluate(() => [...document.querySelectorAll("#jx-voix option")].map(o => o.value));
+    check("voix au choix pour poser les questions : sans voix, la meilleure gratuite, Hugging Face, voix de l'ordinateur", vopts.includes("none") && vopts.includes("auto") && vopts.includes("hf:fr_f1") && vopts.includes("local:fr_FR-siwis-medium"), vopts.slice(0, 6).join(" "));
+    await pg.evaluate(() => { document.getElementById("jx-voix").value = "local:fr_FR-siwis-medium"; document.getElementById("jx-vmodel").value = "classique"; document.getElementById("jx-video").click(); });
     await pg.waitForFunction(() => /Vidéo prête|échoué|navigateur/.test(document.getElementById("jx-vmsg").textContent), {timeout: 180000});
     const vid = await pg.evaluate(async () => { const v = document.querySelector("#jx-vids video"); await new Promise(r => { if(v.readyState >= 1) r(); else v.onloadedmetadata = r; setTimeout(r, 6000); });
       if(!(isFinite(v.duration) && v.duration > 0)) await new Promise(r => { v.ondurationchange = () => { if(isFinite(v.duration)) r(); }; v.currentTime = 1e7; setTimeout(r, 5000); });   /* vidéo du navigateur : durée connue après un saut à la fin */
       const c = document.createElement("canvas"), hits = {green: 0, yellow: 0}, dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
-      for(const t of [6.5, 7.5, 10.2, 11]){ v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 2500); }); c.width = v.videoWidth; c.height = v.videoHeight; const x = c.getContext("2d"); x.drawImage(v, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let g = 0, y = 0;
+      for(let t = 3; t < Math.min(dur, 30); t += 0.8){ v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 2500); }); c.width = v.videoWidth; c.height = v.videoHeight; const x = c.getContext("2d"); x.drawImage(v, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let g = 0, y = 0;
         for(let i = 0; i < d.length; i += 16){ if(d[i + 1] > 170 && d[i] < 90 && d[i + 2] < 140) g++; if(d[i] > 220 && d[i + 1] > 180 && d[i + 2] < 110) y++; } if(g > 800) hits.green++; if(y > 300) hits.yellow++; }
-      return {msg: document.getElementById("jx-vmsg").textContent, w: v.videoWidth, h: v.videoHeight, dur, hits}; });
-    check("vidéo 9:16 (720 × 1280) de la durée prévue (accroche, 3 niveaux, fin)", /Vidéo prête/.test(vid.msg) && vid.w === 720 && vid.h === 1280 && Math.abs(vid.dur - 33.3) < 2, `${vid.w}×${vid.h} · ${Math.round(vid.dur * 10) / 10} s · ${vid.msg}`);
+      return {msg: document.getElementById("jx-vmsg").textContent, w: v.videoWidth, h: v.videoHeight, dur, hits, said: window.__voiceTexts.slice()}; });
+    check("vidéo 9:16 (720 × 1280) : la voix lit l'accroche, chaque question et chaque réponse, et la vidéo prend le temps des phrases", /Vidéo prête/.test(vid.msg) && vid.w === 720 && vid.h === 1280 && vid.dur > 36 && vid.dur < 90 && vid.said.length === 8 && vid.said.some(t => /^Niveau 1\. Quel est le plus long fleuve d'Afrique/.test(t)) && vid.said.some(t => /La bonne réponse : Le Nil/.test(t)), `${vid.w}×${vid.h} · ${Math.round(vid.dur * 10) / 10} s · ${vid.said.length} phrases · ${vid.msg}`);
     check("à l'écran : compte à rebours (jaune) puis la bonne réponse en vert", vid.hits.yellow >= 1 && vid.hits.green >= 1, JSON.stringify(vid.hits));
     const poster = await pg.evaluate(() => (document.querySelector("#jx-vids video") || {}).getAttribute("poster") || "");
     check("la vidéo montre son affiche premium avant la lecture", /^blob:/.test(poster), poster.slice(0, 40));
@@ -92,6 +104,17 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     check("page sur téléphone : pas de défilement horizontal", await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth <= 1), wide.join(" | "));
     await pg.reload({waitUntil: "networkidle0"}); await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForSelector("#jx-res .jx-lv", {timeout: 10000}).catch(() => {});
     check("après rechargement : l'onglet Quiz et le dernier épisode sont retrouvés", await pg.evaluate(() => !document.getElementById("mt-quiz").hidden && /épisode 2/i.test(document.getElementById("jx-res").innerText)));
+    // 8. questions de culture générale trouvées sur le web, puis modèles différents
+    await pg.evaluate(() => document.getElementById("jx-web").click()); await pg.waitForFunction(() => document.querySelectorAll("[data-jxq]").length === 3, {timeout: 20000});
+    const wl = await pg.evaluate(() => document.getElementById("jx-web-res").innerText);
+    check("recherche Google (outil de recherche) : questions de culture générale avec leur source, à cocher", webAsked && /Quelle est la capitale du Sénégal \? → Dakar/.test(wl) && /Encyclopédie/.test(wl), wl.slice(0, 120).replace(/\n/g, " / "));
+    await pg.evaluate(() => { document.querySelector('[data-jxq="2"]').checked = false; document.getElementById("jx-web-go").click(); }); await pg.waitForFunction(() => /épisode 3/i.test(document.getElementById("jx-res").innerText), {timeout: 10000});
+    const w3 = await pg.evaluate(() => ({s: JSON.parse(localStorage.getItem("sp-jeux")).ep, txt: document.getElementById("jx-res").innerText}));
+    check("épisode fait avec les questions cochées (2), sources gardées dans « À vérifier »", w3.s.source === "web" && w3.s.niveaux.length === 2 && w3.s.niveaux.every(l => l.type === "choix") && /source : Encyclopédie/.test(w3.txt), w3.s.niveaux.map(l => l.question).join(" | "));
+    const lum = {};
+    for(const m of ["classique", "tele", "bulles", "minimal"]){ await pg.evaluate(m => { document.getElementById("jx-vmodel").value = m; document.getElementById("jx-vdecor").value = "neon"; document.getElementById("jx-vfmt").value = "9:16"; document.getElementById("jx-preview").click(); }, m);
+      await new Promise(r => setTimeout(r, 500)); lum[m] = await pg.evaluate(async () => { const im = document.querySelectorAll("#jx-prev img")[1]; await im.decode().catch(() => {}); const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext("2d"); x.drawImage(im, 0, 0); const d = x.getImageData(40, 520, 640, 300).data; let L = 0, n = 0; for(let i = 0; i < d.length; i += 32){ L += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; } return Math.round(L / n); }); }
+    check("plusieurs modèles de quiz : réponses en cartes blanches (classique), barres de jeu télé, bulles de BD, minimal", lum.classique > 150 && lum.tele < 90 && lum.bulles > 150 && lum.minimal < 90 && Math.abs(lum.tele - lum.minimal) > 3, JSON.stringify(lum));
     check("aucune erreur JavaScript", !errs.length, errs.join(" | "));
   }finally{ await b.close(); srv.kill(); fake.close(); }
   console.log(out.join("\n")); process.exit(0);
