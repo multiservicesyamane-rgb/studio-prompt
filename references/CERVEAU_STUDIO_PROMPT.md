@@ -219,7 +219,8 @@ Règle des paroles :
 ### 4.2 Page « Motion design » (anciennement « Depuis des infos ») : revue de presse, quiz
 Demande du 7 octobre : la page doit faire « tous les vidéos de motion design », pas seulement l'information. Elle garde l'identifiant de vue `presse`. Des onglets en haut (`data-mt`, `mtShow`, choix gardé dans `sp-prefs.motion`) :
 - « 📰 Infos du jour » : la revue de presse (tout ce qui suit) ;
-- « 🧠 Quiz « 5 secondes » » : §4.3 quater.
+- « 🧠 Quiz « 5 secondes » » : §4.3 quater ;
+- « 📣 Publicités » : §4.3 quinquies.
 D'autres onglets viendront avec la même méthode (produit tech en 3D, publicités) : chaque type a son onglet, et ils partagent la voix, la fusion, le plateau 3D, l'enregistrement, l'affiche et le kit de publication.
 Chaque vidéo de la revue montre aussi son **affiche premium** sur le lecteur avant la lecture (`v.poster`, faite par `prThumb`).
 
@@ -401,6 +402,39 @@ Demande de l'utilisateur : des formats qui marchent « sans utiliser l'IA », fa
 - Série : chaque épisode prend le numéro suivant (`sp-jeux`), et le dernier épisode est retrouvé après rechargement.
 - Pistes suivantes (proposées par l'utilisateur, pas encore faites) : classements animés de données vraies (« Afrique contre le monde », sources ouvertes), simulateurs « Et si… », conversations animées (présentées comme des fictions), voix qui lit la question, épisodes tirés d'une image, d'un audio ou d'une vidéo.
 - Test : `jeux-test.js`.
+
+### 4.3 quinquies Publicités pour les commerces (7 octobre)
+Demande de l'utilisateur : « un onglet pour les publicités payantes que je fais au marché ». C'est l'onglet « 📣 Publicités » de la page Motion design.
+- **Ce que donne le commerçant** (`pbForm`) : nom, activité, produit, prix, ancien prix, promo, WhatsApp, adresse, horaires, avantages, couleur de la marque, durée (15 ou 30 s), photos du produit (5 au plus) et logo.
+  - Les photos sont réduites avant l'envoi (`pbShrink` : 1 600 px au plus en JPEG ; logo en PNG pour garder la transparence) et rangées dans `generated/publicites/`. Sans serveur, elles restent dans le navigateur.
+- **Textes** :
+  - « ✨ Écrire la pub avec l'agent » (`pbPrompt`) : slogan, accroche, 3 avantages, appel, légende, hashtags. Règles : aucun prix, aucune promo, aucune garantie inventés, aucun faux témoignage, pas de « meilleur » sans preuve, aucune personne réelle ;
+  - « ⚡ Sans IA » (`pbTexts`) : textes composés avec les infos du commerçant. C'est aussi le relais si l'agent échoue.
+- **Vidéo** (`pbStage`, `pbPlan`, `pbAudio`, enregistreur commun `jxRecord`), en cinq temps :
+  1. intro : logo qui apparaît avec une étoile, nom, accroche ;
+  2. produit : photo en cadre et étoile « promo » ;
+  3. avantages : coches qui arrivent une à une ;
+  4. prix : l'ancien prix est barré, le nouveau claque avec des confettis ;
+  5. appel : bouton vert WhatsApp avec le numéro, adresse et horaires.
+  Fond aux couleurs de la marque, bandes qui défilent, nappe énergique, souffles et coups.
+- **Formats** : 9:16 (statut WhatsApp, TikTok, Reels), 1:1 (Facebook, Instagram), 16:9, ou les trois.
+- **Affiches** (`pbPosterBlob`) : statut WhatsApp 1080 × 1920 et Facebook, Instagram 1080 × 1080. Elles s'affichent aussi sur le lecteur avant la lecture.
+- **Partage** : texte du statut à copier, avec un lien pour l'envoyer sur WhatsApp. La pub est gardée dans `sp-pub`.
+- Test : `pub-test.js`.
+
+### 4.3 sexies Page « Agence » : clients et créations de communication (7 octobre)
+Demande de l'utilisateur : un onglet pour son agence (« Yamane Tech » ; nom modifiable, `sp-agence.agence`, signé discrètement sur les créations) qui fait affiches, flyers, logos, communication digitale et sites. Le lien « Agence (mes clients) » est dans le groupe « Mes contenus » du menu, qui garde ses 4 groupes et tient sans défiler sur un écran de 650 pixels de haut (lignes resserrées sur les écrans bas).
+- **Fiches clients** (`sp-agence.clients`) : nom, activité, WhatsApp, adresse, couleur, logo (rangé dans `generated/agence/`).
+  - Suivi : prospect, devis envoyé, en cours, livré, payé (`AG_STATE`), avec le montant et des notes. C'est le début du CRM prévu sur la feuille de route.
+- **Affiches et flyers** (`agDraw`) :
+  - formats A4 et A5 dessinés à la vraie taille d'impression (300 points par pouce : 2480 × 3508 et 1748 × 2480), carré réseaux (1080 × 1080) et story (1080 × 1920) ;
+  - types : promotion, événement, ouverture, recrutement, services ;
+  - photo du client en haut avec une coupe en biais, titre très gros, sous-titre, lignes d'infos, bouton WhatsApp, adresse.
+  - **PDF pour l'imprimeur** (`agPdf`) : une page au format exact (A5 = 419,53 × 595,28 points), l'affiche en JPEG, écrite sans bibliothèque. Images JPEG et PNG aussi.
+- **Textes** (`agPrompt`, `agTexts`) : l'agent écrit titre, sous-titre, lignes et appel avec les seules infos données (rien d'inventé) ; « Sans IA » les compose.
+- **Vers la pub vidéo** : « 📣 Faire sa pub vidéo » remplit l'onglet Publicités de Motion design avec la fiche du client (nom, activité, WhatsApp, adresse, couleur, logo).
+- Prochaines étapes demandées : logos (propositions de l'agent dessinées en vecteur), visuels réseaux, sites vitrine et e-commerce (commande WhatsApp, mise en ligne), devis et factures ; Blender (gratuit) pour la 3D, After Effects seulement si l'utilisateur l'a ; connecteurs claude.ai (Canva, Netlify, Vercel, Adobe, HyperFrames) à autoriser par l'utilisateur.
+- Test : `agence-test.js`.
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -586,6 +620,8 @@ Ce que le code corrige :
 | `manus-clips-test.js` | Clips par Manus face à un faux Manus : prompts H3 et Seedance dans chaque plan (format officiel, paroles balisées, caméra), images de départ jointes, clips rapatriés dans leur plan, crédits épuisés → méthode gratuite |
 | `youtube-learn-test.js` | Étude de liens YouTube face à un faux YouTube et un faux Gemini : lien lu en entier, quota épuisé → images de la vidéo, leçons fusionnées et gardées en mémoire, idée originale avec le format gagnant, reconstruction réinventée, bloc « ce qui marche » |
 | `presse-studio-test.js` | Revue « Grand écran » face à un faux Google Actualités et de faux sites : liens décodés, image og:image et image du titre, crédits, voix renforcée, vidéo 1280 × 720 avec décor, bandeau rouge et vraies images à l'écran, diaporama toujours disponible |
+| `agence-test.js` | Agence : menu, nom de l'agence, fiche client (logo rangé), suivi (devis, montant, notes), flyer A5 à 1748 × 2480 (photo, bouton WhatsApp), PDF A5 valide, JPEG et PNG, visuel carré par l'agent (rien d'inventé), passage vers la pub vidéo, téléphone, reprise |
+| `pub-test.js` | Publicités : onglet, infos du commerçant, photo et logo enregistrés (réduits), textes sans IA puis par l'agent (règles : rien d'inventé), aperçu des trois formats, vidéo 9:16 de 15 s (photo, prix doré, bouton WhatsApp, affiche sur le lecteur), affiches 1080 × 1920 et 1080 × 1080, téléchargements, téléphone, reprise |
 | `jeux-test.js` | Jeux « 5 secondes » : accès (menu, accueil), niveaux sans IA (réponses calculées, suites justes), niveaux de l'agent (thème et règles dans la demande, suite fausse corrigée par le code, « à vérifier »), aperçu 9:16, vidéo 9:16 de la durée prévue (compte à rebours, réponse en vert), téléchargement, publication (heures d'un jeu, hashtags), téléphone, reprise |
 | `agnes-test.js` | Agnes AI face à un faux Agnes : état du serveur (gratuit, clé cachée), Connexions, Storyboard par Agnes d'abord (format, 1K, photo du personnage en data URI, attente après un 429), clips plan par plan (720P, durée du plan, image de départ, image refusée → texte seul, un à la fois), rangés dans leur plan, téléphone |
 | `presse-plateau-test.js` | Plateau 3D et format 9:16 : réglages par défaut, aperçu dans les deux formats (avant la voix), repli sur le studio 2D, vidéo « Les deux » (1280 × 720 puis 720 × 1280, bandeau, images des articles sur le mur LED), kit de publication (6 réseaux, heures du pays, analyse du pays, leçon des statistiques, textes, fichier par réseau, rappel, .txt), miniatures, chapitres YouTube, téléphone |

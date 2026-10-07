@@ -150,9 +150,9 @@ button{cursor:pointer}
 @media (min-width:960px) and (max-height:760px){
   .side-top{padding-block:8px 4px}
   .side-nav{padding-bottom:4px}
-  .side-group{padding:6px 10px 2px}
+  .side-group{padding:5px 10px 2px}
   .side-group:first-child{display:none}
-  .side-link{min-height:30px;padding-block:4px}
+  .side-link{min-height:28px;padding-block:3px}
   .side-foot{padding-block:6px 8px}
 }
 @media (prefers-reduced-motion:reduce){ .side{transition:none!important} }
@@ -363,6 +363,10 @@ dl.kv dd{margin:0;font-size:15px}
 .pr-prev{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px;align-items:start}.pr-prev:empty{display:none}
 .mt-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.mt-tabs button{border:1px solid var(--line);background:var(--sunken);color:inherit;border-radius:999px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
 .mt-tabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.pb-thumbs img{max-height:120px;width:auto}
+.ag-clients{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px;margin-top:10px}.ag-client{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--sunken);color:inherit;border-radius:12px;padding:10px 12px;font:inherit;cursor:pointer;min-width:0}
+.ag-client.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}.ag-client .hint{grid-column:2;overflow-wrap:anywhere}.ag-dot{width:14px;height:14px;border-radius:50%;display:inline-block;grid-row:span 2}.ag-dot.big{width:34px;height:34px}
+.ag-head{display:flex;gap:12px;align-items:center}.ag-head h2{margin:0}.ag-preview{margin:10px 0}.ag-preview img{max-width:min(100%,420px);max-height:560px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.25);display:block}
 .jx-ideas{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 10px}
 .jx-lv{display:grid;gap:4px;padding:10px 0;border-bottom:1px solid var(--line)}.jx-lv:last-of-type{border-bottom:0}.jx-lv p{margin:0;overflow-wrap:anywhere}.jx-lv-h{display:flex;flex-wrap:wrap;gap:6px}
 .pr-net{border:1px solid var(--line);border-radius:12px;margin-top:10px;background:var(--sunken)}
@@ -675,6 +679,7 @@ input[type=text].plain-in{background:var(--surface)}
       <button type="button" class="side-link" data-go="idees"><svg class="ico"><use href="#i-idea"/></svg><span class="side-lbl">Idées</span></button>
       <span class="side-group">Mes contenus</span>
       <button type="button" class="side-link" data-go="projets" id="side-projets"><svg class="ico"><use href="#i-folder"/></svg><span class="side-lbl">Projets</span><span class="side-count" id="side-count" hidden></span></button>
+      <button type="button" class="side-link" data-go="agence"><svg class="ico"><use href="#i-folder"/></svg><span class="side-lbl">Agence (mes clients)</span></button>
       <button type="button" class="side-link" data-go="persos"><svg class="ico"><use href="#i-user"/></svg><span class="side-lbl">Personnages</span></button>
       <button type="button" class="side-link" data-go="images"><svg class="ico"><use href="#i-image"/></svg><span class="side-lbl">Images</span></button>
       <button type="button" class="side-link" data-go="memoire" id="side-memoire"><svg class="ico"><use href="#i-brain"/></svg><span class="side-lbl">Mémoire de l'agent</span><span class="side-count" id="side-mem-count" hidden></span></button>
@@ -919,6 +924,20 @@ input[type=text].plain-in{background:var(--surface)}
       </section>
 
       <!-- ============ REVUE DE PRESSE ============ -->
+      <section id="view-agence" data-view="agence" hidden>
+        <div class="content" style="max-width:none">
+          <div class="page-head">
+            <span class="kicker">Agence · communication</span>
+            <h1>Agence : tes clients et leurs créations.</h1>
+            <p>Une fiche par client avec son suivi (devis, en cours, livré, payé), puis ses affiches et flyers prêts pour l’imprimeur (A4, A5, PDF) ou pour les réseaux, et sa pub vidéo dans Motion design. Les textes sont écrits à partir des infos du client : rien n’est inventé.</p>
+          </div>
+          <div class="panel"><div class="pr-row"><div class="field"><label for="ag-name">Nom de l’agence <span class="hint">(signature discrète sur les créations)</span></label><input type="text" id="ag-name" value="Yamane Tech"></div></div>
+            <div class="actions"><button type="button" class="btn primary" id="ag-new">＋ Nouveau client</button></div>
+            <div id="ag-form-box"></div><div id="ag-list"></div></div>
+          <div id="ag-body"></div>
+          <div class="card"><h3 class="sub-h">Bientôt dans l’agence</h3><p class="hint">Logos (propositions de l’agent, dessinés en vecteur), visuels pour les réseaux, sites vitrine et e-commerce avec commande WhatsApp, devis et factures.</p></div>
+        </div>
+      </section>
       <section id="view-presse" data-view="presse" hidden>
         <div class="content" style="max-width:none">
           <div class="page-head">
@@ -926,7 +945,7 @@ input[type=text].plain-in{background:var(--surface)}
             <h1>Motion design : des vidéos animées qui retiennent jusqu’au bout.</h1>
             <p>Choisis ce que tu fabriques. Tout est animé par le code (plateau 3D, décors, textes, effets), avec une voix d’or, une affiche qui donne envie et le kit pour publier sur YouTube et TikTok.</p>
           </div>
-          <div class="mt-tabs" role="tablist" aria-label="Type de vidéo"><button type="button" role="tab" data-mt="infos" aria-selected="true">📰 Infos du jour</button><button type="button" role="tab" data-mt="quiz" aria-selected="false">🧠 Quiz « 5 secondes »</button></div>
+          <div class="mt-tabs" role="tablist" aria-label="Type de vidéo"><button type="button" role="tab" data-mt="infos" aria-selected="true">📰 Infos du jour</button><button type="button" role="tab" data-mt="quiz" aria-selected="false">🧠 Quiz « 5 secondes »</button><button type="button" role="tab" data-mt="pub" aria-selected="false">📣 Publicités</button></div>
           <div id="mt-infos">
           <p class="hint">Revue de presse : choisis un pays, l’agent lit Google Actualités et les grands journaux du jour, ou donne tes textes et tes liens. Il écrit une revue captivante, fidèle aux sources, puis une voix de grand présentateur la lit.</p>
           <form class="panel" id="pr-form" autocomplete="off">
@@ -975,6 +994,22 @@ input[type=text].plain-in{background:var(--surface)}
             <div class="status" id="jx-status" hidden><span id="jx-status-text"></span><div class="bar"><i id="jx-status-bar"></i></div></div>
           </form>
           <div id="jx-res"></div>
+          </div>
+          <div id="mt-pub" hidden>
+          <p class="hint">Publicités pour les commerces (tes clients du marché) : donne le nom, le produit, les photos, le prix, la promo et le WhatsApp. Le moteur fabrique une pub animée de 15 ou 30 secondes (logo, produit, avantages, prix qui claque, bouton WhatsApp) et son affiche, pour le statut WhatsApp, TikTok, Facebook et Instagram. Rien n’est inventé : prix, promo et avantages viennent du commerçant.</p>
+          <form class="panel" id="pb-form" autocomplete="off">
+            <div class="pr-row"><div class="field"><label for="pb-nom">Nom du commerce</label><input type="text" id="pb-nom" placeholder="Exemple : Boutique Awa Téléphones"></div><div class="field"><label for="pb-act">Activité</label><input type="text" id="pb-act" placeholder="Téléphones, restaurant, mode, coiffure…"></div></div>
+            <div class="pr-row"><div class="field"><label for="pb-prod">Produit ou offre</label><input type="text" id="pb-prod" placeholder="Exemple : téléphone 128 Go"></div><div class="field"><label for="pb-prix">Prix</label><input type="text" id="pb-prix" placeholder="85 000 FCFA"></div><div class="field"><label for="pb-ancien">Ancien prix <span class="hint">(facultatif)</span></label><input type="text" id="pb-ancien" placeholder="100 000 FCFA"></div></div>
+            <div class="pr-row"><div class="field"><label for="pb-promo">Promo <span class="hint">(facultatif)</span></label><input type="text" id="pb-promo" placeholder="-15 % ce week-end"></div><div class="field"><label for="pb-wa">WhatsApp</label><input type="tel" id="pb-wa" placeholder="77 000 00 00"></div></div>
+            <div class="pr-row"><div class="field"><label for="pb-adr">Adresse</label><input type="text" id="pb-adr" placeholder="Quartier, ville"></div><div class="field"><label for="pb-hor">Horaires</label><input type="text" id="pb-hor" placeholder="Tous les jours, 9 h à 21 h"></div></div>
+            <div class="field"><label for="pb-av">Avantages <span class="hint">(un par ligne, facultatif)</span></label><textarea id="pb-av" rows="3" placeholder="Garantie 6 mois&#10;Livraison dans la ville"></textarea></div>
+            <div class="pr-row"><div class="field"><label for="pb-color">Couleur de la marque</label><input type="color" id="pb-color" value="#e53935"></div><div class="field"><label for="pb-duree">Durée</label><div class="sel"><select id="pb-duree"><option value="15" selected>15 secondes</option><option value="30">30 secondes</option></select></div></div></div>
+            <div class="actions"><label class="btn">📷 Photos du produit<input type="file" id="pb-photos" accept="image/png,image/jpeg,image/webp" multiple hidden></label><label class="btn">🏷 Logo<input type="file" id="pb-logo" accept="image/png,image/jpeg,image/webp" hidden></label></div>
+            <div class="pr-kit-thumbs pb-thumbs" id="pb-thumbs"></div>
+            <div class="actions"><button type="submit" class="btn primary" id="pb-go">✨ Écrire la pub avec l’agent</button><button type="submit" class="btn" id="pb-sans">⚡ Sans IA : avec mes infos</button></div>
+            <div class="status" id="pb-status" hidden><span id="pb-status-text"></span><div class="bar"><i id="pb-status-bar"></i></div></div>
+          </form>
+          <div id="pb-res"></div>
           </div>
         </div>
       </section>
@@ -2929,7 +2964,7 @@ const LOCAL_ERR = new Set(["no_credit","no_key","no_model","bad_key","network","
 const errText = e => { if(e && !ERR[e.code] && !LOCAL_ERR.has(e.code)) console.error(e); return ERR[e&&e.code] || (e && LOCAL_ERR.has(e.code) && e.message) || `La demande a échoué${e&&e.message?` (${String(e.message).slice(0,160)})`:""}. Réessaie.`; };
 
 /* =================== ROUTER =================== */
-const VIEWS = {accueil:"Accueil", connexions:"Connexions et voix", presse:"Créer · motion design", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
+const VIEWS = {accueil:"Accueil", connexions:"Connexions et voix", presse:"Créer · motion design", agence:"Agence · clients et créations", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
 /* Page affichée → bouton surligné : barre du bas (TAB_OF) et menu latéral (NAV_OF) */
 const TAB_OF = {audio:"studio", reel:"studio", presse:"studio", tendances:"idees", son:"projets"};   /* les autres pages s'ouvrent par « Menu » */
 const NAV_OF = {niches:"strategie", pays:"strategie", chaine:"strategie", qualite:"images", son:"projets"};
@@ -4267,7 +4302,7 @@ function prInit(){
   try{ const x=JSON.parse(localStorage.getItem("sp-presse")||"null"); if(x&&x.r){ Object.assign(PR,{r:prNorm(x.r), o:x.o, id:x.id||"", voices:x.voices||[], news:x.news||null, list:x.list||[], matiere:x.matiere||"", photos:x.photos||{}, photoQ:x.photoQ||{}, voiceCredit:x.voiceCredit||"", voiceName:x.voiceName||"", extra:x.extra||{}, unes:x.unes||{}, arts:x.arts||{}}); if(PR.news) $("pr-news").innerHTML=prNewsHtml(); } }catch(e){}
 }
 /* Page Motion design : un onglet par type de vidéo (la revue de presse garde son identifiant « presse ») */
-function mtShow(k){ k=["infos","quiz"].includes(k)?k:"infos"; document.querySelectorAll("[data-mt]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.mt===k))); ["infos","quiz"].forEach(n=>{ const el=$("mt-"+n); if(el) el.hidden=n!==k; }); savePrefs({motion:k}); if(k==="quiz") jxShow(); }
+function mtShow(k){ const ALL=["infos","quiz","pub"]; k=ALL.includes(k)?k:"infos"; document.querySelectorAll("[data-mt]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.mt===k))); ALL.forEach(n=>{ const el=$("mt-"+n); if(el) el.hidden=n!==k; }); savePrefs({motion:k}); if(k==="quiz") jxShow(); if(k==="pub") pbShow(); }
 document.addEventListener("click", e=>{ const b=e.target.closest&&e.target.closest("[data-mt]"); if(b) mtShow(b.dataset.mt); });
 async function prShow(){
   prInit(); mtShow(loadPrefs().motion||"infos");
@@ -6299,6 +6334,7 @@ function onViewShown(name){
   if(name==="memoire") renderLessons();
   if(name==="connexions") renderConnexions();
   if(name==="presse") prShow();
+  if(name==="agence") agShow();
   if(name==="audio" && AU.dur) requestAnimationFrame(drawWave);
 }
 
@@ -6492,16 +6528,17 @@ function jxStage(ep, format, decor, big){
 /* Image de l'affiche (JPEG) : grand format pour publier, format de la vidéo pour l'aperçu du lecteur */
 async function jxPosterBlob(ep, fmt, decor, big){ const st=jxStage(ep, fmt, decor, big); st.poster(); return await new Promise(res=>st.canvas.toBlob(res,"image/jpeg",0.9)); }
 /* Enregistrement en temps réel du canevas avec son son (même méthode que la vidéo de la revue) */
-async function jxRecord(st, audioBlob, ac, say){
+async function jxRecord(st, audioBlob, ac, say, stopped){
+  const isStop=stopped||(()=>JX.stop);
   if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream) throw {message:"Ce navigateur ne peut pas fabriquer la vidéo : utilise Chrome ou Edge à jour."};
   await ac.resume().catch(()=>{}); const dest=ac.createMediaStreamDestination(), sound=await ac.decodeAudioData(await audioBlob.arrayBuffer()), src=ac.createBufferSource(); src.buffer=sound; src.connect(dest);
   const mime=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t))||"";
   const rec=new MediaRecorder(new MediaStream([...st.canvas.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]), mime?{mimeType:mime, videoBitsPerSecond:6e6}:{}), chunks=[];
   rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
-  JX.stop=false; st.draw(0); rec.start(1000); const t0=ac.currentTime+0.08; src.start(t0); const dur=Math.min(sound.duration, st.plan.total); let t=0;
-  await new Promise(res=>{ const tick=()=>{ t=Math.max(0,ac.currentTime-t0); st.draw(Math.min(t,dur-0.01)); say(`Montage en direct : ${Math.round(t)} s sur ${Math.round(dur)} s…`); if(JX.stop||t>=dur) return res(); requestAnimationFrame(tick); }; tick(); });
+  if(!stopped) JX.stop=false; st.draw(0); rec.start(1000); const t0=ac.currentTime+0.08; src.start(t0); const dur=Math.min(sound.duration, st.plan.total); let t=0;
+  await new Promise(res=>{ const tick=()=>{ t=Math.max(0,ac.currentTime-t0); st.draw(Math.min(t,dur-0.01)); say(`Montage en direct : ${Math.round(t)} s sur ${Math.round(dur)} s…`); if(isStop()||t>=dur) return res(); requestAnimationFrame(tick); }; tick(); });
   try{ src.stop(); }catch(e){} await new Promise(res=>{ rec.onstop=res; rec.stop(); });
-  const type=(rec.mimeType||mime||"video/webm").split(";")[0]; return {blob:new Blob(chunks,{type}), ext:/mp4/.test(type)?"mp4":"webm", seconds:Math.round(Math.min(t,dur)), stopped:JX.stop, fmt:st.fmt};
+  const type=(rec.mimeType||mime||"video/webm").split(";")[0]; return {blob:new Blob(chunks,{type}), ext:/mp4/.test(type)?"mp4":"webm", seconds:Math.round(Math.min(t,dur)), stopped:isStop(), fmt:st.fmt};
 }
 /* ---------- page ---------- */
 function jxSave(){ try{ localStorage.setItem("sp-jeux", JSON.stringify({ep:JX.ep, numero:JX.numero||0})); }catch(e){} }
@@ -6571,6 +6608,252 @@ document.addEventListener("click", async e=>{
       m.textContent=JX.videos.map(v=>`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"}${JX.videos.length>1?` (${v.fmt})`:""} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo.`).join(" "); }
     catch(err){ m.textContent=err&&err.message?err.message:"La vidéo a échoué : réessaie."; }
     finally{ try{ ac.close(); }catch(e){} t.disabled=false; $("jx-vstop").hidden=true; } return; }
+});
+
+/* =================== PUBLICITÉS : vidéos pub et affiches pour les commerces (clients de l'utilisateur) ===================
+   Le commerce donne son nom, son produit, ses photos, son prix, sa promo et son WhatsApp ; le moteur fabrique une pub animée (logo, produit,
+   avantages, prix qui claque, bouton WhatsApp) en 9:16 (statut WhatsApp, TikTok), 1:1 (Facebook, Instagram) ou 16:9, et son affiche.
+   Règles : rien d'inventé (prix, promo, avantages viennent du commerçant), aucun faux témoignage, aucun « meilleur de la ville » non prouvé. */
+const PB = {d:null, photos:[], logo:"", videos:[], stop:false, ctl:null};
+const PB_FMT = {"9:16":[720,1280,"9:16 · statut WhatsApp, TikTok, Reels"], "1:1":[1080,1080,"1:1 · Facebook, Instagram"], "16:9":[1280,720,"16:9 · YouTube, Facebook"]};
+function pbSave(){ try{ localStorage.setItem("sp-pub", JSON.stringify({d:PB.d, photos:PB.photos, logo:PB.logo})); }catch(e){} }
+function pbLoad(){ try{ const s=JSON.parse(localStorage.getItem("sp-pub")||"null"); if(s){ PB.d=s.d||null; PB.photos=s.photos||[]; PB.logo=s.logo||""; } }catch(e){} }
+function pbForm(){ const v=id=>($(id)||{}).value||""; return {nom:v("pb-nom").trim(), activite:v("pb-act").trim(), produit:v("pb-prod").trim(), prix:v("pb-prix").trim(), ancien:v("pb-ancien").trim(), promo:v("pb-promo").trim(), whatsapp:v("pb-wa").trim(), adresse:v("pb-adr").trim(), horaires:v("pb-hor").trim(), couleur:v("pb-color")||"#e53935", duree:Number(v("pb-duree"))||15, avantages:v("pb-av").split("\n").map(x=>x.trim()).filter(Boolean).slice(0,4)}; }
+/* Textes de la pub : l'agent les écrit à partir des seules infos du commerçant ; « Sans IA » les compose */
+function pbPrompt(o){
+  return `Tu es le meilleur rédacteur publicitaire du marché : des pubs courtes qui font vendre, pour des commerces de quartier (statut WhatsApp, TikTok, Facebook). ${EXPERT}
+COMMERCE : ${o.nom} · activité : ${o.activite||"commerce"} · produit ou offre : ${o.produit||"(à dire de façon générale)"} · prix : ${o.prix||"non donné"}${o.ancien?` (avant : ${o.ancien})`:""} · promo : ${o.promo||"aucune"} · avantages donnés : ${o.avantages.join(" ; ")||"aucun"} · adresse : ${o.adresse||"non donnée"} · horaires : ${o.horaires||"non donnés"}.
+ÉCRIS : slogan (6 mots au plus, qui se retient) ; accroche (la phrase des 2 premières secondes) ; points (3 avantages de 4 à 7 mots, tirés seulement des infos données, sinon des avantages évidents du produit, jamais un chiffre inventé) ; appel (l'appel à commander, court) ; legende (le texte du statut ou de la publication, 2 phrases) ; hashtags (3 à 5).
+RÈGLES : aucun prix, aucune promo, aucune garantie inventés ; aucun faux témoignage ; pas de « le meilleur de… » sans preuve ; aucune personne réelle ; ton chaleureux et énergique ; français simple.
+RÉPONDS UNIQUEMENT avec ce JSON : {"slogan":"","accroche":"","points":["","",""],"appel":"","legende":"","hashtags":[""]}`;
+}
+function pbTexts(o, x){ x=x||{}; const S=v=>String(v||"").trim();
+  const points=(Array.isArray(x.points)?x.points.map(S).filter(Boolean):[]).concat(o.avantages).slice(0,3);
+  return {slogan:S(x.slogan)||(o.produit?`Chez ${o.nom}`:o.nom), accroche:S(x.accroche)||(o.promo||`Découvre ${o.produit||o.nom}`), points:points.length?points:["Qualité garantie par la boutique","Prix juste","Service rapide"].slice(0,3),
+    appel:S(x.appel)||"Commande vite sur WhatsApp", legende:S(x.legende)||`${o.produit||o.nom}${o.prix?` à ${o.prix}`:""}${o.promo?` · ${o.promo}`:""}. Écris-nous sur WhatsApp${o.whatsapp?` au ${o.whatsapp}`:""}.`, hashtags:(Array.isArray(x.hashtags)?x.hashtags.map(S).filter(Boolean):[]).map(h=>"#"+h.replace(/^#+/,"").replace(/\s+/g,"")).slice(0,5)};
+}
+function pbPlan(dur){ const k=dur>=30?2:1, parts=[]; let t=0; [["intro",2],["produit",3.5],["avantages",3.5],["prix",3],["appel",3]].forEach(([kind,d])=>{ parts.push({kind, start:t, end:t+d*k}); t+=d*k; }); return {parts, total:t}; }
+async function pbAudio(plan){
+  const SR=44100, C=window.OfflineAudioContext||window.webkitOfflineAudioContext, ctx=new C(2,Math.ceil((plan.total+0.4)*SR),SR), M=PR_MOODS.energique||PR_MOODS.journal;
+  const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=3; comp.connect(ctx.destination);
+  const bed=ctx.createGain(); bed.gain.value=0.7; bed.connect(comp); prBed(ctx,M,bed,plan.total); const fx=ctx.createGain(); fx.gain.value=0.8; fx.connect(comp);
+  plan.parts.forEach((p,i)=>{ prWhoosh(ctx,fx,Math.max(0,p.start-0.3),0.55,i%2===0,0.8); if(p.kind==="prix"){ prHit(ctx,fx,p.start+0.9,1.1); prSting(ctx,fx,p.start+0.95,M,1); } if(p.kind==="intro") prHit(ctx,fx,0.35,1); if(p.kind==="appel") prSting(ctx,fx,p.start+0.3,M,0.8); });
+  const out=await ctx.startRendering(); return {blob:prWav(out), buf:out};
+}
+/* Dessin de la pub à l'instant t ; affiche (poster) au même format, ou en grand pour publier */
+async function pbStage(d, fmt, big){
+  const [w0,h0]=PB_FMT[fmt]||PB_FMT["9:16"], W=big&&fmt==="9:16"?1080:w0, H=big&&fmt==="9:16"?1920:h0, U=Math.min(W,H)/720, V=H>W*1.2, SQ=Math.abs(W-H)<10, plan=pbPlan(d.o.duree), c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
+  const F=(w,s)=>`${w} ${Math.round(s*U)}px "Segoe UI", Arial, sans-serif`, COL=d.o.couleur||"#e53935", WA="#25d366", GOLD="#ffd23f";
+  const photos=[]; for(const u of (PB.photos||[]).slice(0,5)){ const im=await prLoadImg(u); if(im) photos.push(im); } const logo=PB.logo?await prLoadImg(PB.logo):null;
+  const rr=(X,Y,w,h,r)=>{ x.beginPath(); x.moveTo(X+r,Y); x.arcTo(X+w,Y,X+w,Y+h,r); x.arcTo(X+w,Y+h,X,Y+h,r); x.arcTo(X,Y+h,X,Y,r); x.arcTo(X,Y,X+w,Y,r); x.closePath(); };
+  const cover=(im,X,Y,w,h,z,fx)=>{ x.save(); rr(X,Y,w,h,24*U); x.clip(); const s=Math.max(w/im.width,h/im.height)*(z||1), dw=im.width*s, dh=im.height*s; x.drawImage(im,X+(w-dw)/2+(fx||0)*(dw-w)/2,Y+(h-dh)/2,dw,dh); x.restore(); };
+  const centerText=(txt,y,size,col,maxW,max,stroke)=>{ x.font=F("900",size); let fs=size; let ls=prWrap(x,txt,maxW); while(ls.length>(max||2)&&fs>14){ fs-=2; x.font=F("900",fs); ls=prWrap(x,txt,maxW); } ls=ls.slice(0,max||2); x.textAlign="center"; x.lineJoin="round"; ls.forEach((l,j)=>{ const yy=y+j*fs*1.15*U; if(stroke){ x.lineWidth=10*U; x.strokeStyle=stroke; x.strokeText(l,W/2,yy); } x.fillStyle=col; x.fillText(l,W/2,yy); }); return ls.length*fs*1.15*U; };
+  const bg=(t,dark)=>{ const g=x.createLinearGradient(0,0,W,H); g.addColorStop(0,COL); g.addColorStop(1,dark?"#0b0b14":"#1a1a2e"); x.fillStyle=g; x.fillRect(0,0,W,H);
+    x.save(); x.globalAlpha=0.1; x.fillStyle="#fff"; for(let k=-8;k<16;k++){ const off=(t*90*U)%(160*U); x.beginPath(); x.moveTo(k*160*U+off,0); x.lineTo(k*160*U+off+70*U,0); x.lineTo(k*160*U+off+70*U-H,H); x.lineTo(k*160*U+off-H,H); x.fill(); } x.restore(); };   /* bandes qui défilent */
+  const burst=(cx,cy,r,col,t,n)=>{ x.save(); x.translate(cx,cy); x.rotate(t*0.6); x.fillStyle=col; x.beginPath(); for(let k=0;k<(n||16)*2;k++){ const a=k*Math.PI/(n||16), rr2=k%2?r*0.72:r; x.lineTo(Math.cos(a)*rr2,Math.sin(a)*rr2); } x.closePath(); x.fill(); x.restore(); };   /* étoile « promo » */
+  const confetti=(t0,t)=>{ const e=t-t0; if(e<0||e>1.5) return; const rnd=jxRng(Math.floor(t0*1000)+3); for(let k=0;k<60;k++){ const a=rnd()*Math.PI*2, sp=(250+rnd()*550)*U, px=W/2+Math.cos(a)*sp*e, py=H*0.5+Math.sin(a)*sp*e+600*U*e*e; x.save(); x.globalAlpha=Math.max(0,1-e/1.5); x.fillStyle=`hsl(${Math.floor(rnd()*360)},90%,60%)`; x.translate(px,py); x.rotate(e*8+k); x.fillRect(-6*U,-3*U,12*U,6*U); x.restore(); } };
+  const logoBadge=(cx,cy,r,e)=>{ x.save(); x.translate(cx,cy); x.scale(e,e); x.shadowColor="rgba(0,0,0,.4)"; x.shadowBlur=30*U; x.fillStyle="#fff"; x.beginPath(); x.arc(0,0,r,0,7); x.fill(); x.shadowColor="transparent";
+    if(logo){ x.save(); x.beginPath(); x.arc(0,0,r*0.9,0,7); x.clip(); const s=Math.min(1.8*r/logo.width,1.8*r/logo.height); x.drawImage(logo,-logo.width*s/2,-logo.height*s/2,logo.width*s,logo.height*s); x.restore(); }
+    else { const ini=d.o.nom.split(/\s+/).map(w=>w[0]||"").join("").slice(0,2).toUpperCase(); x.fillStyle=COL; x.textAlign="center"; x.font=F("900",r*0.9/U); x.fillText(ini,0,r*0.32); } x.restore(); };
+  const T=d.t, o=d.o, P=k=>plan.parts.find(p=>p.kind===k);
+  const draw=t=>{ const p=plan.parts.find(z=>t>=z.start&&t<z.end)||plan.parts[plan.parts.length-1], lt=t-p.start, dur=p.end-p.start;
+    if(p.kind==="intro"){ bg(t,false); const e=prBack(Math.min(1,lt/0.7)); burst(W/2,H*0.4,Math.min(W,H)*0.32*e,"rgba(255,255,255,.18)",t,20); logoBadge(W/2,H*(V?0.36:0.38),Math.min(W,H)*0.17,e);
+      x.save(); x.globalAlpha=Math.min(1,Math.max(0,(lt-0.4)/0.4)); centerText(o.nom.toUpperCase(),H*(V?0.56:0.66),V?64:SQ?60:56,"#fff",W*0.88,2,"rgba(0,0,0,.35)"); x.globalAlpha=Math.min(1,Math.max(0,(lt-0.8)/0.4)); centerText(T.accroche,H*(V?0.66:0.8),V?34:30,GOLD,W*0.86,2,"rgba(0,0,0,.4)"); x.restore(); }
+    else if(p.kind==="produit"){ bg(t,true); const im=photos[0]; const e=prBack(Math.min(1,lt/0.6)), fw=V?W*0.86:SQ?W*0.7:W*0.46, fh=V?H*0.46:SQ?H*0.56:H*0.7, fx=V||SQ?(W-fw)/2:W*0.06, fy=V?H*0.16:SQ?H*0.08:H*0.15;
+      x.save(); x.translate((1-e)*W*0.6,0); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=40*U; x.fillStyle="#fff"; rr(fx-8*U,fy-8*U,fw+16*U,fh+16*U,30*U); x.fill(); x.shadowColor="transparent"; if(im) cover(im,fx,fy,fw,fh,1.04+0.1*lt/dur,0); else { x.fillStyle=COL; rr(fx,fy,fw,fh,24*U); x.fill(); x.font=`${Math.round(fh*0.5)}px "Segoe UI Emoji",sans-serif`; x.textAlign="center"; x.textBaseline="middle"; x.fillText("🛍️",fx+fw/2,fy+fh/2); x.textBaseline="alphabetic"; } x.restore();
+      if(o.promo){ const se=prBack(Math.min(1,Math.max(0,(lt-0.6)/0.5))), br=(V?96:84)*U; x.save(); x.translate(Math.min(fx+fw-br*0.55,W-br*1.02),fy+br*0.55); x.rotate(-0.22+0.05*Math.sin(t*4)); x.scale(se,se); burst(0,0,br,GOLD,t,14); x.fillStyle="#111"; x.textAlign="center"; let pf=V?22:20; x.font=F("900",pf); let pl=prWrap(x,o.promo.toUpperCase(),br*1.2); while(pl.length>3&&pf>12){ pf-=2; x.font=F("900",pf); pl=prWrap(x,o.promo.toUpperCase(),br*1.2); } pl.slice(0,3).forEach((l,j,a)=>x.fillText(l,0,(j-(a.length-1)/2)*pf*1.15*U+pf*0.35*U,br*1.3)); x.restore(); }
+      x.save(); x.globalAlpha=Math.min(1,Math.max(0,(lt-0.5)/0.4)); const ty=V?fy+fh+80*U:SQ?fy+fh+76*U:H*0.42; if(V||SQ){ const hh=centerText((o.produit||T.slogan).toUpperCase(),ty,V?52:46,"#fff",W*0.88,2); if(o.produit) centerText(T.slogan,ty+hh+18*U,V?34:28,GOLD,W*0.84,2,"rgba(0,0,0,.35)"); } else { x.textAlign="left"; x.font=F("900",48); prWrap(x,(o.produit||T.slogan).toUpperCase(),W*0.4).slice(0,3).forEach((l,j)=>{ x.fillStyle="#fff"; x.fillText(l,W*0.56,ty+j*56*U); }); } x.restore(); }
+    else if(p.kind==="avantages"){ bg(t,true); if(photos[1]||photos[0]){ x.save(); x.globalAlpha=0.25; x.filter="blur(8px)"; x.drawImage(photos[1]||photos[0],-20*U,-20*U,W+40*U,H+40*U); x.restore(); }
+      x.save(); centerText(T.slogan.toUpperCase(),H*(V?0.2:0.2),V?48:44,GOLD,W*0.86,2,"rgba(0,0,0,.4)"); x.restore();
+      T.points.forEach((pt,k)=>{ const e=prBack(Math.min(1,Math.max(0,(lt-0.3-k*0.7)/0.5))); if(e<=0) return; const bw=Math.min(W*0.86,820*U), bh=(V?96:84)*U, by=H*(V?0.34:0.36)+k*(bh+20*U), bx=(W-bw)/2; x.save(); x.translate(bx+bw/2,by+bh/2); x.scale(e,e); x.fillStyle="rgba(255,255,255,.96)"; rr(-bw/2,-bh/2,bw,bh,22*U); x.fill();
+        x.fillStyle=COL; x.beginPath(); x.arc(-bw/2+48*U,0,26*U,0,7); x.fill(); x.fillStyle="#fff"; x.font=F("900",30); x.textAlign="center"; x.fillText("✓",-bw/2+48*U,11*U); x.fillStyle="#111"; x.textAlign="left"; let fs=V?32:30; x.font=F("800",fs); while(x.measureText(pt).width>bw-120*U&&fs>16){ fs-=2; x.font=F("800",fs); } x.fillText(pt,-bw/2+92*U,11*U); x.restore(); }); }
+    else if(p.kind==="prix"){ bg(t,false); const hit=0.9, e=lt<hit?0:prBack(Math.min(1,(lt-hit)/0.4)), sh=lt>hit&&lt<hit+0.35?Math.sin(lt*80)*10*U*(1-(lt-hit)/0.35):0;
+      centerText((o.produit||"PRIX").toUpperCase(),H*(V?0.24:0.2),V?40:36,"#fff",W*0.86,2,"rgba(0,0,0,.35)");
+      if(o.ancien){ x.save(); x.font=F("800",V?54:48); x.textAlign="center"; x.fillStyle="rgba(255,255,255,.85)"; const ay=H*(V?0.38:0.4); x.fillText(o.ancien,W/2,ay); const aw=x.measureText(o.ancien).width, k2=Math.min(1,lt/0.6); x.strokeStyle="#ff1744"; x.lineWidth=8*U; x.beginPath(); x.moveTo(W/2-aw/2-10*U,ay-16*U); x.lineTo(W/2-aw/2-10*U+(aw+20*U)*k2,ay-16*U-(k2*6*U)); x.stroke(); x.restore(); }
+      if(e>0){ x.save(); x.translate(W/2+sh,H*(V?0.53:0.62)); x.scale(e*1.0+(1-e)*2,e*1.0+(1-e)*2); x.rotate(-0.04); const pr=o.prix||"PRIX SPÉCIAL"; x.font=F("900",V?92:SQ?86:84); let fs=V?92:84; while(x.measureText(pr).width>W*0.86&&fs>30){ fs-=4; x.font=F("900",fs); } const pw=x.measureText(pr).width+70*U, ph=fs*1.35*U;
+        x.fillStyle=GOLD; rr(-pw/2,-ph*0.72,pw,ph,24*U); x.fill(); x.fillStyle="#111"; x.textAlign="center"; x.fillText(pr,0,fs*0.3*U); x.restore(); confetti(p.start+hit,t); }
+      if(o.promo&&lt>hit+0.4){ x.save(); x.globalAlpha=Math.min(1,(lt-hit-0.4)/0.3); centerText(o.promo,H*(V?0.68:0.82),V?34:30,"#fff",W*0.86,2,"rgba(0,0,0,.4)"); x.restore(); } }
+    else { bg(t,true); logoBadge(W/2,H*(V?0.18:0.2),Math.min(W,H)*0.1,1); centerText(T.appel.toUpperCase(),H*(V?0.33:0.4),V?50:44,"#fff",W*0.86,2,"rgba(0,0,0,.35)");
+      const pulse=1+0.05*Math.sin(t*6), bw=Math.min(W*0.84,700*U), bh=(V?110:96)*U, by=H*(V?0.45:0.52); x.save(); x.translate(W/2,by+bh/2); x.scale(pulse,pulse); x.shadowColor="rgba(37,211,102,.6)"; x.shadowBlur=40*U; x.fillStyle=WA; rr(-bw/2,-bh/2,bw,bh,bh/2); x.fill(); x.shadowColor="transparent";
+        x.fillStyle="#fff"; x.textAlign="center"; let fs=V?40:36; x.font=F("900",fs); const lab=o.whatsapp?`WhatsApp ${o.whatsapp}`:"Écris-nous sur WhatsApp"; while(x.measureText(lab).width>bw-60*U&&fs>18){ fs-=2; x.font=F("900",fs); } x.fillText(lab,0,fs*0.36*U); x.restore();
+      const info=[o.adresse?`📍 ${o.adresse}`:"", o.horaires?`🕒 ${o.horaires}`:""].filter(Boolean); x.save(); x.textAlign="center"; x.font=F("800",V?30:26); x.fillStyle="#fff"; info.forEach((l,j)=>x.fillText(l,W/2,by+bh+(70+j*44)*U)); x.restore();
+      x.save(); x.globalAlpha=0.9; centerText(o.nom.toUpperCase(),H*(V?0.86:0.92),V?30:26,GOLD,W*0.86,1); x.restore(); }
+    x.save(); x.fillStyle="rgba(255,255,255,.3)"; x.fillRect(0,H-6*U,W,6*U); x.fillStyle=GOLD; x.fillRect(0,H-6*U,W*Math.min(1,t/plan.total),6*U); x.restore(); };
+  /* affiche : photo du produit, nom du commerce, offre, prix, promo, bouton WhatsApp, adresse */
+  const poster=()=>{ bg(1.2,false); const im=photos[0], fw=V?W*0.84:SQ?W*0.62:W*0.44, fh=V?H*0.38:SQ?H*0.46:H*0.66, fx=V||SQ?(W-fw)/2:W*0.52, fy=V?H*0.2:SQ?H*0.2:H*0.17;
+    logoBadge(V||SQ?W*0.14:W*0.08,V?H*0.08:H*0.12,Math.min(W,H)*0.07,1); x.save(); x.textAlign="left"; x.font=F("900",V?44:36); x.fillStyle="#fff"; x.fillText(o.nom.toUpperCase(),(V||SQ?W*0.14:W*0.08)+Math.min(W,H)*0.09,(V?H*0.08:H*0.12)+15*U,W*0.62); x.restore();
+    x.save(); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=40*U; x.fillStyle="#fff"; rr(fx-10*U,fy-10*U,fw+20*U,fh+20*U,30*U); x.fill(); x.restore(); if(im) cover(im,fx,fy,fw,fh,1.05,0);
+    if(o.promo){ const br=(V?108:86)*U; x.save(); x.translate(Math.min(fx+fw-br*0.5,W-br*1.02),fy+br*0.45); x.rotate(-0.22); burst(0,0,br,GOLD,0.4,14); x.fillStyle="#111"; x.textAlign="center"; let pf=V?26:22; x.font=F("900",pf); let pl=prWrap(x,o.promo.toUpperCase(),br*1.2); while(pl.length>3&&pf>12){ pf-=2; x.font=F("900",pf); pl=prWrap(x,o.promo.toUpperCase(),br*1.2); } pl.slice(0,3).forEach((l,j,a)=>x.fillText(l,0,(j-(a.length-1)/2)*pf*1.15*U+pf*0.35*U,br*1.3)); x.restore(); }
+    const lx=V||SQ?W/2:W*0.27, ty=V?fy+fh+90*U:SQ?fy+fh+80*U:H*0.3; x.save(); x.textAlign="center"; x.font=F("900",V?58:SQ?50:46); x.lineJoin="round"; x.lineWidth=10*U; x.strokeStyle="rgba(0,0,0,.35)"; prWrap(x,(o.produit||T.slogan).toUpperCase(),V||SQ?W*0.86:W*0.44).slice(0,2).forEach((l,j)=>{ x.strokeText(l,lx,ty+j*62*U); x.fillStyle="#fff"; x.fillText(l,lx,ty+j*62*U); });
+      if(o.prix){ const py=ty+(V?150:SQ?130:140)*U; x.font=F("900",V?84:SQ?72:64); const pw=x.measureText(o.prix).width+60*U; x.fillStyle=GOLD; rr(lx-pw/2,py-70*U,pw,100*U,20*U); x.fill(); x.fillStyle="#111"; x.fillText(o.prix,lx,py+2*U); if(o.ancien){ x.font=F("800",V?36:30); x.fillStyle="rgba(255,255,255,.9)"; x.fillText(o.ancien,lx,py+64*U); const aw=x.measureText(o.ancien).width; x.strokeStyle="#ff1744"; x.lineWidth=5*U; x.beginPath(); x.moveTo(lx-aw/2,py+52*U); x.lineTo(lx+aw/2,py+48*U); x.stroke(); } }
+      x.restore();
+    const bw=V||SQ?W*0.8:W*0.42, bh=(V?100:80)*U, bx=V||SQ?(W-bw)/2:W*0.06, by=V?H*0.86:SQ?H*0.86:H*0.78; x.fillStyle=WA; rr(bx,by,bw,bh,bh/2); x.fill(); x.fillStyle="#fff"; x.textAlign="center"; let fs=V?36:30; x.font=F("900",fs); const lab=o.whatsapp?`WhatsApp ${o.whatsapp}`:"Commande sur WhatsApp"; while(x.measureText(lab).width>bw-50*U&&fs>16){ fs-=2; x.font=F("900",fs); } x.fillText(lab,bx+bw/2,by+bh/2+fs*0.36*U);
+    if(o.adresse){ x.font=F("800",V?28:22); x.fillStyle="#fff"; x.fillText(`📍 ${o.adresse}`,bx+bw/2,by-20*U,bw); } };
+  return {W, H, canvas:c, draw, plan, poster, fmt};
+}
+async function pbPosterBlob(d, fmt, big){ const st=await pbStage(d, fmt, big); st.poster(); return await new Promise(res=>st.canvas.toBlob(res,"image/jpeg",0.92)); }
+/* ---------- page ---------- */
+function pbRender(){
+  const d=PB.d, el=$("pb-res"); if(!d||!el) return; const o=d.o, T=d.t, plan=pbPlan(o.duree);
+  el.innerHTML=`<section class="section"><div class="card"><span class="kicker">Publicité · ${esc(o.nom)}</span><h2>${esc(T.slogan)}</h2><p class="hint">${esc(T.accroche)} · ${Math.round(plan.total)} s · ${d.source==="agent"?"textes écrits par l’agent à partir de tes infos":"textes composés sans IA à partir de tes infos"}</p>
+      <ul class="plain">${T.points.map(p=>`<li>✓ ${esc(p)}</li>`).join("")}</ul><p><b>Appel :</b> ${esc(T.appel)}</p>${!(PB.photos||[]).length?`<p class="alert">Ajoute au moins une photo du produit : la pub sera bien plus forte.</p>`:""}</div>
+    <div class="card"><h3 class="sub-h">La vidéo pub</h3><p class="hint">Fabriquée en temps réel avec la musique et les effets : garde cet onglet ouvert et visible.</p>
+      <div class="pr-row"><div class="field"><label for="pb-vfmt">Format</label><div class="sel"><select id="pb-vfmt">${Object.entries(PB_FMT).map(([k,v])=>`<option value="${k}"${k===(loadPrefs().pubFormat||"9:16")?" selected":""}>${v[2]}</option>`).join("")}<option value="tous"${(loadPrefs().pubFormat)==="tous"?" selected":""}>Les trois formats</option></select></div></div></div>
+      <div class="actions"><button type="button" class="btn primary" id="pb-video">🎬 Créer la vidéo pub</button><button type="button" class="btn" id="pb-preview">👁 Aperçu</button><button type="button" class="btn quiet" id="pb-vstop" hidden>Arrêter</button><span class="hint" id="pb-vmsg"></span></div>
+      <div class="pr-prev" id="pb-prev"></div><div id="pb-vids">${pbVideosHtml()}</div></div>
+    <div class="card"><h3 class="sub-h">📤 Affiche et partage</h3><div class="actions"><button type="button" class="btn" data-pb-poster="9:16">🖼 Affiche statut WhatsApp (1080 × 1920)</button><button type="button" class="btn" data-pb-poster="1:1">🖼 Affiche Facebook, Instagram (1080 × 1080)</button></div><div class="pr-kit-thumbs" id="pb-posters"></div>
+      <div class="field"><label for="pb-leg">Texte du statut ou de la publication</label><textarea id="pb-leg" rows="4">${esc(`${T.legende}${T.hashtags.length?`\n\n${T.hashtags.join(" ")}`:""}`)}</textarea><div class="actions"><button type="button" class="btn small copy" data-pb-copy="pb-leg">Copier</button>${o.whatsapp?`<a class="btn small" href="https://wa.me/?text=${encodeURIComponent(T.legende)}" target="_blank" rel="noopener">Envoyer sur WhatsApp ↗</a>`:""}</div></div></div></section>`;
+}
+function pbVideosHtml(){ const vs=PB.videos||[]; if(!vs.length) return ""; return `<div class="pr-vids${vs.length>1?" two":""}">${vs.map((v,n)=>`<figure class="pr-vid${v.fmt==="9:16"?" v9":""}"><figcaption>${PB_FMT[v.fmt][2]}</figcaption><video controls playsinline src="${v.url}"${v.poster?` poster="${v.poster}"`:""}></video><div class="actions"><button type="button" class="btn${n?"":" primary"}" data-pb-dl="${n}">Télécharger ${v.fmt} (${v.ext.toUpperCase()})</button></div></figure>`).join("")}</div>`; }
+async function pbShrink(f, max, keepPng){ const url=URL.createObjectURL(f), im=await prLoadImg(url); URL.revokeObjectURL(url); if(!im) return f; const k=Math.min(1,(max||1600)/Math.max(im.width,im.height)), c=document.createElement("canvas"); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); const x=c.getContext("2d");
+  if(keepPng&&f.type==="image/png"){ x.drawImage(im,0,0,c.width,c.height); return await new Promise(res=>c.toBlob(b=>res(new File([b],"logo.png",{type:"image/png"})),"image/png")); }   /* logo : transparence gardée ; photos toujours en JPEG */
+  x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(im,0,0,c.width,c.height); return await new Promise(res=>c.toBlob(b=>res(new File([b],"photo.jpg",{type:"image/jpeg"})),"image/jpeg",0.88)); }
+async function pbFiles(files, kind){
+  const list=[...(files||[])].filter(f=>/^image\/(png|jpeg|webp)$/.test(f.type)).slice(0,kind==="logo"?1:5), out=[];
+  for(const f0 of list){ try{ const f=await pbShrink(f0, kind==="logo"?800:1600, kind==="logo"); if(genApi){ const r=await genApi.upload(f,{project:"publicites", base:kind==="logo"?"logo":"produit"}); out.push(r.url); } else out.push(await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(f); })); }catch(e){ toast(e.message||errText(e)); } }
+  if(kind==="logo"){ if(out[0]) PB.logo=out[0]; } else PB.photos=(PB.photos||[]).concat(out).slice(-5);
+  pbSave(); pbThumbs();
+}
+function pbThumbs(){ const el=$("pb-thumbs"); if(!el) return; el.innerHTML=`${PB.logo?`<figure><img src="${esc(PB.logo)}" alt="Logo"><figcaption class="hint">Logo</figcaption></figure>`:""}${(PB.photos||[]).map((u,k)=>`<figure><img src="${esc(u)}" alt="Photo ${k+1}"><figcaption class="hint">Photo ${k+1} <button type="button" class="btn small quiet" data-pb-del="${k}">Retirer</button></figcaption></figure>`).join("")}`; }
+function pbShow(){ if(!pbShow.done){ pbShow.done=true; pbLoad(); if(PB.d){ const o=PB.d.o, set=(id,v)=>{ const e=$(id); if(e&&v!=null) e.value=v; }; set("pb-nom",o.nom); set("pb-act",o.activite); set("pb-prod",o.produit); set("pb-prix",o.prix); set("pb-ancien",o.ancien); set("pb-promo",o.promo); set("pb-wa",o.whatsapp); set("pb-adr",o.adresse); set("pb-hor",o.horaires); set("pb-color",o.couleur); set("pb-duree",String(o.duree)); set("pb-av",(o.avantages||[]).join("\n")); } } pbThumbs(); if(PB.d) pbRender(); }
+$("pb-form").addEventListener("submit", async e=>{
+  e.preventDefault(); const o=pbForm(); if(!o.nom){ showStatus("pb-","Écris d’abord le nom du commerce.",true); return; }
+  const finish=(t,source)=>{ PB.d={o, t, source, at:Date.now()}; (PB.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PB.videos=[]; pbSave(); $("pb-status").hidden=true; pbRender(); $("pb-res").scrollIntoView({behavior:"smooth",block:"start"}); };
+  if(e.submitter&&e.submitter.id==="pb-sans"||!sample){ finish(pbTexts(o,null),"code"); if(!sample&&!(e.submitter&&e.submitter.id==="pb-sans")) toast("Agent indisponible : textes composés sans IA à partir de tes infos."); return; }
+  PB.ctl=new AbortController(); showStatus("pb-","L’agent écrit les textes de la pub…",false,40);
+  try{ const x=await sample.json(pbPrompt(o),{cache:false,signal:PB.ctl.signal}); finish(pbTexts(o,x),"agent"); }
+  catch(err){ if(err&&err.code==="cancelled") $("pb-status").hidden=true; else { finish(pbTexts(o,null),"code"); toast(`${errText(err)} Textes composés sans IA.`); } }
+  finally{ PB.ctl=null; }
+});
+document.addEventListener("change", e=>{ const t=e.target; if(t&&t.id==="pb-photos"){ pbFiles(t.files,"photos"); t.value=""; } if(t&&t.id==="pb-logo"){ pbFiles(t.files,"logo"); t.value=""; } });
+document.addEventListener("click", async e=>{
+  const t=e.target.closest&&e.target.closest("#mt-pub button"); if(!t) return;
+  if(t.dataset.pbDel!=null){ PB.photos.splice(Number(t.dataset.pbDel),1); pbSave(); pbThumbs(); return; }
+  if(!PB.d) return;
+  if(t.dataset.pbCopy){ const ta=$(t.dataset.pbCopy); if(ta) await copyText(ta.value, ta, t); return; }
+  if(t.dataset.pbDl!=null){ const v=(PB.videos||[])[Number(t.dataset.pbDl)]; if(v) await prSaveBlob(v.blob, `pub-${slug(PB.d.o.nom)}-${v.fmt.replace(":","x")}.${v.ext}`); return; }
+  if(t.dataset.pbPoster){ const f=t.dataset.pbPoster; t.disabled=true; try{ const b=await pbPosterBlob(PB.d,f,true), box=$("pb-posters"); if(box) box.insertAdjacentHTML("beforeend",`<figure><img src="${URL.createObjectURL(b)}" alt="Affiche ${f}"><figcaption class="hint">Affiche ${f}</figcaption></figure>`); await prSaveBlob(b, `affiche-${slug(PB.d.o.nom)}-${f.replace(":","x")}.jpg`); }catch(err){ toast(`Affiche impossible : ${String(err&&err.message||err).slice(0,100)}`); } finally{ t.disabled=false; } return; }
+  if(t.id==="pb-vstop"){ PB.stop=true; return; }
+  if(t.id==="pb-preview"){ const sel=$("pb-vfmt").value, fmts=sel==="tous"?Object.keys(PB_FMT):[sel], out=$("pb-prev"); out.innerHTML=`<p class="hint">Préparation de l’aperçu…</p>`; let h="";
+    for(const f of fmts){ const st=await pbStage(PB.d,f); for(const [k,lab] of [["produit","produit"],["prix","prix"],["appel","WhatsApp"]]){ const p=st.plan.parts.find(z=>z.kind===k); st.draw(p.start+Math.min(2.2,(p.end-p.start)*0.8)); h+=`<figure class="${f==="9:16"?"v9":""}"><img src="${st.canvas.toDataURL("image/jpeg",0.86)}" alt="Aperçu ${f}"><figcaption class="hint">${f} · ${lab}</figcaption></figure>`; } }
+    out.innerHTML=h; return; }
+  if(t.id==="pb-video"){ const sel=$("pb-vfmt").value, fmts=sel==="tous"?Object.keys(PB_FMT):[sel], m=$("pb-vmsg"), ac=new (window.AudioContext||window.webkitAudioContext)();   /* créé pendant le clic : sinon le son est bloqué */
+    savePrefs({pubFormat:sel}); t.disabled=true; $("pb-vstop").hidden=false; (PB.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PB.videos=[]; $("pb-vids").innerHTML=""; PB.stop=false;
+    try{ m.textContent="Fabrication du son (musique et effets)…"; const au=await pbAudio(pbPlan(PB.d.o.duree));
+      for(const [n,f] of fmts.entries()){ const st=await pbStage(PB.d,f), v=await jxRecord(st, au.blob, ac, txt=>{ m.textContent=`${fmts.length>1?`Vidéo ${n+1} sur ${fmts.length} (${f}) · `:""}${txt}`; }, ()=>PB.stop); v.fmt=f; v.url=URL.createObjectURL(v.blob); try{ v.poster=URL.createObjectURL(await pbPosterBlob(PB.d,f)); }catch(e){} PB.videos.push(v); $("pb-vids").innerHTML=pbVideosHtml(); if(v.stopped) break; }
+      m.textContent=PB.videos.map(v=>`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"}${PB.videos.length>1?` (${v.fmt})`:""} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo.`).join(" "); }
+    catch(err){ m.textContent=err&&err.message?err.message:"La vidéo a échoué : réessaie."; }
+    finally{ try{ ac.close(); }catch(e){} t.disabled=false; $("pb-vstop").hidden=true; } return; }
+});
+
+/* =================== AGENCE : clients et créations de communication (affiches, flyers ; logos et sites ensuite) ===================
+   Pour l'agence de l'utilisateur : une fiche par client (contact, couleurs, logo, suivi), puis des affiches et flyers prêts pour l'imprimeur
+   (A4, A5 à 300 points par pouce, PDF) ou pour les réseaux (carré, story). Textes écrits par l'agent à partir des infos du client, rien d'inventé. */
+const AG_FMT = {a4:["A4 imprimé (300 ppp)",2480,3508,210,297], a5:["A5 flyer imprimé (300 ppp)",1748,2480,148,210], carre:["Carré réseaux sociaux",1080,1080,0,0], story:["Story, statut WhatsApp",1080,1920,0,0]};
+const AG_KIND = {promo:"Promotion", evenement:"Événement", ouverture:"Ouverture", recrutement:"Recrutement", service:"Services de l’entreprise"};
+const AG_STATE = {prospect:"Prospect", devis:"Devis envoyé", cours:"En cours", livre:"Livré", paye:"Payé"};
+const AGC = {db:{agence:"Yamane Tech", clients:[], sel:""}, design:null, photos:[]};
+function agLoad(){ try{ const s=JSON.parse(localStorage.getItem("sp-agence")||"null"); if(s&&s.clients) AGC.db=Object.assign(AGC.db,s); }catch(e){} }
+function agSaveDb(){ try{ localStorage.setItem("sp-agence", JSON.stringify(AGC.db)); }catch(e){ toast("Mémoire du navigateur pleine : retire de vieilles photos."); } }
+const agClient = id => AGC.db.clients.find(c=>c.id===(id||AGC.db.sel)) || null;
+function agClientsHtml(){
+  const L=AGC.db.clients;
+  return `<div class="ag-clients">${L.length?L.map(c=>`<button type="button" class="ag-client${c.id===AGC.db.sel?" on":""}" data-ag-pick="${esc(c.id)}"><span class="ag-dot" style="background:${esc(c.couleur||"#e53935")}"></span><b>${esc(c.nom)}</b><span class="hint">${esc(c.activite||"")} · ${esc(AG_STATE[c.etat]||"Prospect")}</span></button>`).join(""):`<p class="hint">Aucun client pour l’instant : ajoute le premier ci-dessous.</p>`}</div>`;
+}
+function agRender(){
+  const c=agClient(), el=$("ag-body"); if(!el) return;
+  $("ag-list").innerHTML=agClientsHtml();
+  if(!c){ el.innerHTML=""; return; }
+  el.innerHTML=`<div class="card"><div class="ag-head"><span class="ag-dot big" style="background:${esc(c.couleur||"#e53935")}"></span><div><h2>${esc(c.nom)}</h2><p class="hint">${esc([c.activite,c.whatsapp,c.adresse].filter(Boolean).join(" · "))}</p></div></div>
+      <div class="pr-row"><div class="field"><label for="ag-etat">Suivi</label><div class="sel"><select id="ag-etat">${Object.entries(AG_STATE).map(([k,l])=>`<option value="${k}"${k===(c.etat||"prospect")?" selected":""}>${l}</option>`).join("")}</select></div></div><div class="field"><label for="ag-montant">Montant (FCFA)</label><input type="text" id="ag-montant" value="${esc(c.montant||"")}" placeholder="Exemple : 25 000"></div></div>
+      <div class="field"><label for="ag-notes">Notes</label><textarea id="ag-notes" rows="2" placeholder="Demande du client, délais, remarques">${esc(c.notes||"")}</textarea></div>
+      <div class="actions"><button type="button" class="btn small" id="ag-save-client">Enregistrer le suivi</button><button type="button" class="btn small quiet" id="ag-edit-client">Modifier la fiche</button><button type="button" class="btn small quiet" id="ag-del-client">Supprimer</button><button type="button" class="btn small" id="ag-to-pub">📣 Faire sa pub vidéo</button></div></div>
+    <div class="card"><h3 class="sub-h">🖼 Affiche ou flyer pour ${esc(c.nom)}</h3>
+      <div class="pr-row"><div class="field"><label for="ag-kind">Type</label><div class="sel"><select id="ag-kind">${Object.entries(AG_KIND).map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select></div></div><div class="field"><label for="ag-fmt">Format</label><div class="sel"><select id="ag-fmt">${Object.entries(AG_FMT).map(([k,v])=>`<option value="${k}"${k==="a5"?" selected":""}>${v[0]}</option>`).join("")}</select></div></div></div>
+      <div class="field"><label for="ag-titre">Titre <span class="hint">(facultatif : l’agent le propose)</span></label><input type="text" id="ag-titre" placeholder="Exemple : Grande ouverture"></div>
+      <div class="field"><label for="ag-infos">Infos à mettre <span class="hint">(une par ligne : offre, date, lieu, prix…)</span></label><textarea id="ag-infos" rows="4" placeholder="Samedi 12 octobre, 10 h&#10;-20 % sur toute la boutique&#10;Cadeau pour les 50 premiers"></textarea></div>
+      <div class="actions"><label class="btn">📷 Photos<input type="file" id="ag-photos" accept="image/png,image/jpeg,image/webp" multiple hidden></label><span class="hint" id="ag-photos-n">${AGC.photos.length?`${AGC.photos.length} photo(s)`:""}</span></div>
+      <div class="actions"><button type="button" class="btn primary" id="ag-design">✨ Créer avec l’agent</button><button type="button" class="btn" id="ag-design-sans">⚡ Sans IA : avec mes infos</button><span class="hint" id="ag-msg"></span></div>
+      <div id="ag-out"></div></div>`;
+}
+function agClientForm(c){
+  c=c||{}; return `<form class="panel" id="ag-client-form" autocomplete="off"><h3 class="sub-h">${c.id?"Modifier la fiche":"Nouveau client"}</h3>
+    <div class="pr-row"><div class="field"><label for="agc-nom">Nom du client ou de l’entreprise</label><input type="text" id="agc-nom" value="${esc(c.nom||"")}" required></div><div class="field"><label for="agc-act">Activité</label><input type="text" id="agc-act" value="${esc(c.activite||"")}" placeholder="Restaurant, boutique, école…"></div></div>
+    <div class="pr-row"><div class="field"><label for="agc-wa">WhatsApp</label><input type="tel" id="agc-wa" value="${esc(c.whatsapp||"")}"></div><div class="field"><label for="agc-adr">Adresse</label><input type="text" id="agc-adr" value="${esc(c.adresse||"")}"></div><div class="field"><label for="agc-col">Couleur</label><input type="color" id="agc-col" value="${esc(c.couleur||"#e53935")}"></div></div>
+    <div class="actions"><label class="btn small">🏷 Logo<input type="file" id="agc-logo" accept="image/png,image/jpeg,image/webp" hidden></label><span class="hint" id="agc-logo-n">${c.logo?"Logo enregistré":""}</span></div>
+    <input type="hidden" id="agc-id" value="${esc(c.id||"")}"><div class="actions"><button type="submit" class="btn primary">Enregistrer le client</button><button type="button" class="btn quiet" id="agc-cancel">Annuler</button></div></form>`;
+}
+function agShow(){ if(!agShow.done){ agShow.done=true; agLoad(); $("ag-name").value=AGC.db.agence||"Yamane Tech"; } agRender(); }
+/* Textes de l'affiche : l'agent les écrit avec les seules infos du client ; « Sans IA » les compose */
+function agPrompt(c, o){
+  return `Tu es le directeur artistique et le rédacteur d'une agence de communication de premier plan. Écris les textes d'une affiche (${AG_KIND[o.kind]}) pour ce client.
+CLIENT : ${c.nom} · activité : ${c.activite||"non dite"} · adresse : ${c.adresse||"non dite"} · contact WhatsApp : ${c.whatsapp||"non dit"}.
+INFOS DONNÉES : ${o.infos.join(" ; ")||"aucune"}. TITRE VOULU : ${o.titre||"à proposer"}.
+ÉCRIS : titre (5 mots au plus, très fort), sous_titre (une phrase courte), lignes (3 à 5 lignes courtes reprenant seulement les infos données, sans rien inventer : ni prix, ni date, ni promo, ni chiffre), appel (court, avec le contact).
+RÈGLES : rien d'inventé, aucun faux témoignage, aucune personne réelle, français simple et percutant.
+RÉPONDS UNIQUEMENT avec ce JSON : {"titre":"","sous_titre":"","lignes":[""],"appel":""}`;
+}
+function agTexts(c, o, x){ x=x||{}; const S=v=>String(v||"").trim(); const lignes=(Array.isArray(x.lignes)?x.lignes.map(S).filter(Boolean):[]);
+  return {titre:S(x.titre)||o.titre||{promo:"Promo exceptionnelle", evenement:"Ne manquez pas ça", ouverture:"Grande ouverture", recrutement:"On recrute", service:"Nos services"}[o.kind], sous_titre:S(x.sous_titre)||c.nom, lignes:(lignes.length?lignes:o.infos).slice(0,5), appel:S(x.appel)||(c.whatsapp?`Contact WhatsApp : ${c.whatsapp}`:"Contactez-nous")}; }
+/* Dessin de l'affiche à sa vraie taille (impression à 300 ppp) */
+async function agDraw(c, d){
+  const [lab,W,H]=AG_FMT[d.fmt]||AG_FMT.a5, cv=document.createElement("canvas"); cv.width=W; cv.height=H; const x=cv.getContext("2d"), U=Math.min(W,H)/1080, COL=c.couleur||"#e53935", GOLD="#ffd23f";
+  const F=(w,s)=>`${w} ${Math.round(s*U)}px "Segoe UI", Arial, sans-serif`, photos=[]; for(const u of d.photos.slice(0,3)){ const im=await prLoadImg(u); if(im) photos.push(im); } const logo=c.logo?await prLoadImg(c.logo):null;
+  const g=x.createLinearGradient(0,0,W,H); g.addColorStop(0,COL); g.addColorStop(1,"#101018"); x.fillStyle=g; x.fillRect(0,0,W,H);
+  x.save(); x.globalAlpha=0.08; x.fillStyle="#fff"; for(let k=-10;k<30;k++){ x.beginPath(); x.moveTo(k*120*U,0); x.lineTo(k*120*U+50*U,0); x.lineTo(k*120*U+50*U-H,H); x.lineTo(k*120*U-H,H); x.fill(); } x.restore();
+  const ph=H*(W>=H?0.5:0.42); if(photos[0]){ x.save(); x.beginPath(); x.moveTo(0,0); x.lineTo(W,0); x.lineTo(W,ph); x.lineTo(0,ph+H*0.07); x.closePath(); x.clip(); const im=photos[0], s=Math.max(W/im.width,(ph+H*0.07)/im.height); x.drawImage(im,(W-im.width*s)/2,0,im.width*s,im.height*s); const sh=x.createLinearGradient(0,ph*0.5,0,ph+H*0.07); sh.addColorStop(0,"rgba(0,0,0,0)"); sh.addColorStop(1,"rgba(0,0,0,.45)"); x.fillStyle=sh; x.fillRect(0,0,W,ph+H*0.07); x.restore(); }
+  const pad=W*0.07; if(logo){ const r=Math.min(W,H)*0.085; x.save(); x.fillStyle="#fff"; x.shadowColor="rgba(0,0,0,.35)"; x.shadowBlur=24*U; x.beginPath(); x.arc(pad+r,pad+r,r,0,7); x.fill(); x.shadowColor="transparent"; x.beginPath(); x.arc(pad+r,pad+r,r*0.9,0,7); x.clip(); const s=Math.min(1.8*r/logo.width,1.8*r/logo.height); x.drawImage(logo,pad+r-logo.width*s/2,pad+r-logo.height*s/2,logo.width*s,logo.height*s); x.restore(); }
+  let y=(photos[0]?ph+H*0.07:H*0.16)+H*0.05; const T=d.t;
+  x.textAlign="left"; x.fillStyle="#fff"; let fs=110; x.font=F("900",fs); let ls=prWrap(x,T.titre.toUpperCase(),W-2*pad); while(ls.length>2&&fs>40){ fs-=4; x.font=F("900",fs); ls=prWrap(x,T.titre.toUpperCase(),W-2*pad); } ls.slice(0,2).forEach(l=>{ y+=fs*U; x.fillText(l,pad,y); }); y+=fs*0.35*U;
+  x.fillStyle=GOLD; x.fillRect(pad,y,W*0.18,10*U); y+=50*U; x.font=F("700",44); x.fillStyle="#fff"; prWrap(x,T.sous_titre,W-2*pad).slice(0,2).forEach(l=>{ y+=48*U; x.fillText(l,pad,y); }); y+=30*U;
+  x.font=F("800",40); T.lignes.forEach(l=>{ const ww=prWrap(x,l,W-2*pad-70*U).slice(0,2); x.fillStyle=GOLD; x.beginPath(); x.arc(pad+18*U,y+36*U,12*U,0,7); x.fill(); x.fillStyle="#fff"; ww.forEach((t2,j)=>x.fillText(t2,pad+50*U,y+50*U+j*46*U)); y+=(ww.length*46+22)*U; });
+  const bh=110*U, by=H-bh-pad*0.8; x.fillStyle="#25d366"; x.beginPath(); x.moveTo(pad+bh/2,by); x.arcTo(W-pad,by,W-pad,by+bh,bh/2); x.arcTo(W-pad,by+bh,pad,by+bh,bh/2); x.arcTo(pad,by+bh,pad,by,bh/2); x.arcTo(pad,by,W-pad,by,bh/2); x.closePath(); x.fill();
+  x.fillStyle="#fff"; x.textAlign="center"; let f2=44; x.font=F("900",f2); while(x.measureText(T.appel).width>W-2*pad-60*U&&f2>18){ f2-=2; x.font=F("900",f2); } x.fillText(T.appel,W/2,by+bh/2+f2*0.36*U);
+  if(c.adresse){ x.font=F("700",32); x.fillStyle="rgba(255,255,255,.9)"; x.fillText(`📍 ${c.adresse}`,W/2,by-28*U,W-2*pad); }
+  x.textAlign="right"; x.font=F("600",22); x.fillStyle="rgba(255,255,255,.55)"; x.fillText(`Création ${AGC.db.agence||"Yamane Tech"}`,W-pad*0.6,H-pad*0.25);
+  return cv;
+}
+/* PDF d'une page avec l'affiche en JPEG (format exact A4 ou A5) : prêt pour l'imprimeur, sans bibliothèque */
+async function agPdf(cv, mmW, mmH){
+  const jpg=new Uint8Array(await (await new Promise(r=>cv.toBlob(r,"image/jpeg",0.95))).arrayBuffer()), enc=new TextEncoder(), pw=(mmW*72/25.4).toFixed(2), ph=(mmH*72/25.4).toFixed(2), parts=[], offs=[]; let len=0;
+  const push=b=>{ const u=typeof b==="string"?enc.encode(b):b; parts.push(u); len+=u.length; }, obj=(n,body)=>{ offs[n]=len; push(`${n} 0 obj\n`); body(); push("\nendobj\n"); };
+  push("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  obj(1,()=>push("<< /Type /Catalog /Pages 2 0 R >>")); obj(2,()=>push("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"));
+  obj(3,()=>push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>`));
+  const content=`q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`; obj(4,()=>{ push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`); });
+  obj(5,()=>{ push(`<< /Type /XObject /Subtype /Image /Width ${cv.width} /Height ${cv.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); push(jpg); push("\nendstream"); });
+  const xref=len; push(`xref\n0 6\n0000000000 65535 f \n${[1,2,3,4,5].map(n=>String(offs[n]).padStart(10,"0")+" 00000 n \n").join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(parts,{type:"application/pdf"});
+}
+async function agMake(useAgent){
+  const c=agClient(); if(!c) return; const o={kind:$("ag-kind").value, fmt:$("ag-fmt").value, titre:$("ag-titre").value.trim(), infos:$("ag-infos").value.split("\n").map(s=>s.trim()).filter(Boolean)}, m=$("ag-msg");
+  let x=null; if(useAgent&&sample){ m.textContent="L’agent écrit les textes…"; try{ x=await sample.json(agPrompt(c,o),{cache:false}); }catch(err){ toast(`${errText(err)} Textes composés sans IA.`); } }
+  m.textContent="Dessin de l’affiche…"; const d={fmt:o.fmt, t:agTexts(c,o,x), photos:AGC.photos.slice()}, cv=await agDraw(c,d), url=cv.toDataURL("image/jpeg",0.9); AGC.design={c, d, cv};
+  const [lab,,, mw]=AG_FMT[o.fmt]; m.textContent=`Prête : ${lab}, ${cv.width} × ${cv.height} px.`;
+  $("ag-out").innerHTML=`<figure class="ag-preview"><img src="${url}" alt="Affiche pour ${esc(c.nom)}"></figure><div class="actions"><button type="button" class="btn primary" id="ag-dl-jpg">⬇ Image JPEG</button><button type="button" class="btn" id="ag-dl-png">⬇ PNG</button>${mw?`<button type="button" class="btn" id="ag-dl-pdf">⬇ PDF pour l’imprimeur</button>`:""}</div><p class="hint">Textes : ${esc(d.t.titre)} · ${esc(d.t.sous_titre)}${x?" (écrits par l’agent à partir de tes infos)":" (composés sans IA)"}. Vérifie l’orthographe, les prix et les dates avant d’imprimer.</p>`;
+}
+document.addEventListener("submit", async e=>{ if(!e.target||e.target.id!=="ag-client-form") return; e.preventDefault();
+  const id=$("agc-id").value||("c"+Date.now().toString(36)), old=agClient(id)||{}, c=Object.assign(old,{id, nom:$("agc-nom").value.trim(), activite:$("agc-act").value.trim(), whatsapp:$("agc-wa").value.trim(), adresse:$("agc-adr").value.trim(), couleur:$("agc-col").value, logo:AGC.newLogo||old.logo||"", etat:old.etat||"prospect", cree:old.cree||Date.now()});
+  if(!c.nom) return; if(!AGC.db.clients.includes(c)) AGC.db.clients.push(c); AGC.db.sel=c.id; AGC.newLogo=""; agSaveDb(); $("ag-form-box").innerHTML=""; agRender(); toast("Client enregistré."); });
+document.addEventListener("change", async e=>{ const t=e.target; if(!t) return;
+  if(t.id==="ag-name"){ AGC.db.agence=t.value.trim()||"Yamane Tech"; agSaveDb(); }
+  if(t.id==="agc-logo"&&t.files&&t.files[0]){ const f=await pbShrink(t.files[0],800,true); try{ AGC.newLogo=genApi?(await genApi.upload(f,{project:"agence", base:"logo"})).url:await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(f); }); $("agc-logo-n").textContent="Logo prêt"; }catch(err){ toast(err.message||errText(err)); } t.value=""; }
+  if(t.id==="ag-photos"&&t.files){ AGC.photos=[]; for(const f0 of [...t.files].slice(0,3)){ const f=await pbShrink(f0,2400); try{ AGC.photos.push(genApi?(await genApi.upload(f,{project:"agence", base:"photo"})).url:await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(f); })); }catch(err){ toast(err.message||errText(err)); } } $("ag-photos-n").textContent=`${AGC.photos.length} photo(s)`; t.value=""; } });
+document.addEventListener("click", async e=>{
+  const t=e.target.closest&&e.target.closest("#view-agence button"); if(!t) return;
+  if(t.id==="ag-new"){ $("ag-form-box").innerHTML=agClientForm(); AGC.newLogo=""; $("agc-nom").focus(); return; }
+  if(t.id==="agc-cancel"){ $("ag-form-box").innerHTML=""; return; }
+  if(t.dataset.agPick){ AGC.db.sel=t.dataset.agPick; agSaveDb(); AGC.photos=[]; agRender(); return; }
+  const c=agClient(); if(!c) return;
+  if(t.id==="ag-edit-client"){ $("ag-form-box").innerHTML=agClientForm(c); AGC.newLogo=""; return; }
+  if(t.id==="ag-del-client"){ if(!confirm(`Supprimer la fiche de ${c.nom} ?`)) return; AGC.db.clients=AGC.db.clients.filter(x=>x!==c); AGC.db.sel=""; agSaveDb(); agRender(); return; }
+  if(t.id==="ag-save-client"){ c.etat=$("ag-etat").value; c.montant=$("ag-montant").value.trim(); c.notes=$("ag-notes").value.trim(); agSaveDb(); agRender(); toast("Suivi enregistré."); return; }
+  if(t.id==="ag-to-pub"){ setView("presse"); mtShow("pub"); const set=(id,v)=>{ const el=$(id); if(el&&v) el.value=v; }; set("pb-nom",c.nom); set("pb-act",c.activite); set("pb-wa",c.whatsapp); set("pb-adr",c.adresse); set("pb-color",c.couleur); if(c.logo){ PB.logo=c.logo; pbSave(); pbThumbs(); } toast("Infos du client reprises dans l’onglet Publicités."); return; }
+  if(t.id==="ag-design"||t.id==="ag-design-sans"){ t.disabled=true; try{ await agMake(t.id==="ag-design"); }catch(err){ $("ag-msg").textContent=err&&err.message||"Affiche impossible."; } finally{ t.disabled=false; } return; }
+  const D=AGC.design; if(!D) return; const base=`${slug(D.c.nom)}-${D.d.fmt}`;
+  if(t.id==="ag-dl-jpg"){ await prSaveBlob(await new Promise(r=>D.cv.toBlob(r,"image/jpeg",0.95)), `affiche-${base}.jpg`); return; }
+  if(t.id==="ag-dl-png"){ await prSaveBlob(await new Promise(r=>D.cv.toBlob(r,"image/png")), `affiche-${base}.png`); return; }
+  if(t.id==="ag-dl-pdf"){ const [, , , mw, mh]=AG_FMT[D.d.fmt]; await prSaveBlob(await agPdf(D.cv,mw,mh), `affiche-${base}.pdf`); return; }
 });
 
 /* =================== 8 · PAYS, NICHES ET MONÉTISATION =================== */

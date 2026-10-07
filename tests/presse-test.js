@@ -61,7 +61,7 @@ const PORT = 3000 + 800 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     // 1. page et journaux du pays
     await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden && document.getElementById("pr-voix").options.length > 5, {timeout: 15000});
     const st = await pg.evaluate(() => ({pays: document.getElementById("pr-pays").value, sites: document.getElementById("pr-sites").value.split("\n"), lang: document.getElementById("pr-langue").value, voix: document.getElementById("pr-voix").value, links: document.querySelectorAll(".side-link").length}));
-    check("menu « Depuis des infos » : pays, grands journaux du pays (modifiables), langue et voix (la meilleure voix gratuite, automatique)", st.pays === "sn" && st.sites.includes("seneweb.com") && st.sites.includes("lesoleil.sn") && st.lang === "fr" && st.voix === "auto" && st.links === 13, JSON.stringify(st));
+    check("menu « Depuis des infos » : pays, grands journaux du pays (modifiables), langue et voix (la meilleure voix gratuite, automatique)", st.pays === "sn" && st.sites.includes("seneweb.com") && st.sites.includes("lesoleil.sn") && st.lang === "fr" && st.voix === "auto" && st.links === 14, JSON.stringify(st));
     // 2. infos du jour
     await pg.click("#pr-fetch"); await pg.waitForSelector("#pr-news .pr-list", {timeout: 15000});
     const news = await pg.evaluate(() => ({groups: [...document.querySelectorAll("#pr-news .pr-grp")].map(g => g.textContent), items: document.querySelectorAll("#pr-news [data-pr-item]").length, checked: document.querySelectorAll("#pr-news [data-pr-item]:checked").length, first: (document.querySelector("#pr-news .pr-item") || {}).innerText || ""}));

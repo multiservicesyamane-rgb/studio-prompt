@@ -32,10 +32,10 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     pg.on("request", r => { if(/\/api\//.test(r.url()) && process.env.JX_DEBUG) console.log("DEMANDE", r.method(), r.url().replace(BASE, ""), (r.postData() || "").slice(0, 80)); if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){} return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(AGENT)}) + "\n"}); } r.continue(); });
     // 1. accès
     const acc = await pg.evaluate(() => ({side: (document.querySelector('.side-link[data-go="presse"]') || {}).textContent, home: !!document.querySelector('.welcome-action[data-go-inline="presse"]'), links: document.querySelectorAll(".side-link").length}));
-    check("accès : « Motion design » dans le menu (même nombre de liens) et sur l'accueil", /Motion design/.test(acc.side) && acc.home && acc.links === 13, JSON.stringify(acc));
+    check("accès : « Motion design » dans le menu (même nombre de liens) et sur l'accueil", /Motion design/.test(acc.side) && acc.home && acc.links === 14, JSON.stringify(acc));
     await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
     const tabs = await pg.evaluate(() => ({t: [...document.querySelectorAll("[data-mt]")].map(b => `${b.dataset.mt}:${b.getAttribute("aria-selected")}`), infos: !document.getElementById("mt-infos").hidden, quiz: !document.getElementById("mt-quiz").hidden}));
-    check("page Motion design : onglets Infos du jour et Quiz, la revue de presse ouverte par défaut", tabs.t.join() === "infos:true,quiz:false" && tabs.infos && !tabs.quiz, JSON.stringify(tabs));
+    check("page Motion design : onglets Infos du jour, Quiz et Publicités, la revue de presse ouverte par défaut", tabs.t.join() === "infos:true,quiz:false,pub:false" && tabs.infos && !tabs.quiz, JSON.stringify(tabs));
     await pg.click('[data-mt="quiz"]'); await pg.waitForFunction(() => !document.getElementById("mt-quiz").hidden && document.getElementById("jx-pays").options.length > 5, {timeout: 15000});
     // 2. sans IA
     await pg.select("#jx-n", "4"); await pg.evaluate(() => document.getElementById("jx-rand").click()); await pg.waitForSelector("#jx-res .jx-lv", {timeout: 10000});
