@@ -208,6 +208,7 @@ async function handleImageGenerate(req,res){
   let input; try{ input=JSON.parse(await readBody(req,38e6)); }catch(e){ return sendJson(res,400,{code:"bad_request",message:"Requête image illisible ou trop volumineuse."}); }
   const prompt=String(input.prompt||"").trim(); if(prompt.length<20) return sendJson(res,400,{code:"bad_request",message:"Prompt image manquant."});
   const refs=(Array.isArray(input.references)?input.references:[]).slice(0,4).filter(x=>x&&/^image\/(png|jpeg|webp)$/.test(String(x.mime))&&typeof x.data==="string"&&x.data.length<9e6);
+  if(input.provider==="agnes") return handleAgnesImage(res,input,prompt,refs);   /* gratuit pour le moment : premier essai du Storyboard quand la clé existe */
   if(input.provider==="gpt") return handleGptImage(res,input,prompt);   /* relais GPT Image quand Manus et Nano Banana ne sont pas disponibles */
   if(!IMG_KEY) return sendJson(res,400,{code:"no_key",message:"La génération automatique d'images nécessite GEMINI_API_KEY dans .env."});
   const body={model:process.env.GEMINI_IMAGE_MODEL||"gemini-3.1-flash-image",input:[{type:"text",text:prompt},...refs.map(x=>({type:"image",mime_type:x.mime,data:x.data}))],response_format:{type:"image",mime_type:"image/png",aspect_ratio:["1:1","16:9","9:16","4:5","3:4"].includes(input.aspectRatio)?input.aspectRatio:"9:16",image_size:process.env.GEMINI_IMAGE_SIZE||"1K"}};
@@ -222,6 +223,32 @@ async function handleImageGenerate(req,res){
   gen.billing(true); const project=safePart(input.projectId,"project"), shot=safePart(input.shotId,"P01"), dir=path.join(GENERATED,project); fs.mkdirSync(dir,{recursive:true});
   const file=path.join(dir,`${shot}.png`); fs.writeFileSync(file,Buffer.from(image.data,"base64"));
   return sendJson(res,200,{ok:true,shotId:shot,url:`/generated/${encodeURIComponent(project)}/${encodeURIComponent(shot)}.png`,model:body.model,references:refs.length});
+}
+/* Images gratuites d'Agnes AI (agnes-image-2.5-flash, 0 $ le 7 octobre 2026) pour le Storyboard. Les photos des personnages partent en data URI
+   (extra_body.image) pour garder les mêmes visages ; l'adresse publique de l'image est gardée pour faire ensuite le clip (Agnes Video). */
+const imageExt = b => b[0]===0xff&&b[1]===0xd8?"jpg":b.slice(0,4).toString()==="RIFF"&&b.slice(8,12).toString()==="WEBP"?"webp":"png";
+async function handleAgnesImage(res,input,prompt,refs){
+  const key=String(process.env.AGNES_API_KEY||"").trim(); if(!key) return sendJson(res,400,{code:"no_key",message:"Pas de clé Agnes AI dans le fichier .env (elle est gratuite : page Connexions)."});
+  const base=(process.env.AGNES_BASE_URL||"https://apihub.agnes-ai.com").replace(/\/$/,""), ar=String(input.aspectRatio||""), ratio=["16:9","9:16","1:1","3:4","4:3","2:3","3:2","21:9"].includes(ar)?ar:ar==="4:5"?"3:4":"9:16";
+  const body={model:process.env.AGNES_IMAGE_MODEL||"agnes-image-2.5-flash",prompt:prompt.slice(0,8000),size:process.env.AGNES_IMAGE_SIZE||"1K",ratio,extra_body:{response_format:"url"}};
+  if(refs.length) body.extra_body.image=refs.map(x=>`data:${x.mime};base64,${x.data}`);
+  let up, raw={};
+  for(let k=0;k<4;k++){ const ctl=new AbortController(), timer=setTimeout(()=>ctl.abort(),Number(process.env.IMAGE_TIMEOUT_MS)||180000);
+    try{ up=await fetch(`${base}/v1/images/generations`,{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},body:JSON.stringify(body)}); raw=await up.json().catch(()=>({})); }
+    catch(e){ return sendJson(res,502,{code:e&&e.name==="AbortError"?"timeout":"network",message:"Agnes AI ne répond pas : le relais suivant prend la main."}); }
+    finally{ clearTimeout(timer); }
+    if(up.status!==429) break;
+    await new Promise(r=>setTimeout(r,(Number(up.headers.get("retry-after"))||0)*1000||(Number(process.env.AGNES_WAIT_MS)||20000)*(k+1)));   /* offre gratuite : peu de demandes par minute */
+  }
+  if(!up.ok){ const m=String(raw&&raw.error&&(raw.error.message||raw.error)||raw&&raw.message||""), bad=up.status===401||up.status===403, credit=/insufficient|balance|credit|quota|payment/i.test(m);
+    return sendJson(res,bad?401:credit?402:up.status===429?429:up.status,{code:bad?"bad_key":credit?"no_credit":up.status===429?"rate_limited":codeFor(up.status),message:bad?"Clé Agnes AI refusée : vérifie AGNES_API_KEY dans le fichier .env.":credit?"Agnes AI : l'offre gratuite des images est terminée ou ton solde est vide.":up.status===429?"Agnes AI : trop de demandes par minute (offre gratuite).":`Erreur Agnes AI (${up.status}) ${m.slice(0,160)}`.trim()}); }
+  const d=raw&&raw.data&&raw.data[0]||{}, remote=/^https:\/\//.test(String(d.url||""))?String(d.url):""; let buf=null;
+  if(d.b64_json) buf=Buffer.from(d.b64_json,"base64");
+  else if(d.url){ try{ const g=await fetch(d.url); if(g.ok) buf=Buffer.from(await g.arrayBuffer()); }catch(e){} }
+  if(!buf||buf.length<200) return sendJson(res,502,{code:"invalid_image",message:"Agnes AI n'a renvoyé aucune image exploitable : relance ce plan."});
+  const project=safePart(input.projectId,"project"), shot=safePart(input.shotId,"P01"), dir=path.join(GENERATED,project), ext=imageExt(buf); fs.mkdirSync(dir,{recursive:true});
+  fs.writeFileSync(path.join(dir,`${shot}.${ext}`),buf);
+  return sendJson(res,200,{ok:true,shotId:shot,url:`/generated/${encodeURIComponent(project)}/${encodeURIComponent(shot)}.${ext}`,model:body.model,references:refs.length,remote,free:true});
 }
 /* Relais GPT Image (OpenAI, gpt-image-2) pour les images du Storyboard ; même enregistrement que Nano Banana */
 async function handleGptImage(res,input,prompt){

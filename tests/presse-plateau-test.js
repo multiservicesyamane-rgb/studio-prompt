@@ -18,6 +18,7 @@ const PHOTOS = {0: {local: "/generated/presse-plateau/photo1.png", creator: "Pho
 const LESSON = {kind: "lesson", updatedAt: Date.now(), lesson: {regle: "Publie les revues avant 8 h : tes vidéos du matin font plus de vues.", type: "faire", domaine: "publication", cible: "strategie", portee: "tous", actif: true}};
 const PORT = 3000 + 1000 + Math.floor(Math.random() * 90), BASE = `http://127.0.0.1:${PORT}`, GEN_DIR = path.join(OUT, "plateau-gen");
 const files = re => fs.readdirSync(OUT).filter(f => re.test(f)).map(f => ({f, n: fs.statSync(path.join(OUT, f)).size}));
+const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250; k++){ if(files(re).length >= n) break; await new Promise(r => setTimeout(r, 250)); } await new Promise(r => setTimeout(r, 300)); return files(re); };   /* le navigateur écrit le téléchargement en arrière-plan */
 (async () => {
   fs.rmSync(GEN_DIR, {recursive: true, force: true}); fs.mkdirSync(path.join(GEN_DIR, "presse-plateau"), {recursive: true});
   fs.writeFileSync(path.join(GEN_DIR, "presse-plateau", "art1.png"), png(640, 360, [30, 190, 80])); fs.writeFileSync(path.join(GEN_DIR, "presse-plateau", "art2.png"), png(640, 360, [240, 140, 20])); fs.writeFileSync(path.join(GEN_DIR, "presse-plateau", "photo1.png"), png(640, 420, [40, 120, 230]));
@@ -67,14 +68,18 @@ const files = re => fs.readdirSync(OUT).filter(f => re.test(f)).map(f => ({f, n:
     await pg.evaluate(() => document.getElementById("pr-video").click());
     await pg.waitForFunction(() => (document.getElementById("pr-video-msg").textContent.match(/Vidéo prête/g) || []).length >= 2 || /échoué|navigateur/.test(document.getElementById("pr-video-msg").textContent), {timeout: 240000});
     const vids = await pg.evaluate(async () => { const res = [];
-      for(const v of document.querySelectorAll("#pr-video-out video")){ await new Promise(r => { if(v.readyState >= 1) r(); else v.onloadedmetadata = r; setTimeout(r, 4000); }); const c = document.createElement("canvas"), V = v.videoHeight > v.videoWidth, hits = {red: 0, green: 0, orange: 0}, dur = isFinite(v.duration) ? v.duration : 20;
+      for(const v of document.querySelectorAll("#pr-video-out video")){ await new Promise(r => { if(v.readyState >= 1) r(); else v.onloadedmetadata = r; setTimeout(r, 6000); });
+        if(!(isFinite(v.duration) && v.duration > 0)) await new Promise(r => { v.ondurationchange = () => { if(isFinite(v.duration)) r(); }; v.currentTime = 1e7; setTimeout(r, 5000); });   /* vidéo du navigateur : durée connue après un saut à la fin */
+        const c = document.createElement("canvas"), V = v.videoHeight > v.videoWidth, hits = {red: 0, green: 0, orange: 0}, dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 20;
         for(let t = 2; t < Math.min(dur, 40); t += 0.75){ v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 2500); }); c.width = v.videoWidth; c.height = v.videoHeight; const x = c.getContext("2d"); x.drawImage(v, 0, 0);
           const rb = x.getImageData(V ? 300 : 700, V ? 850 : Math.round(c.height * 0.785) + 20, 1, 1).data; if(rb[0] > 170 && rb[1] < 80 && rb[2] < 80) hits.red++;
           const d = x.getImageData(Math.round(c.width * (V ? 0.05 : 0.12)), Math.round(c.height * (V ? 0.13 : 0.06)), Math.round(c.width * (V ? 0.9 : 0.76)), Math.round(c.height * (V ? 0.5 : 0.6))).data; let g = 0, o = 0;
           for(let i = 0; i < d.length; i += 32){ if(d[i + 1] > 150 && d[i] < 90 && d[i + 2] < 120) g++; if(d[i] > 200 && d[i + 1] > 110 && d[i + 1] < 170 && d[i + 2] < 60) o++; } if(g > 1200) hits.green++; if(o > 1200) hits.orange++; }
         res.push({w: v.videoWidth, h: v.videoHeight, dur: Math.round(dur), hits, cap: v.closest("figure").querySelector("figcaption").textContent}); }
       return {msg: document.getElementById("pr-video-msg").textContent, res}; });
-    check("« Les deux » : une vidéo 16:9 (1280 × 720) pour YouTube puis une vidéo 9:16 (720 × 1280) pour TikTok, même durée", vids.res.length === 2 && vids.res[0].w === 1280 && vids.res[0].h === 720 && vids.res[1].w === 720 && vids.res[1].h === 1280 && Math.abs(vids.res[0].dur - vids.res[1].dur) <= 1 && (vids.msg.match(/Vidéo prête/g) || []).length === 2, vids.msg);
+    check("« Les deux » : une vidéo 16:9 (1280 × 720) pour YouTube puis une vidéo 9:16 (720 × 1280) pour TikTok, même durée", vids.res.length === 2 && vids.res[0].w === 1280 && vids.res[0].h === 720 && vids.res[1].w === 720 && vids.res[1].h === 1280 && Math.abs(vids.res[0].dur - vids.res[1].dur) <= 1 && (vids.msg.match(/Vidéo prête/g) || []).length === 2, `${vids.msg} · ${vids.res.map(v => `${v.w}×${v.h} ${v.dur} s`).join(" / ")}`);
+    const posters = await pg.evaluate(() => [...document.querySelectorAll("#pr-video-out video")].map(v => v.getAttribute("poster") || ""));
+    check("chaque vidéo montre son affiche premium avant la lecture (miniature 16:9, couverture 9:16)", posters.length === 2 && posters.every(p => /^blob:/.test(p)), posters.map(p => p.slice(0, 12)).join(" "));
     check("plateau 3D dans les deux vidéos : bandeau rouge du sujet, vraies images des deux articles sur le mur LED", vids.res.every(v => /plateau 3D/.test(v.cap) && v.hits.red >= 3 && v.hits.green >= 1 && v.hits.orange >= 1), JSON.stringify(vids.res.map(v => v.hits)));
     for(const [n, t, name] of [[0, 7, "plateau-16x9"], [1, 7, "plateau-9x16"]]){ await pg.evaluate(async (n, t) => { const v = document.querySelectorAll("#pr-video-out video")[n]; v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 3000); }); v.scrollIntoView({block: "center"}); }, n, t); const el = (await pg.$$("#pr-video-out video"))[n]; if(el) await el.screenshot({path: path.join(OUT, name + ".png")}); }
     // 4. kit après la vidéo : bon fichier par réseau, textes, miniatures
@@ -82,22 +87,23 @@ const files = re => fs.readdirSync(OUT).filter(f => re.test(f)).map(f => ({f, n:
     check("après la vidéo, chaque réseau propose son fichier : 16:9 pour YouTube, 9:16 pour TikTok", k1.yt && k1.tk);
     check("YouTube : titre de l'agent, description avec sources et crédit photo, tags", k1.titre === "Pluies record et pont fermé : l'essentiel" && /Sources : Journal A, Journal B\./.test(k1.desc) && /Photographe Test \(CC BY 2\.0/.test(k1.desc) && /revue de presse/.test(k1.tags) && k1.tags.length <= 480, k1.desc.replace(/\n/g, " / ").slice(0, 160));
     check("TikTok : légende courte de l'agent puis les sujets et 3 à 5 hashtags ; WhatsApp : message prêt à envoyer ; rappel dans Google Agenda", k1.tiktok.startsWith("Pluies record, pont fermé : ce qu'il faut savoir en une minute.") && /#revuedepresse/.test(k1.tiktok) && /^\*Le Point du Jour\*/.test(k1.wa) && (/calendar\.google\.com\/calendar\/render\?action=TEMPLATE/.test(k1.gcal) || !k1.gcal), k1.tiktok.replace(/\n/g, " / ").slice(0, 140));
-    await pg.evaluate(() => document.querySelector('[data-net="tiktok"] [data-kit-vdl="9:16"]').click()); await new Promise(r => setTimeout(r, 2500));
-    const vf = files(/^pluies-et-pont-revue-video-9x16\.(mp4|webm)$/);
+    await pg.evaluate(() => document.querySelector('[data-net="tiktok"] [data-kit-vdl="9:16"]').click());
+    const vf = await waitFiles(/^pluies-et-pont-revue-video-9x16\.(mp4|webm)$/, 1);
     check("téléchargement de la vidéo 9:16 depuis la carte TikTok", vf.length === 1 && vf[0].n > 100000, JSON.stringify(vf));
     for(const f of ["16:9", "9:16"]) await pg.evaluate(f => document.querySelector(`[data-kit-thumb="${f}"]`).click(), f);
     await pg.waitForFunction(() => document.querySelectorAll("#pr-kit-thumbs img").length >= 2, {timeout: 60000}).catch(() => {}); await new Promise(r => setTimeout(r, 1500));
     const th = await pg.evaluate(async () => Promise.all([...document.querySelectorAll("#pr-kit-thumbs img")].map(async im => { await im.decode().catch(() => {}); return `${im.naturalWidth}×${im.naturalHeight}`; })));
-    const tf = files(/^pluies-et-pont-(miniature-youtube|couverture-tiktok)\.jpg$/);
+    const tf = await waitFiles(/^pluies-et-pont-(miniature-youtube|couverture-tiktok)\.jpg$/, 2);
     check("miniature YouTube 1280 × 720 et couverture TikTok 1080 × 1920, montrées et téléchargées", th.slice().sort().join() === "1080×1920,1280×720" && tf.length === 2, `${th.join(", ")} · ${tf.map(x => x.f).join(", ")}`);
-    await pg.evaluate(() => document.getElementById("pr-kit-txt").click()); await new Promise(r => setTimeout(r, 1500));
-    const kt = files(/^pluies-et-pont-kit-publication\.txt$/), ktxt = kt.length ? fs.readFileSync(path.join(OUT, kt[0].f), "utf8") : "";
+    await pg.evaluate(() => document.getElementById("pr-kit-txt").click());
+    const kt = await waitFiles(/^pluies-et-pont-kit-publication\.txt$/, 1), ktxt = kt.length ? fs.readFileSync(path.join(OUT, kt[0].f), "utf8") : "";
     check("tout le kit en un fichier texte (réseau par réseau, heures, textes)", /=== TIKTOK \(vidéo 9:16\) ===/.test(ktxt) && /=== YOUTUBE \(vidéo 16:9\) ===/.test(ktxt) && /Meilleures heures : 7 h 00/.test(ktxt), ktxt.slice(0, 80).replace(/\n/g, " / "));
     // 5. chapitres YouTube sur une revue plus longue (minutage de la fusion ; 0:00, au moins 3, 10 s au moins chacun)
+    const oldUrls = await pg.evaluate(() => (JSON.parse(localStorage.getItem("sp-presse") || "{}").voices || []).map(v => v.url).join(" "));
     await pg.evaluate(() => { window.__ttsK = 5; document.getElementById("pr-voice").click(); });
-    await new Promise(r => setTimeout(r, 800)); await pg.waitForFunction(() => { const s = JSON.parse(localStorage.getItem("sp-presse") || "{}"); return (s.voices || []).length && s.voices.every(v => v.status === "done") && !document.getElementById("pr-voice").disabled; }, {timeout: 60000});
+    await pg.waitForFunction(old => { const s = JSON.parse(localStorage.getItem("sp-presse") || "{}"), v = s.voices || []; return v.length && v.every(x => x.status === "done") && v.map(x => x.url).join(" ") !== old && !document.getElementById("pr-voice").disabled; }, {timeout: 120000}, oldUrls);   /* les nouvelles voix, plus longues */
     const oldMix = await pg.evaluate(() => document.getElementById("pr-mix-msg").textContent);
-    await new Promise(r => setTimeout(r, 500)); await pg.evaluate(() => document.getElementById("pr-mix").click()); await pg.waitForFunction(old => { const m = document.getElementById("pr-mix-msg").textContent; return m !== old && /Émission de \d+ s prête/.test(m); }, {timeout: 60000}, oldMix);
+    await new Promise(r => setTimeout(r, 500)); await pg.evaluate(() => document.getElementById("pr-mix").click()); await pg.waitForFunction(old => { const m = document.getElementById("pr-mix-msg").textContent; return m !== old && /Émission de \d+ s prête/.test(m); }, {timeout: 120000}, oldMix);
     const ch = await pg.evaluate(() => { const d = document.getElementById("kit-yt-desc"); return d ? d.value : ""; });
     const stamps = (ch.match(/^\d+:\d\d .+$/gm) || []), secs = stamps.map(l => { const [m, s] = l.split(" ")[0].split(":").map(Number); return m * 60 + s; });
     check("chapitres YouTube tirés du minutage de la fusion (0:00 Ouverture, au moins 3, 10 s au moins chacun)", stamps.length >= 3 && /^0:00 Ouverture$/.test(stamps[0]) && secs.every((s, i) => !i || s - secs[i - 1] >= 10), stamps.join(" / "));

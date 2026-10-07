@@ -1,6 +1,6 @@
 /*
   Studio Prompt · fabrication des vidéos et des voix (côté serveur, aucune dépendance)
-  - Vidéo : Veo 3.1 (clé Gemini, facturation Google activée) ou Runway (crédits API Runway)
+  - Vidéo : Veo 3.1 (clé Gemini, facturation Google activée), Runway (crédits API Runway) ou Agnes Video 2.5 Flash (clé Agnes AI, gratuit pour le moment)
   - Voix  : Gemini (offre gratuite) ou ElevenLabs
   - Les images de départ restent faites par la route /api/images/generate de server.js : ce module ne la double pas,
     il compte seulement son coût dans le budget du jour.
@@ -20,6 +20,9 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   const KEY_TAG = crypto.createHash("sha256").update(MEDIA_KEY).digest("hex").slice(0, 12);   /* empreinte, jamais la clé */
   const RUNWAY_KEY = env.RUNWAY_API_KEY || env.RUNWAYML_API_SECRET || "", RUNWAY_BASE = (env.RUNWAY_BASE_URL || "https://api.dev.runwayml.com/v1").replace(/\/$/, "");
   const RUNWAY_MODEL = env.RUNWAY_MODEL || "gen4.5", RUNWAY_VERSION = env.RUNWAY_VERSION || "2024-11-06";
+  /* Agnes AI (apihub.agnes-ai.com, vérifié le 7 octobre 2026) : agnes-video-2.5-flash à 0 $ la seconde (promotion limitée dans le temps), 720p, 4 à 12 s ;
+     l'offre gratuite accepte peu de demandes par minute : une vidéo à la fois, et on attend puis on réessaie quand Agnes répond 429 */
+  const AGNES_KEY = String(env.AGNES_API_KEY || "").trim(), AGNES_BASE = (env.AGNES_BASE_URL || "https://apihub.agnes-ai.com").replace(/\/$/, ""), AGNES_VIDEO_MODEL = env.AGNES_VIDEO_MODEL || "agnes-video-2.5-flash", AGNES_WAIT = Number(env.AGNES_WAIT_MS) || 20000;
   const ELEVEN_KEY = env.ELEVENLABS_API_KEY || "", ELEVEN_BASE = (env.ELEVENLABS_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, ""), ELEVEN_MODEL = env.ELEVENLABS_MODEL || "eleven_multilingual_v2";
   const TTS_MODEL = env.GEMINI_TTS_MODEL || "gemini-3.8-flash-tts";
   const POLL = Number(env.GEN_POLL_MS) || 10000, PARALLEL = Math.max(1, Number(env.GEN_PARALLEL) || 2), VOICE_PARALLEL = Math.max(1, Number(env.GEN_VOICE_PARALLEL) || 1), MAX_WAIT = Number(env.GEN_MAX_WAIT_MS) || 25 * 60 * 1000;
@@ -31,9 +34,11 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     {id:"veo-lite", model:env.VEO_MODEL_LITE || "veo-3.1-lite-generate-preview", label:"Veo 3.1 Lite", note:"le moins cher, son inclus", price_s:num("PRICE_VEO_LITE", 0.05), durations:[4, 6, 8], audio:true, key:"gemini"},
     {id:"veo-fast", model:env.VEO_MODEL_FAST || "veo-3.1-fast-generate-preview", label:"Veo 3.1 Fast", note:"bon rapport qualité-prix, son inclus", price_s:num("PRICE_VEO_FAST", 0.10), durations:[4, 6, 8], audio:true, key:"gemini"},
     {id:"veo", model:env.VEO_MODEL || "veo-3.1-generate-preview", label:"Veo 3.1", note:"meilleure qualité, son inclus", price_s:num("PRICE_VEO", 0.40), durations:[4, 6, 8], audio:true, key:"gemini"},
-    {id:"runway", model:RUNWAY_MODEL, label:"Runway Gen-4.5", note:"sans son (ajoute les voix)", price_s:num("PRICE_RUNWAY", 0.12), durations:[5, 10], audio:false, key:"runway"}];
+    {id:"runway", model:RUNWAY_MODEL, label:"Runway Gen-4.5", note:"sans son (ajoute les voix)", price_s:num("PRICE_RUNWAY", 0.12), durations:[5, 10], audio:false, key:"runway"},
+    {id:"agnes", model:AGNES_VIDEO_MODEL, label:"Agnes Video 2.5 Flash", note:"gratuit pour le moment (offre limitée dans le temps), 720p, sans son (ajoute les voix)", price_s:num("PRICE_AGNES", 0), durations:[4, 5, 6, 8, 10, 12], audio:false, key:"agnes"}];
+  const keyOk = v => v.key === "gemini" ? !!MEDIA_KEY : v.key === "runway" ? !!RUNWAY_KEY : !!AGNES_KEY;
   const IMAGE_PRICE = num("PRICE_IMAGE", 0.07);
-  const NAME = {veo:"Veo", runway:"Runway", image:"Nano Banana", tts:"La voix Gemini", elevenlabs:"ElevenLabs"};
+  const NAME = {veo:"Veo", runway:"Runway", image:"Nano Banana", tts:"La voix Gemini", elevenlabs:"ElevenLabs", agnes:"Agnes AI"};
   /* 30 voix Gemini ; le genre indiqué est celui annoncé par Google Studio, à confirmer à l'écoute avec « Essai » */
   const GEMINI_VOICES = [["Kore","femme","ferme"],["Aoede","femme","légère"],["Leda","femme","jeune"],["Zephyr","femme","lumineuse"],["Callirrhoe","femme","détendue"],["Autonoe","femme","lumineuse"],["Despina","femme","douce"],["Erinome","femme","claire"],["Laomedeia","femme","enjouée"],["Achernar","femme","tendre"],["Gacrux","femme","mûre"],["Pulcherrima","femme","assurée"],["Vindemiatrix","femme","calme"],["Sulafat","femme","chaleureuse"],
     ["Puck","homme","enjouée"],["Charon","homme","posée, informative"],["Fenrir","homme","vive"],["Orus","homme","ferme"],["Enceladus","homme","soufflée"],["Iapetus","homme","claire"],["Umbriel","homme","détendue"],["Algieba","homme","douce"],["Algenib","homme","rauque"],["Rasalgethi","homme","informative"],["Alnilam","homme","ferme"],["Schedar","homme","égale"],["Achird","homme","amicale"],["Zubenelgenubi","homme","décontractée"],["Sadachbia","homme","vive"],["Sadaltager","homme","savante"]];
@@ -117,6 +122,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   const gHead = (key) => ({"x-goog-api-key":key || GEMINI_KEY, "Content-Type":"application/json"});
   const mHead = () => gHead(MEDIA_KEY);   /* Veo : clé du projet payant */
   const rwHead = () => ({"Authorization":"Bearer " + RUNWAY_KEY, "X-Runway-Version":RUNWAY_VERSION, "Content-Type":"application/json"});
+  const agHead = () => ({"Authorization":"Bearer " + AGNES_KEY, "Content-Type":"application/json"});
   const post = (headers, body) => ({method:"POST", headers, body:JSON.stringify(body)});
   /* Traduit une erreur de service en message simple ; jamais la clé */
   function errOf(svc, r){
@@ -126,7 +132,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     const google = svc === "veo" || svc === "image" || svc === "tts", name = NAME[svc] || svc;
     if(google && /billing|free.?tier|limit: ?0|paid tier|requires a paid|FAILED_PRECONDITION/i.test(s)) return {code:"billing", message:`${name} est payant chez Google : active la facturation de ton projet dans Google AI Studio (page Connexions de Studio Prompt, étape 1), puis réessaie.`};
     if(r.status === 401 || (r.status === 403 && !/quota|billing/i.test(s))) return {code:"bad_key", message:`Clé ${name} refusée : vérifie la clé dans le fichier .env, puis relance Studio Prompt.`};
-    if(r.status === 429) return {code:"rate_limited", message:`${name} : trop de demandes en même temps. Réessaie dans une minute.`};
+    if(r.status === 429) return {code:"rate_limited", message:svc === "agnes" ? "Agnes AI (offre gratuite) : trop de demandes par minute. Relance ce plan dans quelques minutes." : `${name} : trop de demandes en même temps. Réessaie dans une minute.`};
+    if(svc === "agnes" && /insufficient|balance|credit|quota|payment|recharge/i.test(s)) return {code:"no_credit", message:"Agnes AI : l'offre gratuite est terminée ou ton solde est vide. Méthode gratuite : Google Flow ou Higgsfield, puis « Importer mes clips »."};
     if(/credit|insufficient|balance|quota_exceeded|paid_plan/i.test(s)) return {code:"no_credit", message:`${name} : plus de crédits sur ton compte. Recharge-le, puis réessaie.`};
     if(/safety|moderation|blocked|rai|policy|celebrit|prominent|sensitive|SAFETY/i.test(s)) return {code:"refused", message:`${name} a refusé ce plan (filtre de sécurité) : ${s.slice(0, 200)}`};
     return {code:r.status >= 500 ? "overloaded" : "server_error", message:`${name} : erreur ${r.status || ""}. ${s.slice(0, 220)}`.trim()};
@@ -135,7 +142,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   /* ---------- tâches ---------- */
   const update = (j, patch) => { Object.assign(j, patch, {updated:Date.now()}); persist(); };
   const pub = j => { const o = Object.assign({}, j); delete o.refs; delete o.charge; delete o.remote; return o; };
-  function finish(j, media){ update(j, Object.assign({status:"done", step:""}, media)); if(j.service !== "runway" && j.kind === "video") billing(true); pump(); }
+  function finish(j, media){ update(j, Object.assign({status:"done", step:""}, media)); if(j.service !== "runway" && j.service !== "agnes" && j.kind === "video") billing(true); pump(); }
   function failJob(j, e){
     refund(j.charge); update(j, {status:"failed", step:"", code:e.code || "server_error", error:e.message || String(e)});
     if(e.code === "billing") billing(false);
@@ -144,9 +151,10 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   function pump(){
     /* vidéos : quelques-unes en même temps ; voix : une par une (l'offre gratuite limite les demandes par minute) */
     let free = PARALLEL - jobs.filter(j => j.kind === "video" && j.status === "running").length, freeV = VOICE_PARALLEL - jobs.filter(j => j.kind === "voice" && j.status === "running").length;
+    let freeA = 1 - jobs.filter(j => j.service === "agnes" && j.status === "running").length;   /* Agnes gratuit : une vidéo à la fois */
     for(const j of jobs){
       if(j.status !== "queued") continue;
-      if(j.kind === "video"){ if(free <= 0) continue; free--; }
+      if(j.kind === "video"){ if(free <= 0 || (j.service === "agnes" && freeA <= 0)) continue; free--; if(j.service === "agnes") freeA--; }
       else{ if(freeV <= 0) continue; freeV--; }
       run(j);
     }
@@ -154,7 +162,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   async function run(j){
     update(j, {status:"running", step:"envoi"});
     try{
-      if(j.kind === "video") await (j.service === "runway" ? runRunway(j) : runVeo(j));
+      if(j.kind === "video") await (j.service === "runway" ? runRunway(j) : j.service === "agnes" ? runAgnes(j) : runVeo(j));
       else await (j.service === "elevenlabs" ? runEleven(j) : j.service === "chatterbox" ? runChatterbox(j) : runGeminiVoice(j));
     }catch(e){ failJob(j, e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`}); }
   }
@@ -219,6 +227,37 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     const v = await call(url, {}, 300000);
     if(!v.ok || v.buf.length < 1000) throw errOf("runway", v);
     finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-runway`, v.buf, "video/mp4"));
+  }
+  /* Agnes Video 2.5 Flash : avec l'image de départ du Storyboard (mode « keyframe ») pour garder les mêmes visages, sinon depuis le texte seul.
+     L'image part par son adresse publique (image faite par Agnes) ou en data URI ; si Agnes la refuse, le clip est fait sans elle. */
+  async function agnesCall(j, url, opts, ms){
+    for(let k = 0; ; k++){ const r = await call(url, opts, ms); if(r.status !== 429 || k >= 6) return r; update(j, {step:"Agnes demande d'attendre (offre gratuite)…"}); await sleep(AGNES_WAIT * (k + 1)); }
+  }
+  async function runAgnes(j){
+    const body = {model:AGNES_VIDEO_MODEL, prompt:String(j.prompt).slice(0, 2500), mode:"text", seconds:String(j.duration), size:"720P", aspect_ratio:j.ratio === "9:16" ? "9:16" : "16:9"};
+    const img = j.image ? imageInput(j.image) : null, frame = j.imageUrl || (img ? `data:${img.mime};base64,${img.data}` : "");
+    if(frame){ body.mode = "keyframe"; body.first_frame = frame; }
+    let r = await agnesCall(j, `${AGNES_BASE}/v1/videos`, post(agHead(), body), 120000);
+    if(!r.ok && frame && r.status === 400){ delete body.first_frame; body.mode = "text"; update(j, {step:"envoi sans image de départ", noFrame:true}); r = await agnesCall(j, `${AGNES_BASE}/v1/videos`, post(agHead(), body), 120000); }
+    const o = (r.json && r.json.data && typeof r.json.data === "object" ? r.json.data : r.json) || {}, id = o.video_id || o.id || o.task_id;
+    if(!r.ok || !id) throw errOf("agnes", r);
+    update(j, {remote:{agnes:String(id)}, step:"fabrication"});
+    return agnesWait(j);
+  }
+  async function agnesWait(j){
+    const url = await poll(j, async () => {
+      const r = await call(`${AGNES_BASE}/agnesapi?video_id=${encodeURIComponent(j.remote.agnes)}&model_name=${encodeURIComponent(AGNES_VIDEO_MODEL)}`, {headers:agHead()}, 60000);
+      if(!r.ok){ if(r.status >= 500 || r.status === 429) return null; throw errOf("agnes", r); }
+      const t = (r.json && r.json.data && typeof r.json.data === "object" ? r.json.data : r.json) || {};
+      if(t.status === "completed"){ const u = t.url || t.video_url || (t.output && t.output.url); if(!u) throw {code:"server_error", message:"Agnes AI a terminé sans renvoyer de vidéo : relance ce plan."}; return u; }
+      if(t.status === "failed") throw errOf("agnes", {status:400, json:{error:t.error || {message:"échec de la fabrication"}}});
+      if(typeof t.progress === "number") update(j, {step:`fabrication ${Math.round(t.progress)} %`});
+      return null;
+    });
+    update(j, {step:"téléchargement"});
+    const v = await call(url, {}, 300000);
+    if(!v.ok || v.buf.length < 1000) throw errOf("agnes", v);
+    finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-agnes`, v.buf, "video/mp4"));
   }
   /* Voix Gemini : chaque modèle de voix a son propre quota gratuit par jour ; quand l'un est épuisé, le suivant prend le relais (mêmes voix) */
   const TTS_MODELS = [...new Set([TTS_MODEL].concat(String(env.GEMINI_TTS_FALLBACKS || "gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts,gemini-2.5-pro-preview-tts,gemini-3.8-flash-lite-tts").split(",").map(x => x.trim()).filter(Boolean)))];
@@ -300,7 +339,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   }
   /* Reprise après redémarrage : on continue d'attendre les vidéos déjà commandées (jamais payées deux fois) */
   for(const j of jobs){
-    if(j.status === "running" && j.remote){ (j.remote.op ? veoWait(j) : runwayWait(j)).catch(e => failJob(j, e && e.code ? e : {code:"network", message:"Connexion perdue pendant l'attente : relance ce plan."})); }
+    if(j.status === "running" && j.remote){ (j.remote.op ? veoWait(j) : j.remote.agnes ? agnesWait(j) : runwayWait(j)).catch(e => failJob(j, e && e.code ? e : {code:"network", message:"Connexion perdue pendant l'attente : relance ce plan."})); }
     else if(j.status === "running") failJob(j, {code:"interrupted", message:"Studio Prompt a été fermé pendant l'envoi : relance ce plan."});
   }
   setTimeout(pump, 0);
@@ -311,7 +350,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   function status(){
     return {
       prices_date:PRICES_DATE, budget:{limit:BUDGET, spent:Math.round(spentToday() * 100) / 100}, billing:state.billing,
-      video:VIDEO.map(v => ({id:v.id, label:v.label, note:v.note, price_s:v.price_s, durations:v.durations, audio:v.audio, ready:v.key === "gemini" ? !!MEDIA_KEY : !!RUNWAY_KEY, needs:v.key === "gemini" ? mediaNeeds() : (RUNWAY_KEY ? "" : "key")})),
+      video:VIDEO.map(v => ({id:v.id, label:v.label, note:v.note, price_s:v.price_s, durations:v.durations, audio:v.audio, ready:keyOk(v), needs:v.key === "gemini" ? mediaNeeds() : (keyOk(v) ? "" : "key")})),
+      agnes:{ready:!!AGNES_KEY, video:AGNES_VIDEO_MODEL, image:env.AGNES_IMAGE_MODEL || "agnes-image-2.5-flash"},
       image:{label:"Nano Banana (Gemini)", price:IMAGE_PRICE, ready:!!MEDIA_KEY, needs:mediaNeeds()}, media_key:MEDIA_OWN,
       voice:[{id:"gemini", label:"Voix Gemini", note:`offre gratuite, 30 voix, français inclus ; ${TTS_MODELS.length} modèles de voix en relais (chacun son quota du jour)`, ready:!!GEMINI_KEY, free:true, models:TTS_MODELS.length, blocked:TTS_MODELS.filter(m => ttsBlocked.get(m) > Date.now()).length}, {id:"elevenlabs", label:"ElevenLabs", note:"voix très naturelles, petite offre gratuite chaque mois", ready:!!ELEVEN_KEY}, {id:"chatterbox", label:"Voix naturelle Chatterbox (Hugging Face)", note:`gratuite, très naturelle, en français ; file d'attente GPU de Hugging Face${HF_TOKEN ? " (compte relié)" : " (sans compte : peu de minutes par jour)"}`, ready:true, free:true, token:!!HF_TOKEN}],
       running:jobs.filter(j => j.status === "running" || j.status === "queued").length
@@ -333,14 +373,15 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     if(kind === "video"){
       const v = VIDEO.find(x => x.id === b.service);
       if(!v) return [400, {code:"bad_request", message:"Service vidéo inconnu."}];
-      if(v.key === "gemini" ? !MEDIA_KEY : !RUNWAY_KEY) return [400, {code:"no_key", message:`Pas de clé ${v.key === "gemini" ? "Gemini" : "Runway"} dans le fichier .env : ouvre la page Connexions pour savoir comment l'ajouter.`}];
+      if(!keyOk(v)) return [400, {code:"no_key", message:`Pas de clé ${v.key === "gemini" ? "Gemini" : v.key === "runway" ? "Runway" : "Agnes AI (gratuite)"} dans le fichier .env : ouvre la page Connexions pour savoir comment l'ajouter.`}];
       const prompt = String(b.prompt || "").trim(); if(prompt.length < 10 || prompt.length > 12000) return [400, {code:"bad_request", message:"Prompt vidéo manquant ou trop long."}];
       const want = Math.max(1, Number(b.seconds) || 8), duration = v.durations.find(d => d >= want) || v.durations[v.durations.length - 1];
       const imgIn = b.image ? imageInput(b.image) : null;
       if(b.image && !imgIn) return [400, {code:"bad_request", message:"Image de départ introuvable : régénère-la dans le Storyboard, ou fabrique la vidéo sans image."}];
       const image = !imgIn ? "" : String(b.image).startsWith("data:") ? saveMedia(project, `P${pad(plan)}-depart`, Buffer.from(imgIn.data, "base64"), imgIn.mime).url : String(b.image);
       const charge = reserve(v.price_s * duration); if(!charge.ok) return [402, charge];
-      const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service:v.id, label:v.label, project, plan, prompt, image, ratio:b.ratio === "9:16" ? "9:16" : "16:9", duration, estimate:Math.round(v.price_s * duration * 100) / 100, charge, status:"queued", created:Date.now(), updated:Date.now()};
+      const imageUrl = /^https:\/\/[^\s]{8,2000}$/.test(String(b.image_url || "")) ? String(b.image_url) : "";   /* adresse publique de l'image de départ (Agnes) */
+      const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service:v.id, label:v.label, project, plan, prompt, image, imageUrl, ratio:b.ratio === "9:16" ? "9:16" : "16:9", duration, estimate:Math.round(v.price_s * duration * 100) / 100, charge, status:"queued", created:Date.now(), updated:Date.now()};
       jobs.push(j); persist(); pump(); return [200, {job:pub(j)}];
     }
     const service = b.service === "elevenlabs" ? "elevenlabs" : b.service === "chatterbox" ? "chatterbox" : "gemini";

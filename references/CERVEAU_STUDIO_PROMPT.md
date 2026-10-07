@@ -56,8 +56,8 @@ Objectifs mesurables : rétention, compréhension sans le son, continuité des p
 - web : flux RSS ;
 - transcription : Whisper local ;
 - analyse vidéo : images clés et Whisper local ;
-- images : application ChatGPT (avec l'abonnement de l'utilisateur) ou application Gemini, en envoyant les messages préparés du Storyboard un par un, puis « Importer » ; ou photos libres de droits ;
-- vidéos : Google Flow ou le site Higgsfield (prompts « Autres outils » : Seedance 2.5, MiniMax H3) puis « Importer » ;
+- images : **Agnes AI** automatiquement, gratuit pour le moment (§4.3 ter) ; sinon application ChatGPT (avec l'abonnement de l'utilisateur) ou application Gemini, en envoyant les messages préparés du Storyboard un par un, puis « Importer » ; ou photos libres de droits ;
+- vidéos : **clips Agnes AI** automatiquement, gratuits pour le moment (§4.3 ter) ; sinon Google Flow ou le site Higgsfield (prompts « Autres outils » : Seedance 2.5, MiniMax H3) puis « Importer » ;
 - voix : quota gratuit de Gemini (plusieurs modèles de voix en relais), puis **voix naturelle de Hugging Face** (Chatterbox), puis **voix gratuite sur l'ordinateur** (Piper, voir ci-dessous).
 
 **La meilleure voix gratuite, chaîne automatique** (demande du 7 octobre : « la meilleure voix… comme une voix réelle »). Recherche faite ce jour-là :
@@ -112,7 +112,7 @@ Côté page (revue de presse) :
 - `POST /api/video/analyze` : analyse complète d'une vidéo (gratuite) ;
 - `GET /api/news` : une de Google Actualités pour l'édition d'un pays, plus les titres du jour de chaque journal via `site:` (`GOOGLE_NEWS_BASE` pour les tests) ;
 - `POST /api/news/read` : texte principal d'un article à partir de son lien. Les adresses locales sont refusées, sauf avec `NEWS_ALLOW_LOCAL` en test ; les liens Google Actualités sont refusés avec une explication. `SP_NO_DOTENV=1` ignore `.env`, pour les tests. |
-| `generation.js` | Module serveur de **fabrication**, sans dépendance. Il gère les tâches suivies (`public/generated/jobs.json`, reprise après redémarrage), le budget du jour (`GEN_BUDGET_USD`), les voix (Gemini gratuit, une à la fois, avec attente si Google limite par minute et relais entre ses modèles de voix quand l'un atteint son quota du jour ; voix naturelle Chatterbox sur un espace Hugging Face ; ElevenLabs), les vidéos (Veo 3.1 avec `GEMINI_MEDIA_API_KEY` ou la clé principale, Runway), les imports (`/api/gen/upload-file`) et la lecture des médias par morceaux (Range). |
+| `generation.js` | Module serveur de **fabrication**, sans dépendance. Il gère les tâches suivies (`public/generated/jobs.json`, reprise après redémarrage), le budget du jour (`GEN_BUDGET_USD`), les voix (Gemini gratuit, une à la fois, avec attente si Google limite par minute et relais entre ses modèles de voix quand l'un atteint son quota du jour ; voix naturelle Chatterbox sur un espace Hugging Face ; ElevenLabs), les vidéos (Veo 3.1 avec `GEMINI_MEDIA_API_KEY` ou la clé principale, Runway, Agnes Video 2.5 Flash gratuit pour le moment), les imports (`/api/gen/upload-file`) et la lecture des médias par morceaux (Range). |
 | `public/*_PROMPTING_GUIDE.md`, `public/MASTER_VIDEO_PROMPT_AGENT.md` | Guides de rédaction par générateur. |
 | `references/` | Specs (`DIRECTOR_ENGINE_V4.md`, `creative-director-v2/`, ce fichier), analyses de style et prompts réussis. |
 | `tests/` | Tests de non-régression avec IA simulée (§8). |
@@ -216,7 +216,14 @@ Règle des paroles :
 - « Créer cette idée » envoie l'idée dans « Depuis une idée » avec le format gagnant (`rmFormatText`) et l'obligation d'un contenu entièrement nouveau ; « 2. Reconstruire » part de la première vidéo étudiée, toujours en mode « vidéo d'un autre » (réinventée), avec le format gagnant dans la demande ;
 - éthique : on apprend le savoir-faire, jamais le contenu ; les personnes réelles ne sont jamais identifiées ; aucun nom de chaîne ni de personne dans les leçons.
 
-### 4.2 Entrée « Depuis des infos » (revue de presse)
+### 4.2 Page « Motion design » (anciennement « Depuis des infos ») : revue de presse, quiz
+Demande du 7 octobre : la page doit faire « tous les vidéos de motion design », pas seulement l'information. Elle garde l'identifiant de vue `presse`. Des onglets en haut (`data-mt`, `mtShow`, choix gardé dans `sp-prefs.motion`) :
+- « 📰 Infos du jour » : la revue de presse (tout ce qui suit) ;
+- « 🧠 Quiz « 5 secondes » » : §4.3 quater.
+D'autres onglets viendront avec la même méthode (produit tech en 3D, publicités) : chaque type a son onglet, et ils partagent la voix, la fusion, le plateau 3D, l'enregistrement, l'affiche et le kit de publication.
+Chaque vidéo de la revue montre aussi son **affiche premium** sur le lecteur avant la lecture (`v.poster`, faite par `prThumb`).
+
+#### Revue de presse
 
 1. **Matière**, au choix :
    - automatique : `prFetch` → `/api/news`. `PRESSE_SITES` est une liste de grands médias par pays, simple point de départ modifiable par l'utilisateur. L'utilisateur coche les infos à garder. Une info de plus de 3 jours avant la plus récente n'est pas cochée d'office et porte la mention « ancienne » (`prNewsHtml`).
@@ -339,6 +346,61 @@ Règle des paroles :
 - `seedancePrompt` : FORMAT, REFERENCE ROLES (`@Image1` = image de départ), STARTING STATE, TIMELINE, CAMERA, CONTINUITY, AUDIO, ENDING STATE, CONSTRAINTS (Seedance accepte les interdits explicites).
 - Dans chaque plan, un bloc replié « Autres outils : MiniMax H3 · Seedance 2.5 » montre les deux prompts à copier (relais gratuit à la main).
 - Les deux adaptateurs suivent `MODEL_ADAPTER_CONTRACT` : ils traduisent le plan maître (cadrage, action, repères, caméra, lumière, son, paroles, état de fin) sans rien inventer.
+
+### 4.3 ter Agnes AI : images et clips gratuits pour le moment (7 octobre)
+Demande de l'utilisateur : « générateur de vidéo gratuit avec Agnes AI, on essaie de créer l'API », d'après un tutoriel TikTok de Laurent Voanh. Son compte GitHub n'a aucun dépôt public ; plusieurs projets libres (licence MIT) utilisent l'API d'Agnes.
+- **Faits vérifiés le 7 octobre 2026** (wiki.agnes-ai.com : pricing, agnes-video-25-flash, agnes-image-25-flash, terms-of-service) :
+  - gratuits : `agnes-video-2.5-flash` (« promotion limitée dans le temps », 720P seulement, 4 à 12 s, modes `text`, `keyframe`, `reference`), toutes les images `agnes-image-2.x-flash` (1K à 4K) et les textes `agnes-2.5-flash` / `agnes-3.0-flash` ;
+  - payant : `agnes-video-2.5` (0,025 $ la seconde en 720P). `agnes-video-v2.0`, le modèle des anciens tutoriels « gratuit et illimité », a été retiré le 25 septembre 2026 ;
+  - peu de demandes par minute en gratuit ; compte réservé aux 18 ans et plus ; les contenus produits appartiennent à l'utilisateur et peuvent être monétisés ; par défaut, Agnes entraîne ses modèles sur les contenus (on peut le refuser dans les réglages).
+- **Images** (`handleAgnesImage`, `server.js`) : `POST {AGNES_BASE_URL}/v1/images/generations` avec `model`, `prompt`, `size` 1K, `ratio`, et `extra_body` contenant `response_format: "url"` et les photos des personnages en data URI (`extra_body.image`, pour garder les visages).
+  - Après un 429, Studio Prompt attend puis réessaie (`AGNES_WAIT_MS`).
+  - L'image est enregistrée avec sa vraie extension (`imageExt`), et son adresse publique est gardée (`generated_images[n].remote`) pour le clip.
+  - Le Storyboard essaie Agnes d'abord quand la clé existe (`agnesReady`), puis Nano Banana, puis GPT Image.
+- **Clips** (service `agnes` de `generation.js`, prix 0) : `POST /v1/videos` avec `seconds` = durée du plan (4 à 12), `size` 720P et `aspect_ratio` ; suivi par `GET /agnesapi?video_id=…&model_name=…`.
+  - Mode `keyframe` avec l'image de départ du Storyboard : son adresse publique, sinon une data URI. Si Agnes refuse l'image (400), le clip est refait depuis le texte seul.
+  - Une seule vidéo Agnes à la fois (`pump`). Le 429 fait attendre et réessayer, et la reprise après redémarrage marche (`remote.agnes`).
+  - Le prompt est celui du plan (`i2vPrompt` avec image, sinon `t2vPrompt`) : le cerveau V4 du compilateur.
+- **Page** :
+  - carte « Clips gratuits · Agnes Video 2.5 Flash » dans l'onglet Plans (`agnesClips`) : les plans sans clip partent ;
+  - `agnesWatch` range chaque clip prêt dans `generated_videos[n]` (même place que Manus et les imports, donc Video Critic et pré-montage) ;
+  - si l'offre gratuite se termine (`no_credit`), un message renvoie vers Google Flow ou Higgsfield ;
+  - ligne « Images et clips · Agnes AI » dans Connexions avec le guide de la clé (`AGNES_API_KEY` dans `.env`).
+- Test : `agnes-test.js` (faux Agnes).
+
+### 4.3 quater Jeux « 5 secondes » : vidéos de défis dessinées par le code (7 octobre)
+Demande de l'utilisateur : des formats qui marchent « sans utiliser l'IA », faits par l'agent, les plus vus sur YouTube et TikTok, « de façon extrêmement cool ». Son texte classait en tête les jeux et énigmes, et proposait un moteur répétable « 5 SECONDES ». C'est l'onglet « 🧠 Quiz « 5 secondes » » de la page **Motion design** (voir plus bas).
+- **Format** : accroche (chronomètre, nom de la série, « seulement 3 % trouvent… »), puis pour chaque niveau :
+  - la question, puis 5 secondes de compte à rebours (anneau vert, jaune puis rouge, tic-tac de plus en plus aigu, alerte rouge à la fin) ;
+  - la réponse : explication à la place de la question, bandeau « RÉPONSE », confettis.
+  - Fin : « combien en as-tu trouvé ? » et « nouveau défi demain ». Les niveaux sont de plus en plus difficiles (FACILE → GÉNIE).
+- **Cinq types** (`JX_TYPES`) :
+  - intrus (grille d'emoji, paires de plus en plus proches `JX_PAIRS`) ;
+  - mémoire (objets montrés 3 s puis cachés) ;
+  - suite logique ;
+  - vrai ou faux ;
+  - quiz à 4 choix.
+  Les emoji sont dessinés par la police de l'ordinateur : aucune image d'IA, aucun droit d'auteur.
+- **Vérité** : intrus, mémoire et suite sont **calculés par le code** (position de l'intrus, case de l'objet, `jxNext` retrouve la règle de la suite et corrige une mauvaise réponse de l'agent). Le vrai ou faux et le quiz viennent du savoir de l'agent : ils partent dans « À vérifier avant de publier ».
+- **Deux façons de créer** :
+  - « ✨ Créer les niveaux avec l'agent » (`jxPrompt` : thème, public, texte de l'utilisateur facultatif, règles : vrai, aucune personne réelle, aucune marque, ni argent, ni politique, ni religion ; `learningBlock` de la stratégie) ;
+  - « 🎲 Sans IA : niveaux au hasard » (`jxRandom`) : sans quota, marche toujours, c'est aussi le relais quand l'agent est indisponible.
+  Si l'agent écrit moins de niveaux que demandé, les manquants sont tirés au hasard.
+- **Décors animés** (`JX_DECORS`, choix « Décor animé », gardé dans `sp-prefs.jeuxDecor`) :
+  - néon de nuit ;
+  - manga (trame de points, lignes de vitesse, cadre de case ; encre noire et halo blanc) ;
+  - nature (lever de soleil, nuages, montagnes en parallaxe, feuilles, oiseaux) ;
+  - espace (nébuleuses, étoiles qui scintillent, planète à anneau, étoile filante).
+  La question arrive mot par mot (`popText`), et des étincelles tournent autour de l'emoji du quiz.
+- **Affiche premium** (`poster`, `jxPosterBlob`) : le décor, le nom de la série en très gros, l'accroche dans un bandeau rouge, le dernier niveau en aperçu, une flèche rouge, l'épisode et le niveau. Deux tailles : affiche YouTube 1280 × 720 et couverture TikTok 1080 × 1920. Elle s'affiche aussi sur le lecteur avant la lecture.
+- **Vidéo** :
+  - `jxPlan` fait le minutage, `jxAudio` le son (nappe `prBed`, souffles, coups, stings et bips du compte à rebours rendus hors ligne) ;
+  - `jxStage` dessine (9:16 : zone de jeu hors des boutons et de la légende des applications ; 16:9 aussi) et `jxRecord` enregistre en temps réel ;
+  - « Les deux » fait les deux formats ; « 👁 Aperçu » montre l'accroche, le compte à rebours et la réponse.
+- **Publication** (`jxKit`) : titre et légende de l'agent, sinon composés par le code, avec hashtags du jeu. Les heures d'un jeu (12 h 30, 18 h, 21 h) sont données dans le fuseau du pays (`PR_TZ`, `prTzAt`), avec des liens vers TikTok, YouTube et Instagram.
+- Série : chaque épisode prend le numéro suivant (`sp-jeux`), et le dernier épisode est retrouvé après rechargement.
+- Pistes suivantes (proposées par l'utilisateur, pas encore faites) : classements animés de données vraies (« Afrique contre le monde », sources ouvertes), simulateurs « Et si… », conversations animées (présentées comme des fictions), voix qui lit la question, épisodes tirés d'une image, d'un audio ou d'une vidéo.
+- Test : `jeux-test.js`.
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -524,6 +586,8 @@ Ce que le code corrige :
 | `manus-clips-test.js` | Clips par Manus face à un faux Manus : prompts H3 et Seedance dans chaque plan (format officiel, paroles balisées, caméra), images de départ jointes, clips rapatriés dans leur plan, crédits épuisés → méthode gratuite |
 | `youtube-learn-test.js` | Étude de liens YouTube face à un faux YouTube et un faux Gemini : lien lu en entier, quota épuisé → images de la vidéo, leçons fusionnées et gardées en mémoire, idée originale avec le format gagnant, reconstruction réinventée, bloc « ce qui marche » |
 | `presse-studio-test.js` | Revue « Grand écran » face à un faux Google Actualités et de faux sites : liens décodés, image og:image et image du titre, crédits, voix renforcée, vidéo 1280 × 720 avec décor, bandeau rouge et vraies images à l'écran, diaporama toujours disponible |
+| `jeux-test.js` | Jeux « 5 secondes » : accès (menu, accueil), niveaux sans IA (réponses calculées, suites justes), niveaux de l'agent (thème et règles dans la demande, suite fausse corrigée par le code, « à vérifier »), aperçu 9:16, vidéo 9:16 de la durée prévue (compte à rebours, réponse en vert), téléchargement, publication (heures d'un jeu, hashtags), téléphone, reprise |
+| `agnes-test.js` | Agnes AI face à un faux Agnes : état du serveur (gratuit, clé cachée), Connexions, Storyboard par Agnes d'abord (format, 1K, photo du personnage en data URI, attente après un 429), clips plan par plan (720P, durée du plan, image de départ, image refusée → texte seul, un à la fois), rangés dans leur plan, téléphone |
 | `presse-plateau-test.js` | Plateau 3D et format 9:16 : réglages par défaut, aperçu dans les deux formats (avant la voix), repli sur le studio 2D, vidéo « Les deux » (1280 × 720 puis 720 × 1280, bandeau, images des articles sur le mur LED), kit de publication (6 réseaux, heures du pays, analyse du pays, leçon des statistiques, textes, fichier par réseau, rappel, .txt), miniatures, chapitres YouTube, téléphone |
 | `voix-relais-test.js` | Chaîne des voix gratuites face à un faux Google (3 modèles de voix, chacun son quota du jour) et un faux espace Hugging Face : modèle suivant en relais, modèle épuisé plus redemandé, message « demain matin » ; texte découpé (280 caractères) et recollé ; refus de Hugging Face ; revue en mode automatique (Gemini → Hugging Face → ordinateur) ; Connexions |
 | `voix-gratuite-test.js` | Voix gratuite sur l'ordinateur face à un faux Google sans quota : relais automatique de la revue, choix direct, essai, fusion, crédit de licence, reprise ; onglet Paroles (refaire gratuitement, une voix par personnage, crédit YouTube) ; Connexions |
