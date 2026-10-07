@@ -52,12 +52,13 @@ const PORT = 3000 + 600 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     // 1. Revue de presse : les voix gratuites sont proposées à côté des voix Gemini
     await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden && document.getElementById("pr-voix").options.length > 5, {timeout: 15000});
     const opts = await pg.evaluate(() => ({groups: [...document.querySelectorAll("#pr-voix optgroup")].map(g => g.label), local: [...document.querySelectorAll("#pr-voix option")].filter(o => /^local:/.test(o.value)).map(o => o.value), value: document.getElementById("pr-voix").value}));
-    check("revue : voix gratuites de l'ordinateur proposées (sans la voix « Tom » sous licence AGPL), Gemini par défaut", opts.groups.length === 2 && /sans quota/.test(opts.groups[1]) && opts.local.length === 4 && !opts.local.some(v => /tom/.test(v)) && opts.value === "Charon", JSON.stringify(opts));
+    check("revue : voix gratuites de l'ordinateur proposées (sans la voix « Tom » sous licence AGPL), « la meilleure voix gratuite » (automatique) par défaut", opts.groups.length === 4 && opts.groups[0] === "Recommandé" && /Hugging Face/.test(opts.groups[2]) && /sans quota/.test(opts.groups[3]) && opts.local.length === 4 && !opts.local.some(v => /tom/.test(v)) && opts.value === "auto", JSON.stringify(opts));
     await pg.select("#pr-mode", "textes"); await pg.type("#pr-text", "Communiqué : de fortes pluies cette nuit, la rentrée est repoussée.");
     await pg.click("#pr-go"); await pg.waitForSelector("#pr-res .pr-seg", {timeout: 20000}); await pg.waitForFunction(() => !document.getElementById("pr-go").disabled, {timeout: 20000}); await new Promise(r => setTimeout(r, 800));
     const nParts = await pg.evaluate(() => document.querySelectorAll("#pr-res .pr-seg").length);   /* ouverture, sommaire, 2 sujets, chiffre, fin */
 
     // 2. Google refuse (quota du jour) : la voix gratuite prend le relais toute seule
+    await pg.select("#pr-voix", "Charon");   /* Gemini reste testable quand l'utilisateur le choisit explicitement */
     await pg.click("#pr-voice");
     await pg.waitForFunction(n => { const s = JSON.parse(localStorage.getItem("sp-presse") || "{}"); return (s.voices || []).length === n && s.voices.every(v => v.status === "done" && v.local) && document.querySelectorAll("#pr-voices audio").length === n; }, {timeout: 40000}, nParts).catch(() => {});
     const auto = await pg.evaluate(() => { const s = JSON.parse(localStorage.getItem("sp-presse") || "{}"); return {n: (s.voices || []).length, done: (s.voices || []).filter(v => v.status === "done" && v.local && /\/generated\/presse-.+-gratuite-.+\.wav$/.test(v.url)).length, audios: document.querySelectorAll("#pr-voices audio").length, calls: window.__localCalls.map(c => c.voiceId), credit: s.voiceCredit, txt: document.getElementById("pr-res").innerText}; });
@@ -94,6 +95,7 @@ const PORT = 3000 + 600 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     await pg.click('[data-ptab="paroles"]'); await pg.waitForSelector(".gen-cast", {timeout: 10000});
     const castOpts = await pg.evaluate(() => [...document.querySelectorAll('[data-cast="awa"] option')].filter(o => /^local\|/.test(o.value)).length);
     check("Paroles : 4 voix gratuites de l'ordinateur proposées pour chaque personnage", castOpts === 4, String(castOpts));
+    await pg.select('[data-cast="_narr"]', "gemini|Charon"); await pg.select('[data-cast="awa"]', "gemini|Kore"); await pg.select('[data-cast="moussa"]', "gemini|Puck");
     await pg.click("#genv-all"); await pg.waitForSelector("[data-genv-free]", {timeout: 30000}).catch(() => {});
     const ko = await pg.evaluate(() => ({btn: !!document.querySelector("[data-genv-free]"), msg: document.getElementById("genv-msg").textContent}));
     check("Paroles : quota de Google épuisé → bouton « Refaire ces voix gratuitement sur l'ordinateur »", ko.btn && /3 échecs/.test(ko.msg), ko.msg.slice(0, 140));

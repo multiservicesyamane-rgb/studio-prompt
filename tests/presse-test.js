@@ -53,7 +53,7 @@ const PORT = 3000 + 800 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     const cdp = await pg.target().createCDPSession(); await cdp.send("Browser.setDownloadBehavior", {behavior: "allow", downloadPath: OUT, eventsEnabled: true}).catch(() => cdp.send("Page.setDownloadBehavior", {behavior: "allow", downloadPath: OUT}));
     await pg.setViewport({width: 1366, height: 900});
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
-    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}})); }); await pg.reload({waitUntil: "networkidle0"});
+    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}, presseUneRecreee: true})); }); await pg.reload({waitUntil: "networkidle0"});   /* une recréée demandée : ce test la vérifie (par défaut, seulement les vraies images) */
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ seen.prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){}
       const rv = /directeur de l'information/.test(seen.prompt) ? REVUE2 : REVUE;
@@ -61,7 +61,7 @@ const PORT = 3000 + 800 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     // 1. page et journaux du pays
     await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden && document.getElementById("pr-voix").options.length > 5, {timeout: 15000});
     const st = await pg.evaluate(() => ({pays: document.getElementById("pr-pays").value, sites: document.getElementById("pr-sites").value.split("\n"), lang: document.getElementById("pr-langue").value, voix: document.getElementById("pr-voix").value, links: document.querySelectorAll(".side-link").length}));
-    check("menu « Depuis des infos » : pays, grands journaux du pays (modifiables), langue et voix", st.pays === "sn" && st.sites.includes("seneweb.com") && st.sites.includes("lesoleil.sn") && st.lang === "fr" && st.voix === "Charon" && st.links === 13, JSON.stringify(st));
+    check("menu « Depuis des infos » : pays, grands journaux du pays (modifiables), langue et voix (la meilleure voix gratuite, automatique)", st.pays === "sn" && st.sites.includes("seneweb.com") && st.sites.includes("lesoleil.sn") && st.lang === "fr" && st.voix === "auto" && st.links === 13, JSON.stringify(st));
     // 2. infos du jour
     await pg.click("#pr-fetch"); await pg.waitForSelector("#pr-news .pr-list", {timeout: 15000});
     const news = await pg.evaluate(() => ({groups: [...document.querySelectorAll("#pr-news .pr-grp")].map(g => g.textContent), items: document.querySelectorAll("#pr-news [data-pr-item]").length, checked: document.querySelectorAll("#pr-news [data-pr-item]:checked").length, first: (document.querySelector("#pr-news .pr-item") || {}).innerText || ""}));
@@ -129,6 +129,7 @@ const PORT = 3000 + 800 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     check("crédits des photos ajoutés à la publication (exigés par leurs licences)", /Photos : Jeff Attaway \(CC BY 2\.0, Flickr\)/.test(une.pub), (une.pub.match(/Photos : [^\n]*/) || [""])[0].slice(0, 160));
     check("images : la première est importée dans le projet avec son crédit (photographe, licence, source)", p0 && /^\/generated\/presse-[a-z0-9]+\/sujet-1-/.test(p0.local) && /Jeff Attaway · CC BY 2\.0 · Flickr/.test(ph.credit) && Object.keys(ph.photos).length === 3, JSON.stringify({p0: p0 && p0.local, credit: ph.credit}));
     // 5 quinquies. vidéo de la revue
+    await pg.select("#pr-vstyle", "diapo"); await pg.select("#pr-vformat", "9:16");   /* le diaporama vertical reste disponible ; le studio « Grand écran » a son propre test */
     await pg.click("#pr-video"); await pg.waitForFunction(() => document.querySelector("#pr-video-out video") || /échoué|navigateur|fusion|Error|rror/.test(document.getElementById("pr-video-msg").textContent), {timeout: 90000}).catch(async () => console.log("MESSAGE VIDÉO :", await pg.evaluate(() => document.getElementById("pr-video-msg").textContent)));
     const vid = await pg.evaluate(async () => { const v = document.querySelector("#pr-video-out video"); await new Promise(r => { if(v.readyState >= 1) r(); else v.onloadedmetadata = r; setTimeout(r, 4000); }); return {msg: document.getElementById("pr-video-msg").textContent, dl: !!document.getElementById("pr-video-dl")}; });
     const vs = Number((vid.msg.match(/(\d+) s/) || [])[1] || 0);

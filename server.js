@@ -487,6 +487,58 @@ async function handleNews(req, res){
   const sitesOut = sites.map((d, k) => ({site:d, items:keep(bySite[k] || [], 6)}));
   sendJson(res, 200, {top:keep(top || [], 20), sites:sitesOut, fetched_at:new Date().toISOString()});
 }
+/* Contenu d'une balise <meta> (propriété ou nom), dans n'importe quel ordre d'attributs ; l'apostrophe d'un titre (« sous l'eau ») ne coupe plus le texte */
+function metaTag(html, name){
+  const n = String(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), h = String(html || "");
+  const m = h.match(new RegExp(`<meta[^>]+(?:property|name)=["']${n}["'][^>]*?content=(["'])([\\s\\S]*?)\\1`, "i")) || h.match(new RegExp(`<meta[^>]+content=(["'])([\\s\\S]*?)\\1[^>]*?(?:property|name)=["']${n}["']`, "i"));
+  return m ? m[2] : "";
+}
+/* Image « à la une » d'un article : og:image, sinon twitter:image, sinon image_src (adresse complète) */
+function articleImage(html, base){
+  const pick = re => (String(html || "").match(re) || [])[1] || "";
+  const raw = metaTag(html, "og:image") || metaTag(html, "og:image:url") || metaTag(html, "twitter:image") || metaTag(html, "twitter:image:src") || pick(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)/i);
+  if(!raw) return ""; try{ const u = new URL(htmlDecode(raw.trim()), base); return /^https?:$/.test(u.protocol) ? u.href : ""; }catch(e){ return ""; }
+}
+/* Lien Google Actualités → adresse réelle de l'article (même méthode que la page de Google : signature et horodatage de l'article) */
+const NEWS_UA = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36", "Accept-Language":"fr,en;q=0.8"};
+async function resolveNewsLink(link){
+  let u; try{ u = new URL(String(link || "")); }catch(e){ return ""; }
+  const gn = /(^|\.)news\.google\.com$/.test(u.hostname) || (process.env.GOOGLE_NEWS_BASE && u.href.startsWith(NEWS_BASE));
+  if(!gn) return /^https?:$/.test(u.protocol) ? u.href : "";
+  const id = (u.pathname.match(/\/articles\/([^/?#]+)/) || [])[1]; if(!id) return "";
+  const page = await fetchText(`${NEWS_BASE}/rss/articles/${id}`, 10000);
+  const sig = (page.match(/data-n-a-sg="([^"]+)"/) || [])[1], ts = (page.match(/data-n-a-ts="([^"]+)"/) || [])[1]; if(!sig || !ts) return "";
+  const req = [[["Fbv4je", JSON.stringify(["garturlreq", [["X", "X", ["X", "X"], null, null, 1, 1, "US:en", null, 1, null, null, null, null, null, 0, 1], "X", "X", 1, [1, 1, 1], 1, 1, null, 0, 0, null, 0], id, Number(ts), sig]), null, "generic"]]];
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
+  try{ const r = await fetch(`${NEWS_BASE}/_/DotsSplashUi/data/batchexecute`, {method:"POST", signal:ctl.signal, headers:Object.assign({"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"}, NEWS_UA), body:"f.req=" + encodeURIComponent(JSON.stringify(req))});
+    const txt = await r.text(), m = txt.match(/\[\\"garturlres\\",\\"([^\\"]+)\\"/); return m ? m[1] : ""; }
+  catch(e){ return ""; } finally{ clearTimeout(t); }
+}
+/* Pour chaque info : le vrai article, son titre, son site et son image « à la une » (la vidéo les montre sur le grand écran, avec la source) */
+async function articleInfo(link){
+  const url = await resolveNewsLink(link); if(!url) return {link, error:"Article introuvable derrière ce lien."};
+  let u; try{ u = new URL(url); }catch(e){ return {link, error:"Adresse d'article invalide."}; }
+  if(privateHost(u.hostname) && !process.env.NEWS_ALLOW_LOCAL) return {link, error:"Adresse refusée."};
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12000); let html = "", final = u;
+  try{ const r = await fetch(u, {signal:ctl.signal, redirect:"follow", headers:NEWS_UA}); if(!r.ok) return {link, url, error:`Le site a refusé la lecture (${r.status}).`}; try{ final = new URL(r.url || u.href); }catch(e){} html = Buffer.from(await r.arrayBuffer()).slice(0, 2e6).toString("utf8"); }
+  catch(e){ return {link, url, error:"Article injoignable."}; } finally{ clearTimeout(t); }
+  const meta = name => metaTag(html, name);
+  const title = (meta("og:title") ? htmlDecode(meta("og:title")) : htmlDecode((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+[-|–]\s+[^-|–]{2,40}$/, "")).replace(/\s+/g, " ").trim().slice(0, 220);
+  let image = articleImage(html, final);
+  if(!image && title){   /* sans og:image : l'image dont le texte alternatif reprend le titre de l'article, en pleine taille */
+    const key = s => htmlDecode(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim().slice(0, 40), want = key(title);
+    for(const m of html.matchAll(/<img\b[^>]*>/gi)){ const tag = m[0], at = n => (tag.match(new RegExp(`\\s${n}=["']([^"']*)["']`, "i")) || [])[1] || "";
+      if(want.length < 12 || !key(at("alt")).startsWith(want.slice(0, 30))) continue;
+      try{ const im = new URL(htmlDecode(at("data-src") || at("data-lazy-src") || at("src")), final); image = im.href.replace(/-\d{2,4}x\d{2,4}(?=\.(?:jpe?g|png|webp)(?:\?|$))/i, ""); break; }catch(e){} } }
+  return {link, url:final.href, site:final.hostname.replace(/^www\./, ""), site_name:htmlDecode(meta("og:site_name")).trim().slice(0, 80), title,
+    description:htmlDecode(meta("og:description") || meta("description")).replace(/\s+/g, " ").trim().slice(0, 400), image};
+}
+async function handleNewsResolve(req, res){
+  let input; try{ input = JSON.parse(await readBody(req, 50000)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible."}); }
+  const links = [...new Set((Array.isArray(input.links) ? input.links : []).map(String).filter(x => /^https?:\/\//.test(x)))].slice(0, 16), out = [];
+  for(let i = 0; i < links.length; i += 4) out.push(...await Promise.all(links.slice(i, i + 4).map(l => articleInfo(l).catch(() => ({link:l, error:"Lecture impossible."})))));
+  sendJson(res, 200, {articles:out});
+}
 /* Lecture d'un article à partir de son lien : texte principal seulement (titre + paragraphes) */
 function privateHost(h){ h = String(h || "").toLowerCase(); return h === "localhost" || h.endsWith(".local") || h === "::1" || h === "[::1]" || /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h); }
 const htmlDecode = t => String(t || "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;|&rsquo;|&#8217;/g, "'").replace(/&laquo;/g, "«").replace(/&raquo;/g, "»").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n)));
@@ -501,14 +553,14 @@ async function handleNewsRead(req, res){
     const buf = Buffer.from(await r.arrayBuffer()); html = buf.slice(0, 3e6).toString("utf8"); }
   catch(e){ return sendJson(res, 502, {code:"network", message:"Article injoignable : vérifie le lien, ou copie le texte à la main."}); }
   finally{ clearTimeout(t); }
-  const meta = name => (html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${name}["'][^>]+content=["']([^"']+)`, "i")) || [])[1] || "";
+  const meta = name => metaTag(html, name);
   const title = htmlDecode(meta("og:title") || (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim();
   let body = html.replace(/<(script|style|noscript|svg|nav|header|footer|aside|form|figure)[\s\S]*?<\/\1>/gi, " ");
   const art = body.match(/<article[\s\S]*?<\/article>/i); if(art && art[0].length > 800) body = art[0];
   const paras = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(m => htmlDecode(m[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim()).filter(x => x.length > 40 && !/cookies?|abonnez-vous|newsletter|tous droits réservés|javascript/i.test(x));
   const text = paras.join("\n").slice(0, 15000);
   if(text.length < 200) return sendJson(res, 422, {code:"bad_request", message:"Impossible d'extraire le texte de cet article (site protégé ou réservé aux abonnés) : copie le texte à la main."});
-  sendJson(res, 200, {url:url.href, site:url.hostname.replace(/^www\./, ""), site_name:htmlDecode(meta("og:site_name")).trim().slice(0, 80), title, text, published:meta("article:published_time")});
+  sendJson(res, 200, {url:url.href, site:url.hostname.replace(/^www\./, ""), site_name:htmlDecode(meta("og:site_name")).trim().slice(0, 80), title, text, published:meta("article:published_time"), image:articleImage(html, url), description:htmlDecode(meta("og:description") || meta("description")).replace(/\s+/g, " ").trim().slice(0, 400)});
 }
 /* Images d'une page (une page qui publie les unes du jour, par exemple) : liste filtrée, sans logos, icônes ni pixels de suivi */
 async function handleNewsImages(req, res){
@@ -756,7 +808,11 @@ function serveStatic(req, res){
   if(!file.startsWith(PUBLIC)) { res.writeHead(403); return res.end(); }
   fs.readFile(file, (err, data) => {
     if(err){ res.writeHead(404, {"Content-Type":"text/plain; charset=utf-8"}); return res.end("Introuvable"); }
-    res.writeHead(200, {"Content-Type":TYPES[path.extname(file).toLowerCase()] || "application/octet-stream", "Cache-Control":"no-cache"});
+    const head = {"Content-Type":TYPES[path.extname(file).toLowerCase()] || "application/octet-stream", "Cache-Control":"no-cache"};
+    /* Page isolée (COOP + COEP « credentialless ») : la voix gratuite sur l'ordinateur peut calculer sur plusieurs cœurs,
+       et les images ou scripts d'autres sites se chargent toujours (sans cookies) */
+    if(/\.html$/i.test(file) && !process.env.SP_NO_ISOLATION) Object.assign(head, {"Cross-Origin-Opener-Policy":"same-origin", "Cross-Origin-Embedder-Policy":"credentialless"});
+    res.writeHead(200, head);
     res.end(data);
   });
 }
@@ -790,6 +846,7 @@ http.createServer((req, res) => {
   if(req.method === "GET" && req.url.startsWith("/api/news?")) return handleNews(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Actualités indisponibles pour le moment."}); });
   if(req.method === "GET" && req.url.startsWith("/api/photos?")) return handlePhotos(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Recherche de photos indisponible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/photos/import")) return handlePhotoImport(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Import de la photo impossible."}); });
+  if(req.method === "POST" && req.url.startsWith("/api/news/resolve")) return handleNewsResolve(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Recherche des articles impossible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/news/images")) return handleNewsImages(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de la page impossible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/news/read")) return handleNewsRead(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture de l'article impossible."}); });   /* /api/gen/* (vidéos, voix, imports, budget) et lecture des fichiers de /generated/ */
   if(req.method === "POST" && req.url.startsWith("/api/video/analyze-url")) return handleVideoAnalyzeUrl(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Analyse du lien impossible."}); });

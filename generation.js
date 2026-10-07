@@ -155,7 +155,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     update(j, {status:"running", step:"envoi"});
     try{
       if(j.kind === "video") await (j.service === "runway" ? runRunway(j) : runVeo(j));
-      else await (j.service === "elevenlabs" ? runEleven(j) : runGeminiVoice(j));
+      else await (j.service === "elevenlabs" ? runEleven(j) : j.service === "chatterbox" ? runChatterbox(j) : runGeminiVoice(j));
     }catch(e){ failJob(j, e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`}); }
   }
   /* Attente d'une tâche distante : coupures réseau tolérées, durée maximale bornée */
@@ -220,26 +220,78 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     if(!v.ok || v.buf.length < 1000) throw errOf("runway", v);
     finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-runway`, v.buf, "video/mp4"));
   }
+  /* Voix Gemini : chaque modèle de voix a son propre quota gratuit par jour ; quand l'un est épuisé, le suivant prend le relais (mêmes voix) */
+  const TTS_MODELS = [...new Set([TTS_MODEL].concat(String(env.GEMINI_TTS_FALLBACKS || "gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts,gemini-2.5-pro-preview-tts,gemini-3.8-flash-lite-tts").split(",").map(x => x.trim()).filter(Boolean)))];
+  const ttsBlocked = new Map();   /* modèle → heure où il redevient utilisable */
+  const QUOTA_DAY_MSG = () => `Quota du jour des voix Gemini atteint sur les ${TTS_MODELS.length} modèles de voix : elles reviennent demain matin. En attendant, la voix naturelle gratuite (Hugging Face) ou la voix de l'ordinateur prend le relais.`;
   async function runGeminiVoice(j){
     const content = {type:"text", text:j.text}; if(j.style) content.annotations = [{type:"speech_metadata", style:j.style}];
-    let r, tries = 0;
-    for(;;){
-      r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model:TTS_MODEL, input:[{type:"user_input", content:[content]}], response_format:{type:"audio", mime_type:"audio/wav", sample_rate:24000}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 300000);   /* une revue entière peut tenir en une seule demande */
-      if(r.status === 404){   /* ancien format, si l'API interactions n'est pas ouverte sur ce compte */
-        r = await call(`${GEMINI_BASE}/models/${TTS_MODEL}:generateContent`, post(gHead(), {contents:[{parts:[{text:j.style ? `Say in a ${j.style} way: ${j.text}` : j.text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:j.voice || "Kore"}}}}}), 120000);
+    const ready = TTS_MODELS.filter(m => !(ttsBlocked.get(m) > Date.now()));
+    for(const [k, model] of ready.entries()){
+      let r, tries = 0, next = false;
+      for(;;){
+        r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model, input:[{type:"user_input", content:[content]}], response_format:{type:"audio", mime_type:"audio/wav", sample_rate:24000}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 300000);   /* une revue entière peut tenir en une seule demande */
+        if(r.status === 404){   /* ancien format, si l'API interactions n'est pas ouverte pour ce modèle */
+          r = await call(`${GEMINI_BASE}/models/${model}:generateContent`, post(gHead(), {contents:[{parts:[{text:j.style ? `Say in a ${j.style} way: ${j.text}` : j.text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:j.voice || "Kore"}}}}}), 120000);
+        }
+        if(r.status === 404){ ttsBlocked.set(model, Date.now() + 6 * 3600e3); next = true; break; }   /* modèle absent de ce compte */
+        if(r.status !== 429) break;
+        /* limite de l'offre gratuite : par jour → modèle suivant ; par minute → on attend puis on réessaie */
+        const txt = JSON.stringify(r.json || "") || "";
+        if(/per.?day|PerDay|daily/i.test(txt)){ const d = txt.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/); ttsBlocked.set(model, Date.now() + (d ? Number(d[1]) * 1000 : 6 * 3600e3)); next = true; break; }
+        if(++tries > 4) throw errOf("tts", r);
+        const m = txt.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/), wait = Number(env.GEN_RETRY_MS) || Math.min(60, m ? Number(m[1]) + 1 : 20) * 1000;
+        update(j, {step:`attente de Google (${Math.round(wait / 1000)} s)`}); await sleep(wait);
       }
-      if(r.status !== 429) break;
-      /* limite de l'offre gratuite : par jour → message clair ; par minute → on attend puis on réessaie */
-      const txt = JSON.stringify(r.json || "") || "";
-      if(/per.?day|PerDay|daily/i.test(txt)) throw {code:"quota_day", message:"Quota du jour des voix gratuites atteint chez Google : reprends demain matin, ou ajoute une clé ElevenLabs (page Connexions)."};
-      if(++tries > 4) throw errOf("tts", r);
-      const m = txt.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/), wait = Number(env.GEN_RETRY_MS) || Math.min(60, m ? Number(m[1]) + 1 : 20) * 1000;
-      update(j, {step:`attente de Google (${Math.round(wait / 1000)} s)`}); await sleep(wait);
+      if(next){ if(ready[k + 1]) update(j, {step:`quota de ${model} atteint : modèle de voix suivant`}); continue; }
+      if(!r.ok) throw errOf("tts", r);
+      const a = findMedia(r.json, "audio"); if(!a) throw {code:"server_error", message:"La voix Gemini n'a pas rendu d'audio : réessaie."};
+      let buf = Buffer.from(a.data, "base64"); if(buf.slice(0, 4).toString() !== "RIFF") buf = wav(buf, Number((String(a.mime).match(/rate=(\d+)/) || [])[1]) || 24000);
+      return finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, buf, "audio/wav"), {seconds:wavSeconds(buf), model}));
     }
-    if(!r.ok) throw errOf("tts", r);
-    const a = findMedia(r.json, "audio"); if(!a) throw {code:"server_error", message:"La voix Gemini n'a pas rendu d'audio : réessaie."};
-    let buf = Buffer.from(a.data, "base64"); if(buf.slice(0, 4).toString() !== "RIFF") buf = wav(buf, Number((String(a.mime).match(/rate=(\d+)/) || [])[1]) || 24000);
-    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, buf, "audio/wav"), {seconds:wavSeconds(buf)}));
+    throw {code:"quota_day", message:QUOTA_DAY_MSG()};
+  }
+  /* ---------- Voix naturelle gratuite : Chatterbox Multilingual (Resemble AI, licence MIT) sur Hugging Face ----------
+     Espace public avec file d'attente GPU gratuite ; HF_TOKEN (compte Hugging Face gratuit) donne plus de minutes par jour.
+     Le texte est dit par morceaux de 280 caractères au plus (limite de l'espace), puis recollé avec de courtes pauses. */
+  const HF_SPACE = String(env.CHATTERBOX_SPACE_URL || "https://resembleai-chatterbox-multilingual-tts.hf.space").replace(/\/$/, ""), HF_TOKEN = String(env.HF_TOKEN || "").trim();
+  const CHATTER_VOICES = [{id:"fr_f1", name:"Voix naturelle", desc:"femme, très naturelle (Chatterbox)", lang:"fr", ref:String(env.CHATTERBOX_REF_FR || "https://storage.googleapis.com/chatterbox-demo-samples/mtl_prompts/fr_f1.flac")}];
+  function splitText(t, max){
+    const out = []; let cur = "";
+    const push = x => { x = x.trim(); if(x) out.push(x); };
+    String(t || "").replace(/\s+/g, " ").split(/(?<=[.!?…;:])\s+/).forEach(ph => {
+      if(ph.length > max){ push(cur); cur = ""; let piece = ""; ph.split(/(?<=,)\s+|\s+/).forEach(w => { if((piece + " " + w).trim().length > max){ push(piece); piece = w; } else piece = (piece + " " + w).trim(); }); push(piece); return; }
+      if((cur + " " + ph).trim().length > max){ push(cur); cur = ph; } else cur = (cur + " " + ph).trim(); });
+    push(cur); return out;
+  }
+  function pcmOf(buf){   /* WAV → PCM 16 bits mono + fréquence (16 bits ou 32 bits flottants) */
+    if(buf.slice(0, 4).toString() !== "RIFF") return null;
+    let i = 12, fmt = 1, ch = 1, rate = 24000, bits = 16, data = null;
+    while(i + 8 <= buf.length){ const id = buf.toString("ascii", i, i + 4), len = buf.readUInt32LE(i + 4);
+      if(id === "fmt "){ fmt = buf.readUInt16LE(i + 8); ch = buf.readUInt16LE(i + 10); rate = buf.readUInt32LE(i + 12); bits = buf.readUInt16LE(i + 22); }
+      if(id === "data"){ data = buf.slice(i + 8, Math.min(buf.length, i + 8 + len)); break; } i += 8 + len + (len % 2); }
+    if(!data) return null;
+    const n = Math.floor(data.length / (bits / 8) / ch), out = Buffer.alloc(n * 2);
+    for(let k = 0; k < n; k++){ const o = k * ch * (bits / 8); const v = fmt === 3 && bits === 32 ? data.readFloatLE(o) : bits === 16 ? data.readInt16LE(o) / 32768 : bits === 32 ? data.readInt32LE(o) / 2147483648 : 0; out.writeInt16LE(Math.round(Math.max(-1, Math.min(1, v)) * 32767), k * 2); }
+    return {rate, pcm:out};
+  }
+  async function runChatterbox(j){
+    const v = CHATTER_VOICES.find(x => x.id === j.voice) || CHATTER_VOICES[0], parts = splitText(j.text, 280), auth = HF_TOKEN ? {"Authorization":`Bearer ${HF_TOKEN}`} : {};
+    const st = String(j.style || ""), exag = /energetic|lively|punchy|dynamique|fast/i.test(st) ? 0.7 : /calm|grave|serious|measured|posé/i.test(st) ? 0.45 : 0.6;
+    const chunks = []; let rate = 24000;
+    for(const [k, txt] of parts.entries()){
+      update(j, {step:`voix naturelle ${k + 1}/${parts.length}`});
+      const r = await call(`${HF_SPACE}/gradio_api/call/generate_tts_audio`, post(Object.assign({"Content-Type":"application/json"}, auth), {data:[txt, v.lang, {path:v.ref, meta:{_type:"gradio.FileData"}}, exag, 0.8, 0, 0.5]}), 60000);
+      if(!r.ok || !r.json || !r.json.event_id) throw {code:r.status === 429 ? "quota_day" : "server_error", message:`Voix naturelle (Hugging Face) indisponible pour le moment (${r.status}) : la voix de l'ordinateur prend le relais.`};
+      const s2 = await call(`${HF_SPACE}/gradio_api/call/generate_tts_audio/${r.json.event_id}`, {headers:auth}, 300000), body = s2.buf.toString("utf8");
+      const url = (body.match(/"url":\s*"([^"]+)"/) || [])[1];
+      if(!url){ const quota = /quota|exceeded|GPU|ZeroGPU|event:\s*error/i.test(body); throw {code:quota ? "quota_day" : "server_error", message:quota ? `Hugging Face refuse pour le moment (minutes gratuites du jour épuisées ou file trop chargée)${HF_TOKEN ? "" : " : un compte Hugging Face gratuit (HF_TOKEN dans .env) en donne davantage"}. La voix de l'ordinateur prend le relais.` : "La voix naturelle (Hugging Face) n'a pas répondu : la voix de l'ordinateur prend le relais."}; }
+      const a = await call(url, {headers:auth}, 120000), w = a.ok ? pcmOf(a.buf) : null;
+      if(!w) throw {code:"server_error", message:"La voix naturelle a rendu un son illisible : la voix de l'ordinateur prend le relais."};
+      rate = w.rate; chunks.push(w.pcm, Buffer.alloc(Math.round(rate * 0.22) * 2));
+    }
+    const buf = wav(Buffer.concat(chunks), rate);
+    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, buf, "audio/wav"), {seconds:wavSeconds(buf), model:"Chatterbox (Hugging Face)"}));
   }
   async function runEleven(j){
     const r = await call(`${ELEVEN_BASE}/v1/text-to-speech/${encodeURIComponent(j.voice)}?output_format=mp3_44100_128`, post({"xi-api-key":ELEVEN_KEY, "Content-Type":"application/json", "Accept":"audio/mpeg"}, {text:j.text, model_id:ELEVEN_MODEL}), 120000);
@@ -261,11 +313,12 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
       prices_date:PRICES_DATE, budget:{limit:BUDGET, spent:Math.round(spentToday() * 100) / 100}, billing:state.billing,
       video:VIDEO.map(v => ({id:v.id, label:v.label, note:v.note, price_s:v.price_s, durations:v.durations, audio:v.audio, ready:v.key === "gemini" ? !!MEDIA_KEY : !!RUNWAY_KEY, needs:v.key === "gemini" ? mediaNeeds() : (RUNWAY_KEY ? "" : "key")})),
       image:{label:"Nano Banana (Gemini)", price:IMAGE_PRICE, ready:!!MEDIA_KEY, needs:mediaNeeds()}, media_key:MEDIA_OWN,
-      voice:[{id:"gemini", label:"Voix Gemini", note:"offre gratuite, 30 voix, français inclus", ready:!!GEMINI_KEY, free:true}, {id:"elevenlabs", label:"ElevenLabs", note:"voix très naturelles, petite offre gratuite chaque mois", ready:!!ELEVEN_KEY}],
+      voice:[{id:"gemini", label:"Voix Gemini", note:`offre gratuite, 30 voix, français inclus ; ${TTS_MODELS.length} modèles de voix en relais (chacun son quota du jour)`, ready:!!GEMINI_KEY, free:true, models:TTS_MODELS.length, blocked:TTS_MODELS.filter(m => ttsBlocked.get(m) > Date.now()).length}, {id:"elevenlabs", label:"ElevenLabs", note:"voix très naturelles, petite offre gratuite chaque mois", ready:!!ELEVEN_KEY}, {id:"chatterbox", label:"Voix naturelle Chatterbox (Hugging Face)", note:`gratuite, très naturelle, en français ; file d'attente GPU de Hugging Face${HF_TOKEN ? " (compte relié)" : " (sans compte : peu de minutes par jour)"}`, ready:true, free:true, token:!!HF_TOKEN}],
       running:jobs.filter(j => j.status === "running" || j.status === "queued").length
     };
   }
   async function voices(provider){
+    if(provider === "chatterbox") return {voices:CHATTER_VOICES.map(v => ({id:v.id, name:v.name, desc:v.desc}))};
     if(provider !== "elevenlabs") return {voices:GEMINI_VOICES.map(([id, g, d]) => ({id, name:id, desc:`${g}, voix ${d}`}))};
     if(!ELEVEN_KEY) return {voices:[], error:"Pas de clé ElevenLabs dans le fichier .env."};
     let r = await call(`${ELEVEN_BASE}/v2/voices?page_size=100`, {headers:{"xi-api-key":ELEVEN_KEY}}, 30000);
@@ -290,11 +343,11 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
       const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service:v.id, label:v.label, project, plan, prompt, image, ratio:b.ratio === "9:16" ? "9:16" : "16:9", duration, estimate:Math.round(v.price_s * duration * 100) / 100, charge, status:"queued", created:Date.now(), updated:Date.now()};
       jobs.push(j); persist(); pump(); return [200, {job:pub(j)}];
     }
-    const service = b.service === "elevenlabs" ? "elevenlabs" : "gemini";
-    if(service === "elevenlabs" ? !ELEVEN_KEY : !GEMINI_KEY) return [400, {code:"no_key", message:`Pas de clé ${service === "elevenlabs" ? "ElevenLabs" : "Gemini"} dans le fichier .env : ouvre la page Connexions.`}];
+    const service = b.service === "elevenlabs" ? "elevenlabs" : b.service === "chatterbox" ? "chatterbox" : "gemini";
+    if(service !== "chatterbox" && (service === "elevenlabs" ? !ELEVEN_KEY : !GEMINI_KEY)) return [400, {code:"no_key", message:`Pas de clé ${service === "elevenlabs" ? "ElevenLabs" : "Gemini"} dans le fichier .env : ouvre la page Connexions.`}];
     const text = String(b.text || "").trim(); if(!text || text.length > 3000) return [400, {code:"bad_request", message:"Texte à dire manquant ou trop long."}];
     if(service === "elevenlabs" && !b.voice) return [400, {code:"bad_request", message:"Choisis d'abord une voix ElevenLabs pour ce personnage."}];
-    const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service, label:service === "elevenlabs" ? "ElevenLabs" : "Voix Gemini", project, plan, text, voice:String(b.voice || "").slice(0, 80), style:String(b.style || "").slice(0, 200), base:safeId(b.base || `P${pad(plan)}-voix`), who:String(b.who || "").slice(0, 80), line:Number(b.line) || 0, estimate:0, status:"queued", created:Date.now(), updated:Date.now()};
+    const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service, label:service === "elevenlabs" ? "ElevenLabs" : service === "chatterbox" ? "Voix naturelle (Hugging Face)" : "Voix Gemini", project, plan, text, voice:String(b.voice || "").slice(0, 80), style:String(b.style || "").slice(0, 200), base:safeId(b.base || `P${pad(plan)}-voix`), who:String(b.who || "").slice(0, 80), line:Number(b.line) || 0, estimate:0, status:"queued", created:Date.now(), updated:Date.now()};
     jobs.push(j); persist(); pump(); return [200, {job:pub(j)}];
   }
 
