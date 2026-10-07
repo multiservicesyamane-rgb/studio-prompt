@@ -266,8 +266,22 @@ Règle des paroles :
    **Voix de studio renforcée** (`pr-vboost`, cochée par défaut) : dans `prMix`, la voix passe par un filtre passe-haut (85 Hz), un peu de chaleur (220 Hz), de la présence (3,2 kHz), de l'air (10 kHz), un compresseur de voix puis un gain, avant le compresseur général.
    **Une recréée : seulement sur demande** (7 octobre : l'utilisateur ne veut « pas des images fictives ») : par défaut, un sujet montre la vraie une du jour si elle existe, sinon la vraie image de l'article et les photos ; la case « Montrer une une recréée… » (`sp-prefs.presseUneRecreee`) remet l'ancienne carte. `prUne` prend le titre de l'article du sujet (`prArticleFor`), plus le premier article du même journal (bug vu par l'utilisateur : la une d'un sujet sur la dette portait le titre d'un autre article de RFI). Dans le diaporama, l'image de l'article ouvre les images du sujet.
    **La une du journal avant les images** (demande de l'utilisateur) : `prUne` / `prUneHtml` recréent la une du journal qui porte le sujet (nom du journal, vrai titre de l'info pris dans les sources, date, chapeau, colonnes suggérées). C'est une citation : aucune page de journal n'est copiée. L'utilisateur peut mettre sa propre photo de la une (`PR.unes`, seulement s'il a le droit de l'utiliser) et revenir à la une recréée.
-6. **Vidéo de la revue** (`prVideo`), deux styles (`pr-vstyle`) :
-   **« Grand écran · studio télé » (par défaut, toujours 16:9, 1280 × 720)**, demandé le 7 octobre d'après une émission de France 24 (présentatrice devant un mur d'écran) et un bandeau de News24 : aucune personne n'est créée, le mur se manipule tout seul (motion design).
+6. **Vidéo de la revue**, trois styles (`pr-vstyle`) et trois formats (`pr-vformat`) : 16:9 (YouTube, Facebook), 9:16 (TikTok, Shorts, Reels, WhatsApp), ou **« Les deux »** (par défaut). Les deux choix sont gardés dans `sp-prefs` (`presseStyle`, `presseFormat`).
+   **Organisation du code** :
+   - `prStage(opt)` prépare le décor, les images et l'habillage, puis renvoie `draw(t)` : il sert à la vidéo, à l'aperçu et à la miniature ;
+   - `prVideo(opt)` enregistre en temps réel (MediaRecorder) sur la fusion. Le moteur audio est créé pendant le clic et partagé quand on fait les deux formats l'un après l'autre ;
+   - `prPreview(opt)` montre deux images (un sujet, le sommaire) **sans fabriquer la vidéo**, même avant la voix : un minutage est alors estimé par `prPlanGuess` ;
+   - les vidéos faites sont dans `PR.videos` (`prVideosHtml` : un lecteur et un bouton de téléchargement par format ; le premier garde l'identifiant `pr-video-dl`).
+   **« Plateau 3D · dernière génération » (`studio3d`, par défaut)**, demandé le 7 octobre (« un plateau de revue de dernière génération, l'écran de dernière sortie ») : `prStudio3D` charge three.js 0.186.1 à la demande depuis jsDelivr (`PR_THREE`).
+   - **Décor** : mur LED courbe qui affiche le mur d'écran animé (`wallContent`, dessiné 1,25 fois plus grand pour un texte net) ; cadre et socle en métal ; liserés lumineux ; colonnes LED animées sur les côtés.
+   - **Sol et lumière** : sol brillant avec le reflet du plateau (copie inversée sous un sol semi-transparent) ; flaque de lumière ; arcs lumineux au sol ; faisceaux qui balaient ; poussière dans la lumière.
+   - **Fond** : paroi courbe en carte à points, lamelles lumineuses (profondeur quand la caméra bouge), reflets calculés une fois (PMREM).
+   - **Caméra de grue** : elle descend sur le plateau au générique, change d'angle à chaque sujet en avançant doucement vers le mur, puis recule à la fin.
+   - **Éclat** : les zones très claires sont réduites, floutées puis ajoutées en mode « screen » (`composite`).
+   - **Repli automatique sur le studio 2D**, avec une explication dans le message : pas de WebGL, pas d'internet, `window.__no3d`, ou ordinateur trop lent. `bench()` mesure 8 images avant l'enregistrement et passe en 2D au-delà de 42 ms par image ; `window.__s3Force` force la 3D dans les tests.
+   - Mesuré le 7 octobre sur l'ordinateur de l'utilisateur (Intel HD 4400, via le navigateur de test) : la 3D tient le temps réel.
+   **Format 9:16 du studio** : mur en portrait (648 × 620 au-dessus du bandeau), carte de l'article en haut et image en dessous, sommaire avec une vignette par sujet. En-tête sous la zone des onglets des applications, avec la date sur fond sombre. Bandeau sous le mur avec une marge à droite pour les boutons de TikTok, Shorts et Reels, puis sous-titres au-dessus de la légende des applications.
+   **« Grand écran · studio télé 2D » (`studio`)**, demandé le 7 octobre d'après une émission de France 24 (présentatrice devant un mur d'écran) et un bandeau de News24 : aucune personne n'est créée, le mur se manipule tout seul (motion design). C'est aussi le relais du plateau 3D.
    - décor : studio bleu nuit, panneau de lumière chaude à gauche, faisceaux, sol avec le reflet du mur, légère dérive de caméra ;
    - mur d'écran géant (`wallContent`, fond « carte à points » stylisée, ligne de balayage) : générique, sommaire avec les images des sujets, pour chaque sujet la carte de l'article (site, date, vrai titre, description) qui arrive, une touche lumineuse (`ripple`), puis la vraie image de l'article reliée par un cercle (`node`), qui s'agrandit avec le titre en petit devant ; balayage lumineux au changement de sujet, sortie en glissé ; chiffre du jour avec anneau ; « ce qu'il faut retenir », puis « Abonne-toi » ;
    - image montrée : celle de l'article (`PR.arts`, « Image de l'article · site »), sinon la vraie une du jour, sinon une photo libre (« Image d'illustration ») ; sans image, une citation de la première phrase ;
@@ -281,6 +295,21 @@ Règle des paroles :
    - sous-titres mot à mot (le mot dit s'allume en jaune), crédit de chaque photo, barre de progression, grain et vignette. Le plan vient de `PR.mixPlan`, calculé par `prMix` ;
    - fond animé quand un sujet n'a pas d'image.
 7. La dernière revue est gardée dans le navigateur (`sp-presse`, photos comprises). « En faire une vidéo » envoie le texte dans « Depuis une idée ».
+8. **Kit de publication** (`#pr-kit`, demande du 7 octobre : « si tu termines une vidéo tu prépares l'envoi YouTube, TikTok… les titres, les heures, tout »). Il est visible dès que la revue est écrite et se met à jour après chaque fusion et chaque vidéo (`prKitRender` garde les miniatures et les cartes ouvertes).
+   - **Six réseaux (`PR_NETS`)** : YouTube (16:9), YouTube Shorts, TikTok, Instagram Reels (9:16), Facebook (16:9), WhatsApp. Chaque carte donne :
+     - le bon fichier vidéo (`data-kit-vdl`) ;
+     - les textes à copier (titre, description, tags, légende ou message) ;
+     - un lien pour ouvrir la page d'envoi du réseau ;
+     - un rappel dans Google Agenda au prochain créneau ;
+     - la marche à suivre et une alerte si la vidéo dépasse les 3 minutes des Shorts et des Reels.
+   - **Textes (`prKit`)** : ils réutilisent la revue écrite par l'agent. `PR_JSON.publication` contient en plus `legende_courte` (l'accroche des réseaux) et `texte_miniature` ; la consigne « PUBLICATION » de `prRules` dit comment les écrire (vrais, sans racolage).
+     - YouTube : description avec les chapitres, les sources, les crédits des photos et de la voix, et 3 hashtags ; tags limités à 480 caractères.
+     - Chapitres YouTube : ils sont pris dans le minutage de la fusion (`PR.mixPlan`) et suivent les règles de YouTube (0:00, au moins 3, 10 s au moins chacun). Sinon, la liste des sujets les remplace.
+   - **Heures (`prSlot`)** : ce sont des repères pour une info du jour, en heure locale du public. Elles sont données dans le fuseau du pays visé (`PR_TZ`), avec l'heure de l'utilisateur quand elle est différente. Le prochain créneau du jour est conseillé ; plus tard, « publie maintenant ».
+     - Le kit reprend aussi les heures de l'analyse du pays (`sp-last-pays`, qui garde maintenant `_pays`) quand c'est le même pays.
+     - Il reprend les leçons de la mémoire d'apprentissage du domaine « publication », tirées des statistiques.
+   - **Miniature YouTube 1280 × 720 et couverture TikTok, Reels 1080 × 1920 (`prThumb`)** : le plateau flouté en fond, le `texte_miniature` en très gros (blanc et jaune), une photo libre de droits du premier sujet, le nom de l'émission et un bandeau « REVUE DE PRESSE · date ». L'image d'un article n'y est jamais mise : elle appartient à son site.
+   - « Tout le kit (.txt) » regroupe tous les textes, réseau par réseau.
 
 ### 4.3 Manus AI (ajouté par l'autre assistant, relu le 5 octobre)
 - `POST /api/manus/task` (`handleManusTask`) crée une tâche Manus (API v2, `x-manus-api-key`, clé `MANUS_API_KEY` dans `.env`, délai maximum de 30 s) et renvoie `task_url`.
@@ -495,6 +524,7 @@ Ce que le code corrige :
 | `manus-clips-test.js` | Clips par Manus face à un faux Manus : prompts H3 et Seedance dans chaque plan (format officiel, paroles balisées, caméra), images de départ jointes, clips rapatriés dans leur plan, crédits épuisés → méthode gratuite |
 | `youtube-learn-test.js` | Étude de liens YouTube face à un faux YouTube et un faux Gemini : lien lu en entier, quota épuisé → images de la vidéo, leçons fusionnées et gardées en mémoire, idée originale avec le format gagnant, reconstruction réinventée, bloc « ce qui marche » |
 | `presse-studio-test.js` | Revue « Grand écran » face à un faux Google Actualités et de faux sites : liens décodés, image og:image et image du titre, crédits, voix renforcée, vidéo 1280 × 720 avec décor, bandeau rouge et vraies images à l'écran, diaporama toujours disponible |
+| `presse-plateau-test.js` | Plateau 3D et format 9:16 : réglages par défaut, aperçu dans les deux formats (avant la voix), repli sur le studio 2D, vidéo « Les deux » (1280 × 720 puis 720 × 1280, bandeau, images des articles sur le mur LED), kit de publication (6 réseaux, heures du pays, analyse du pays, leçon des statistiques, textes, fichier par réseau, rappel, .txt), miniatures, chapitres YouTube, téléphone |
 | `voix-relais-test.js` | Chaîne des voix gratuites face à un faux Google (3 modèles de voix, chacun son quota du jour) et un faux espace Hugging Face : modèle suivant en relais, modèle épuisé plus redemandé, message « demain matin » ; texte découpé (280 caractères) et recollé ; refus de Hugging Face ; revue en mode automatique (Gemini → Hugging Face → ordinateur) ; Connexions |
 | `voix-gratuite-test.js` | Voix gratuite sur l'ordinateur face à un faux Google sans quota : relais automatique de la revue, choix direct, essai, fusion, crédit de licence, reprise ; onglet Paroles (refaire gratuitement, une voix par personnage, crédit YouTube) ; Connexions |
 | `../tests/director-pipeline.test.js` | Contrôles de structure de l'autre assistant (`npm test` à la racine) |

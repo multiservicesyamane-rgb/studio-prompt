@@ -83,6 +83,7 @@ const seen = {vision: 0, search: 0, prompt: ""};
     await pg.select("#pr-voix", "local:fr_FR-siwis-medium"); await new Promise(r => setTimeout(r, 300)); await pg.evaluate(() => document.getElementById("pr-voice").click());
     await pg.waitForFunction(() => { const s = JSON.parse(localStorage.getItem("sp-presse") || "{}"); return (s.voices || []).length >= 5 && s.voices.every(v => v.status === "done") && !document.getElementById("pr-voice").disabled; }, {timeout: 40000});
     await new Promise(r => setTimeout(r, 500)); await pg.evaluate(() => document.getElementById("pr-mix").click()); await pg.waitForSelector("#pr-mix-out audio", {timeout: 60000});
+    await pg.select("#pr-vstyle", "studio"); await pg.select("#pr-vformat", "16:9");   /* la une à l'écran, dans le studio 2D (le plateau 3D a son propre test) */
     await pg.evaluate(() => document.getElementById("pr-video").click());
     await pg.waitForFunction(() => /Vidéo prête|échoué/.test(document.getElementById("pr-video-msg").textContent), {timeout: 120000});
     const blue = await pg.evaluate(async () => { const v = document.querySelector("#pr-video-out video"), c = document.createElement("canvas"), hits = [];

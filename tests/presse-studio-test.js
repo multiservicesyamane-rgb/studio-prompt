@@ -67,7 +67,9 @@ const PORT = 3000 + 200 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     await pg.select("#pr-voix", "local:fr_FR-siwis-medium"); await new Promise(r => setTimeout(r, 300)); await pg.evaluate(() => document.getElementById("pr-voice").click());
     await pg.waitForFunction(() => { const s = JSON.parse(localStorage.getItem("sp-presse") || "{}"); return (s.voices || []).length >= 4 && s.voices.every(v => v.status === "done") && !document.getElementById("pr-voice").disabled; }, {timeout: 40000});
     const vb = await pg.evaluate(() => ({on: document.getElementById("pr-vboost").checked, style: document.getElementById("pr-vstyle").value, fmt: document.getElementById("pr-vformat").value, dis: document.getElementById("pr-vformat").disabled}));
-    check("options : voix de studio renforcée cochée, vidéo « Grand écran » 16:9 par défaut (format verrouillé)", vb.on && vb.style === "studio" && vb.fmt === "16:9" && vb.dis, JSON.stringify(vb));
+    check("options : voix de studio renforcée cochée ; plateau 3D et les deux formats par défaut, format libre", vb.on && vb.style === "studio3d" && vb.fmt === "both" && !vb.dis, JSON.stringify(vb));
+    check("l'agent écrit aussi pour les réseaux : légende courte (TikTok, Reels, Shorts) et texte de la miniature", /PUBLICATION \(YouTube, TikTok, Instagram, Facebook, WhatsApp\)/.test(seen.prompt) && /"legende_courte"/.test(seen.prompt) && /"texte_miniature"/.test(seen.prompt), seen.prompt.length + " caractères");
+    await pg.select("#pr-vstyle", "studio"); await pg.select("#pr-vformat", "16:9");   /* ce test vérifie le studio 2D ; le plateau 3D a son propre test */
     await new Promise(r => setTimeout(r, 500)); await pg.evaluate(() => document.getElementById("pr-mix").click()); await pg.waitForSelector("#pr-mix-out audio", {timeout: 60000});
     const mixMsg = await pg.evaluate(() => document.getElementById("pr-mix-msg").textContent);
     check("fusion finale avec la voix renforcée (présence, clarté, compression)", /Émission de \d+ s prête/.test(mixMsg), mixMsg);
@@ -86,7 +88,7 @@ const PORT = 3000 + 200 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     check("les vraies images des deux articles s'affichent sur le grand écran", vid.hits.green >= 1 && vid.hits.orange >= 1, JSON.stringify(vid.hits));
     for(const [sec, name] of [[6, "studio-test-sujet"], [10, "studio-test-image"]]){ await pg.evaluate(async t => { const v = document.querySelector("#pr-video-out video"); v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 3000); }); }, sec); const el = await pg.$("#pr-video-out video"); if(el) await el.screenshot({path: path.join(OUT, name + ".png")}); }
     // 5. le diaporama reste disponible, avec le choix du format
-    await pg.select("#pr-vstyle", "diapo"); const dia = await pg.evaluate(() => !document.getElementById("pr-vformat").disabled);
+    await pg.select("#pr-vstyle", "diapo"); const dia = await pg.evaluate(() => !document.getElementById("pr-vformat").disabled && [...document.querySelectorAll("#pr-vformat option")].some(o => o.value === "9:16"));
     check("style « Diaporama » toujours disponible, format au choix", dia);
     await pg.setViewport({width: 390, height: 844}); await new Promise(r => setTimeout(r, 300));
     check("page sur téléphone : pas de défilement horizontal", await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth <= 1));

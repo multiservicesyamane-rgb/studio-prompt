@@ -358,6 +358,14 @@ dl.kv dd{margin:0;font-size:15px}
 .pr-art{display:flex;gap:10px;align-items:flex-start;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--sunken);max-width:520px}
 .pr-art img{width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;flex:0 0 auto}.pr-art div{min-width:0;overflow-wrap:anywhere;font-size:14px}.pr-unes-link input{flex:1 1 220px;min-width:0}.pr-ph-grid img{width:100%;height:100%;object-fit:cover;display:block}
 .pr-video video{width:100%;max-height:560px;border-radius:10px;background:#000}
+.pr-vids{display:grid;gap:12px;align-items:start}@media (min-width:760px){.pr-vids.two{grid-template-columns:2fr 1fr}}
+.pr-vid{display:grid;gap:6px;margin:0;min-width:0}.pr-vid figcaption{font-weight:700;font-size:14px}.pr-vid.v9 video{max-height:640px}
+.pr-prev{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px;align-items:start}.pr-prev:empty{display:none}
+.pr-net{border:1px solid var(--line);border-radius:12px;margin-top:10px;background:var(--sunken)}
+.pr-net>summary{cursor:pointer;padding:12px 14px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.pr-net-b{display:grid;gap:10px;padding:0 14px 14px;min-width:0}.pr-net textarea{width:100%;font-size:14px}.pr-net .actions{flex-wrap:wrap}
+.pr-kit-thumbs{display:flex;flex-wrap:wrap;gap:10px}.pr-kit-thumbs:empty{display:none}.pr-kit-thumbs figure{margin:0;display:grid;gap:4px}.pr-kit-thumbs img{max-width:min(100%,300px);max-height:300px;border-radius:8px;display:block}
+.pr-prev figure{margin:0;display:grid;gap:4px;min-width:0}.pr-prev img{width:100%;border-radius:8px;background:#000;display:block}.pr-prev .v9 img{max-height:460px;width:auto;max-width:100%;justify-self:center}
 .pr-mix{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:10px}.pr-mix audio{width:100%}
 .pr-seg{display:grid;gap:6px;padding:12px 0;border-bottom:1px solid var(--line)}.pr-seg:last-child{border-bottom:0}
 .pr-seg textarea{min-height:76px}.pr-seg audio{height:34px;max-width:100%}
@@ -4206,7 +4214,7 @@ const PR_STYLE = {inspirant:"a world-class news anchor with a golden voice: warm
   dynamique:"an energetic modern news host for social media: lively, punchy and confident; fast but perfectly clear"};
 const PR_TON = {inspirant:"captivant, chaleureux et inspirant : la voix donne envie de comprendre et d'agir, avec crédibilité, jamais par l'exagération",
   serieux:"sérieux, posé et précis, comme un grand journal du soir", dynamique:"dynamique et vif, pensé pour les réseaux sociaux, sans sacrifier l'exactitude"};
-let PR = {news:null, list:[], r:null, o:null, id:"", voices:[], ctl:null, timer:null, matiere:"", own:{}, mixUrl:"", mixPlan:null, photos:{}, photoRes:{}, photoQ:{}, vstop:false, extra:{}, unes:{}, mixBuf:null, arts:{}};
+let PR = {news:null, list:[], r:null, o:null, id:"", voices:[], ctl:null, timer:null, matiere:"", own:{}, mixUrl:"", mixPlan:null, photos:{}, photoRes:{}, photoQ:{}, vstop:false, extra:{}, unes:{}, mixBuf:null, arts:{}, videos:[]};
 const PR_WPS = 2.7;   /* débit d'un présentateur vif (mots par seconde), voix accélérée sans changer le timbre */
 const prDay = () => new Date().toLocaleDateString("fr-FR",{weekday:"long", day:"numeric", month:"long", year:"numeric"});
 function prEdition(code){
@@ -4278,7 +4286,7 @@ async function prReadLinks(links, signal){
   }
   return out;
 }
-const PR_JSON = `{"nom_emission":"","accroche":"ouverture signature : nom de l'émission, date, une phrase qui donne envie de rester","sommaire":"une phrase qui annonce les trois titres les plus forts","titre":"titre accrocheur de cette revue","segments":[{"titre":"le sujet en 3 à 6 mots","texte":"ce que dit la voix pour ce sujet, journal nommé","sources":["nom du média"],"preuve":"copie mot pour mot du titre ou de la phrase de la MATIÈRE qui prouve le fait principal","image_en":"3 à 6 mots anglais pour chercher une vraie photo d'illustration"}],"chiffre_du_jour":{"texte":"","source":""},"a_retenir":"ce qu'il faut retenir, en une phrase","conclusion":"fin signée et rendez-vous","appel":"","publication":{"titres":["","",""],"description":"","hashtags":[""]},"a_verifier":["ce qu'il faut vérifier avant de publier"]}`;
+const PR_JSON = `{"nom_emission":"","accroche":"ouverture signature : nom de l'émission, date, une phrase qui donne envie de rester","sommaire":"une phrase qui annonce les trois titres les plus forts","titre":"titre accrocheur de cette revue","segments":[{"titre":"le sujet en 3 à 6 mots","texte":"ce que dit la voix pour ce sujet, journal nommé","sources":["nom du média"],"preuve":"copie mot pour mot du titre ou de la phrase de la MATIÈRE qui prouve le fait principal","image_en":"3 à 6 mots anglais pour chercher une vraie photo d'illustration"}],"chiffre_du_jour":{"texte":"","source":""},"a_retenir":"ce qu'il faut retenir, en une phrase","conclusion":"fin signée et rendez-vous","appel":"","publication":{"titres":["","",""],"description":"","legende_courte":"","texte_miniature":"","hashtags":[""]},"a_verifier":["ce qu'il faut vérifier avant de publier"]}`;
 function prRules(o){
   const mots=Math.round(o.duree*PR_WPS), n=o.duree<=60?"3 ou 4":o.duree<=90?"4 ou 5":o.duree<=120?"5 ou 6":o.duree<=180?"6 à 8":"8 à 10";
   return `PUBLIC : ${label("pays",o.pays)} · langue d'écriture : ${PR_LANG[o.langue]||"français"} · date : ${prDay()} · support : ${o.format==="podcast"?"podcast ou radio":"vidéo pour YouTube, TikTok et Facebook"}.
@@ -4295,6 +4303,7 @@ FORMAT SIGNATURE (pour que le public attende chaque revue) :
 4. chaque sujet : le fait fort, le journal nommé, puis en une phrase ce que cela change pour le public ; transitions élégantes et variées ;
 5. « Le chiffre du jour » seulement si la matière contient un chiffre marquant, avec sa source ; sinon laisse chiffre_du_jour vide ;
 6. « Ce qu'il faut retenir » en une phrase, puis une fin signée avec le nom de l'émission et un rendez-vous (« demain, même heure ») ; l'appel à s'abonner est sincère et sans racolage.
+PUBLICATION (YouTube, TikTok, Instagram, Facebook, WhatsApp) : titres vrais et forts, 70 caractères au plus, le fait le plus fort d'abord, rien que la vidéo ne tienne pas ; description en deux phrases qui résument et donnent envie ; legende_courte = l'accroche pour TikTok, Reels et Shorts, une phrase de 120 caractères au plus, sans hashtag ; texte_miniature = 2 à 4 mots forts pour l'image de la vidéo, vrais et sans racolage ; hashtags : 3 à 6, sans espace (le pays, le sujet fort, l'actualité).
 IMAGES : pour chaque sujet, image_en = 3 à 6 mots anglais décrivant une vraie photo d'illustration générique et parlante (lieu, objet, scène, ambiance : « Dakar flooded street », « Senegal school classroom »), avec le pays ou la ville quand cela aide, jamais un monument d'un autre pays, jamais le nom d'une personne.
 ÉCRITURE POUR LA VOIX : comme les meilleurs présentateurs du monde ; images concrètes, verbes forts, curiosité, chaleur ; phrases courtes et rythmées, faciles à dire ; aucune langue de bois, aucune phrase creuse ; nombres écrits en lettres quand ils sont courts ; sigles écrits normalement, en majuscules et sans tirets ni points (BBC, RFI, ONU), la voix sait les prononcer ; ni parenthèses, ni abréviations, ni emoji, ni liste.
 ${learningBlock({outil:""},"strategie")}${o.note?`DEMANDE DE L'UTILISATEUR : ${o.note}\n`:""}`;
@@ -4325,7 +4334,7 @@ function prNorm(x){
   x.nom_emission=S(x.nom_emission); x.titre=S(x.titre)||"Revue de presse"; x.accroche=S(x.accroche); x.sommaire=S(x.sommaire); x.a_retenir=S(x.a_retenir); x.conclusion=S(x.conclusion); x.appel=S(x.appel);
   x.segments=(Array.isArray(x.segments)?x.segments:[]).filter(s=>s&&S(s.texte)).map(s=>({titre:S(s.titre), texte:S(s.texte), sources:(Array.isArray(s.sources)?s.sources:[]).map(S).filter(Boolean), source_ajoutee:!!s.source_ajoutee, preuve:S(s.preuve), preuve_ok:s.preuve_ok===true?true:s.preuve_ok===false?false:null, image_en:S(s.image_en)}));
   const ch=x.chiffre_du_jour&&typeof x.chiffre_du_jour==="object"?x.chiffre_du_jour:{}; x.chiffre_du_jour={texte:S(ch.texte), source:S(ch.source)};
-  const pub=x.publication&&typeof x.publication==="object"?x.publication:{}; x.publication={titres:(pub.titres||[]).map(S).filter(Boolean), description:S(pub.description), hashtags:(pub.hashtags||[]).map(S).filter(Boolean).map(h=>"#"+h.replace(/^#+/,"").replace(/\s+/g,""))};
+  const pub=x.publication&&typeof x.publication==="object"?x.publication:{}; x.publication={titres:(pub.titres||[]).map(S).filter(Boolean), description:S(pub.description), legende_courte:S(pub.legende_courte), texte_miniature:S(pub.texte_miniature), hashtags:(pub.hashtags||[]).map(S).filter(Boolean).map(h=>"#"+h.replace(/^#+/,"").replace(/\s+/g,""))};
   x.a_verifier=(Array.isArray(x.a_verifier)?x.a_verifier:[]).map(S).filter(Boolean); return x;
 }
 /* Contrôle par l'application : chaque sujet doit nommer au moins un de ses journaux à voix haute ; sinon la phrase est ajoutée */
@@ -4378,11 +4387,13 @@ function prRender(){
       <p class="hint">D’abord la vraie image « à la une » de l’article de chaque site (montrée comme une citation, avec le nom du site), puis des photos libres de droits en plus. Les images des articles appartiennent à leurs sites : ne les utilise pas comme miniature.</p>
       <label class="check"><input type="checkbox" id="pr-une-recree"${prUneRecreee()?" checked":""}><span>Montrer une une recréée (nom du journal et titre) quand il n’y a pas de vraie une</span></label>
       ${r.segments.map((sg,i)=>`<div class="pr-ph"><div class="pr-ph-h"><b>${i+1}. ${esc(sg.titre)}</b><input type="text" data-ph-q="${i}" value="${esc(PR.photoQ[i]||sg.image_en||sg.titre)}" aria-label="Mots pour chercher l’image du sujet ${i+1}"><button type="button" class="btn small" data-ph-search="${i}">Chercher</button><label class="btn small quiet">Ma photo<input type="file" accept="image/png,image/jpeg,image/webp" data-ph-own="${i}" hidden></label></div>${prUneHtml(i)}<div id="ph-art-${i}">${prArtHtml(i)}</div><div id="ph-grid-${i}">${prPhotoGrid(i)}</div></div>`).join("")}</div>
-    <div class="block pr-video"><h4>La vidéo de la revue</h4><p class="hint">${PR.mixBlob&&PR.mixPlan?"« Grand écran » : studio télé virtuel en 16:9, mur d’écran géant qui s’anime tout seul (la une, le vrai article et sa vraie image, chiffres, cercles lumineux), bandeau rouge avec le titre et la source, texte défilant. Ou « Diaporama » plein écran. Fabriquée en temps réel : garde cet onglet ouvert et visible.":"Crée d’abord la fusion finale : la vidéo se monte sur elle."}</p>
-      <div class="pr-row"><div class="field"><label for="pr-vstyle">Style de la vidéo</label><div class="sel"><select id="pr-vstyle"><option value="studio" selected>Grand écran · studio télé (16:9)</option><option value="diapo">Diaporama plein écran</option></select></div></div><div class="field"><label for="pr-vformat">Format</label><div class="sel"><select id="pr-vformat" disabled><option value="16:9" selected>16:9 · YouTube</option><option value="9:16">9:16 · TikTok, Shorts, Reels</option></select></div></div><label class="check"><input type="checkbox" id="pr-vsubs" checked><span>Sous-titres incrustés</span></label></div>
-      <div class="actions"><button type="button" class="btn primary" id="pr-video"${PR.mixBlob&&PR.mixPlan?"":" disabled"}>🎬 Créer la vidéo</button><button type="button" class="btn" id="pr-video-stop" hidden>Arrêter</button><span class="hint" id="pr-video-msg"></span></div>
-      <div id="pr-video-out"></div></div>
+    <div class="block pr-video"><h4>La vidéo de la revue</h4><p class="hint" id="pr-video-hint">${PR.mixBlob&&PR.mixPlan?PR_VHINT:"Crée d’abord la fusion finale : la vidéo se monte sur elle. L’aperçu du plateau marche déjà."}</p>
+      <div class="pr-row"><div class="field"><label for="pr-vstyle">Style de la vidéo</label><div class="sel"><select id="pr-vstyle">${[["studio3d","Plateau 3D · dernière génération (conseillé)"],["studio","Grand écran · studio télé 2D"],["diapo","Diaporama plein écran"]].map(([k,l])=>`<option value="${k}"${k===(loadPrefs().presseStyle||"studio3d")?" selected":""}>${l}</option>`).join("")}</select></div></div><div class="field"><label for="pr-vformat">Format</label><div class="sel"><select id="pr-vformat">${[["both","Les deux : 16:9 (YouTube) puis 9:16 (TikTok)"],["16:9","16:9 · YouTube, Facebook"],["9:16","9:16 · TikTok, Shorts, Reels, WhatsApp"]].map(([k,l])=>`<option value="${k}"${k===(loadPrefs().presseFormat||"both")?" selected":""}>${l}</option>`).join("")}</select></div></div><label class="check"><input type="checkbox" id="pr-vsubs" checked><span>Sous-titres incrustés</span></label></div>
+      <div class="actions"><button type="button" class="btn primary" id="pr-video"${PR.mixBlob&&PR.mixPlan?"":" disabled"}>🎬 Créer la vidéo</button><button type="button" class="btn" id="pr-preview">👁 Aperçu du plateau</button><button type="button" class="btn" id="pr-video-stop" hidden>Arrêter</button><span class="hint" id="pr-video-msg"></span></div>
+      <div id="pr-preview-out" class="pr-prev"></div>
+      <div id="pr-video-out">${prVideosHtml()}</div></div>
     ${r.publication.titres.length?`<div class="block"><h4>Publication</h4><ol class="plain">${r.publication.titres.map(t=>`<li>${esc(t)}</li>`).join("")}</ol>${r.publication.description?`<p>${esc(r.publication.description)}</p>`:""}${PR.voiceCredit&&PR.voices.some(v=>v.local)?`<p class="hint">${esc(PR.voiceCredit)}</p>`:""}<p class="hint" id="pr-pub-photos"${prPhotoCredits()?"":" hidden"}>${prPhotoCredits()?`Photos : ${esc(prPhotoCredits())}`:""}</p>${r.publication.hashtags.length?`<p class="hint">${esc(r.publication.hashtags.join(" "))}</p>`:""}</div>`:""}
+    <div class="block pr-kit" id="pr-kit">${prKitHtml()}</div>
     ${r.a_verifier.length?`<div class="alert"><b>À vérifier avant de publier :</b><ul class="plain">${r.a_verifier.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:""}
     ${(PR.o&&PR.o.sources||[]).length?`<details class="fix"><summary>Sources utilisées (${PR.o.sources.length})</summary><div class="fix-body"><ul class="plain">${PR.o.sources.map(s=>`<li>${esc(prSourceName(s.source||s.site||""))} · ${s.link||s.url?`<a href="${esc(s.link||s.url)}" target="_blank" rel="noopener">${esc(s.title||s.link||s.url)}</a>`:esc(s.title||"")}</li>`).join("")}</ul></div></details>`:""}
   </div></section>`;
@@ -4793,12 +4804,94 @@ function prSubChunks(text){ const w=String(text||"").split(/\s+/).filter(Boolean
 function prSubTimes(p){ const ch=prSubChunks(p.text), tot=ch.reduce((x,c)=>x+c.length+1,0)||1; let a=p.start; return ch.map(c=>{ const b=a+(p.end-p.start)*(c.length+1)/tot, o={text:c, a, b}; a=b; return o; }); }
 const prEase = x => x<=0?0:x>=1?1:0.5-0.5*Math.cos(Math.PI*x);
 const prBack = x => { x=Math.max(0,Math.min(1,x)); const c=1.7; return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2); };   /* arrivée avec un léger rebond */
-async function prVideo(){
-  /* Le moteur audio démarre tout de suite, pendant le clic : sinon le navigateur bloque le son (lecture automatique) */
-  const ac=new (window.AudioContext||window.webkitAudioContext)(), resumed=ac.resume().catch(()=>{});
-  const plan=PR.mixPlan, r=PR.r; if(!plan||!PR.mixBlob){ ac.close(); throw {message:"Crée d'abord la fusion finale."}; }
-  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){ ac.close(); throw {message:"Ce navigateur ne peut pas fabriquer la vidéo : utilise Chrome ou Edge à jour."}; }
-  const studio=($("pr-vstyle")||{}).value!=="diapo", vertical=!studio&&$("pr-vformat").value==="9:16", W=vertical?720:1280, H=vertical?1280:720, U=Math.min(W,H)/720, subs=$("pr-vsubs").checked;
+/* Plan estimé quand la fusion n'est pas encore faite (aperçu du plateau) : chaque partie dure le temps de la lire */
+function prPlanGuess(){
+  const parts=prParts(PR.r), intro=2.4; let t=intro; const seq=[];
+  parts.forEach(([title,text,meta],k)=>{ const m=meta||{}, prev=seq[seq.length-1], cont=!!prev&&prev.meta.kind==="seg"&&m.kind==="seg"&&prev.meta.i===m.i; if(prev) t+=cont?0.25:1.15; const d=Math.max(2,String(text).split(/\s+/).length/PR_WPS); seq.push({k, title, text, meta:m, start:t, end:t+d}); t+=d; });
+  return {intro, end:t, total:t+3.4, parts:seq, guess:true};
+}
+/* ---------- Plateau 3D « dernière génération » (three.js, chargé à la demande depuis jsDelivr) : mur LED courbe qui affiche le mur d'écran animé,
+   socle et cadre en métal, colonnes LED, sol miroir avec reflets, arcs lumineux au sol, faisceaux, poussière dans la lumière, et une caméra de grue
+   qui change d'angle à chaque sujet. Repli automatique sur le studio 2D : pas de WebGL, pas d'internet, ordinateur trop lent. ---------- */
+const PR_THREE = "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js";
+async function prStudio3D(o){
+  if(window.__no3d) throw new Error("désactivé");
+  const T=await import(PR_THREE), {W,H,vertical:V,WC}=o, canvas=document.createElement("canvas"); canvas.width=W; canvas.height=H;
+  let R; try{ R=new T.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true, powerPreference:"high-performance"}); }catch(e){ throw new Error("WebGL indisponible"); }
+  R.setPixelRatio(1); R.setSize(W,H,false); R.toneMapping=T.ACESFilmicToneMapping; R.toneMappingExposure=1.05; R.outputColorSpace=T.SRGBColorSpace;
+  const bin=[], keep=x=>{ bin.push(x); return x; }, col=(c,k)=>new T.Color(c).multiplyScalar(k==null?1:k), cv=(w,h)=>{ const c=document.createElement("canvas"); c.width=w; c.height=h; return c; };
+  const scene=new T.Scene(), BG=0x03050f; scene.background=new T.Color(BG); scene.fog=new T.Fog(BG,13,34);
+  /* reflets des matières brillantes : une salle sombre avec de grandes boîtes à lumière, calculée une seule fois */
+  { const env=new T.Scene(); env.add(new T.Mesh(new T.BoxGeometry(40,18,40), new T.MeshBasicMaterial({color:0x080c1e, side:T.BackSide})));
+    [[0x9fc0ff,5,0,8.5,0,14,3],[0xffa47a,3.5,-15,4,3,5,9],[0x6f95ff,3.5,15,4,3,5,9],[0xffffff,2,0,3,16,16,3]].forEach(([c,k,x,y,z,w,h])=>{ const m=new T.Mesh(new T.PlaneGeometry(w,h), new T.MeshBasicMaterial({color:col(c,k), side:T.DoubleSide})); m.position.set(x,y,z); m.lookAt(0,2,0); env.add(m); });
+    const pm=new T.PMREMGenerator(R); scene.environment=keep(pm.fromScene(env,0.04).texture); pm.dispose(); env.traverse(n=>{ if(n.geometry) n.geometry.dispose(); if(n.material) n.material.dispose(); }); }
+  const tex=keep(new T.CanvasTexture(WC)); tex.colorSpace=T.SRGBColorSpace; tex.generateMipmaps=false; tex.minFilter=T.LinearFilter; tex.anisotropy=Math.min(8,R.capabilities.getMaxAnisotropy());
+  const SW=V?3.5:7.8, SH=SW*WC.height/WC.width, SR=V?7:9.5, BASE=V?0.86:0.8, SY=BASE+SH/2;
+  const bent=(w,h,r)=>{ const g=new T.PlaneGeometry(w,h,64,1), p=g.attributes.position; for(let i=0;i<p.count;i++){ const a=p.getX(i)/r; p.setXYZ(i,r*Math.sin(a),p.getY(i),r*(1-Math.cos(a))); } g.computeVertexNormals(); return keep(g); };
+  const basic=(c,k)=>keep(new T.MeshBasicMaterial({color:col(c,k), toneMapped:false, side:T.DoubleSide}));
+  const set=new T.Group(); scene.add(set);
+  const add=(geo,mat,x,y,z,parent)=>{ const m=new T.Mesh(geo,mat); m.position.set(x,y,z); (parent||set).add(m); return m; };
+  add(bent(SW,SH,SR), keep(new T.MeshBasicMaterial({map:tex, toneMapped:false, side:T.DoubleSide})), 0,SY,0);   /* le mur d'écran géant */
+  const metal=keep(new T.MeshStandardMaterial({color:0x0a0e1c, metalness:0.85, roughness:0.32, side:T.DoubleSide}));
+  add(bent(SW+0.18,SH+0.18,SR), metal, 0,SY,-0.05); add(bent(SW*0.98,BASE-0.06,SR), metal, 0,(BASE-0.06)/2,-0.02);   /* cadre et socle */
+  add(bent(SW+0.18,0.035,SR), basic(0x5b8cff,1.8), 0,SY+SH/2+0.11,0.01); add(bent(SW+0.18,0.035,SR), basic(0xe07c50,1.8), 0,SY-SH/2-0.11,0.01); add(bent(SW*0.98,0.022,SR), basic(0x5b8cff,1.2), 0,0.08,0.01);
+  /* colonnes LED de chaque côté, animées */
+  const pc=cv(64,512), px=pc.getContext("2d"), ptex=keep(new T.CanvasTexture(pc)); ptex.colorSpace=T.SRGBColorSpace;
+  const pmat=keep(new T.MeshBasicMaterial({map:ptex, toneMapped:false, side:T.DoubleSide})), PW=V?0.5:0.85, PH=V?5.6:5.2;
+  [-1,1].forEach(s=>{ const m=add(keep(new T.PlaneGeometry(PW,PH)), pmat, s*(SW/2+(V?0.3:0.45)), PH/2, V?0.5:0.6); m.lookAt(0,PH/2,V?7.1:10.8); });
+  const drawPillar=t=>{ const gr=px.createLinearGradient(0,0,0,512); gr.addColorStop(0,"#0a1240"); gr.addColorStop(1,"#1a0a2a"); px.fillStyle=gr; px.fillRect(0,0,64,512);
+    for(let k=0;k<6;k++){ const y=((t*55+k*100)%600)-60, gg=px.createLinearGradient(0,y,0,y+80); gg.addColorStop(0,"rgba(91,140,255,0)"); gg.addColorStop(0.5,k%2?"rgba(224,124,80,.9)":"rgba(91,140,255,.9)"); gg.addColorStop(1,"rgba(91,140,255,0)"); px.fillStyle=gg; px.fillRect(0,y,64,80); }
+    px.fillStyle="rgba(255,255,255,.07)"; for(let y=0;y<512;y+=4) px.fillRect(0,y,64,1); ptex.needsUpdate=true; };
+  const mirror=set.clone(); mirror.scale.y=-1; scene.add(mirror);   /* reflet du plateau dans le sol brillant */
+  /* fond : grande paroi courbe avec une carte du monde en points, lamelles lumineuses (profondeur quand la caméra bouge), barres de lumière */
+  const bcv=cv(1024,256); { const x=bcv.getContext("2d"); x.fillStyle="#050a1e"; x.fillRect(0,0,1024,256); for(let yy=6;yy<256;yy+=8) for(let xx=6;xx<1024;xx+=8){ const n=Math.sin(xx*0.011)*Math.cos(yy*0.03)+Math.sin((xx+yy)*0.006); if(n>0.3){ x.fillStyle=`rgba(90,140,255,${0.25+0.4*Math.min(1,n-0.3)})`; x.beginPath(); x.arc(xx,yy,1.5,0,7); x.fill(); } } }
+  const btex=keep(new T.CanvasTexture(bcv)); btex.colorSpace=T.SRGBColorSpace;
+  add(keep(new T.CylinderGeometry(17,17,11,64,1,true,Math.PI*0.65,Math.PI*0.7)), keep(new T.MeshBasicMaterial({map:btex, color:col(0xffffff,0.55), side:T.BackSide})), 0,5,4, scene);
+  const slat=basic(0x2a4fb8,0.5); for(let i=0;i<16;i++){ const a=(i/15-0.5)*Math.PI*0.95, m=add(keep(new T.PlaneGeometry(0.1,8)), slat, Math.sin(a)*12, 4, 4-Math.cos(a)*12, scene); m.lookAt(0,4,4); }
+  if(!V) [-1,1].forEach(s=>add(keep(new T.BoxGeometry(3.2,0.05,0.05)), basic(0xcfe0ff,1.4), s*2.2, SY+SH/2+0.75, 1.6, scene));   /* barres de lumière au-dessus du mur (16:9) */
+  /* sol miroir, flaque de lumière sous l'écran, arcs lumineux */
+  const floor=add(keep(new T.CircleGeometry(28,72)), keep(new T.MeshStandardMaterial({color:0x03050b, metalness:0.3, roughness:0.42, transparent:true, opacity:0.82, envMapIntensity:0.12})), 0,0,0, scene); floor.rotation.x=-Math.PI/2;
+  const gcv=cv(128,128); { const x=gcv.getContext("2d"), gr=x.createRadialGradient(64,64,0,64,64,64); gr.addColorStop(0,"rgba(110,150,255,.55)"); gr.addColorStop(1,"rgba(110,150,255,0)"); x.fillStyle=gr; x.fillRect(0,0,128,128); }
+  const pool=add(keep(new T.PlaneGeometry(SW*1.4,4)), keep(new T.MeshBasicMaterial({map:keep(new T.CanvasTexture(gcv)), transparent:true, depthWrite:false, blending:T.AdditiveBlending, toneMapped:false})), 0,0.015,0.9, scene); pool.rotation.x=-Math.PI/2;
+  const arcs=[[SW*0.62,0xe07c50,1.6],[SW*0.74,0x5b8cff,1.3],[SW*0.86,0x5b8cff,0.7]].map(([rad,c,k])=>{ const len=V?2.2:1.7, m=add(keep(new T.TorusGeometry(rad,0.016,6,160,len)), basic(c,k), 0,0.02,V?0.6:0.4, scene); m.rotation.set(Math.PI/2,0,Math.PI/2-len/2); m.userData={k, c:new T.Color(c)}; return m; });
+  /* faisceaux de lumière qui balaient lentement, et poussière qui brille dedans */
+  const bm=cv(64,256); { const x=bm.getContext("2d"), gv=x.createLinearGradient(0,0,0,256); gv.addColorStop(0,"rgba(255,255,255,.9)"); gv.addColorStop(1,"rgba(255,255,255,0)"); x.fillStyle=gv; x.fillRect(0,0,64,256); x.globalCompositeOperation="destination-in"; const gh=x.createLinearGradient(0,0,64,0); gh.addColorStop(0,"rgba(0,0,0,0)"); gh.addColorStop(0.5,"rgba(0,0,0,1)"); gh.addColorStop(1,"rgba(0,0,0,0)"); x.fillStyle=gh; x.fillRect(0,0,64,256); }
+  const beamGeo=keep(new T.PlaneGeometry(2.2,9,1,1)); { const p=beamGeo.attributes.position; for(let i=0;i<p.count;i++) if(p.getY(i)>0) p.setX(i,p.getX(i)*0.18); } beamGeo.translate(0,-4.5,0);
+  const beamMat=keep(new T.MeshBasicMaterial({map:keep(new T.CanvasTexture(bm)), color:col(0x9db8ff,0.35), transparent:true, depthWrite:false, blending:T.AdditiveBlending, toneMapped:false, side:T.DoubleSide}));
+  const beams=(V?[-1.3,1.3]:[-3.4,0,3.4]).map((bx,n)=>{ const m=add(beamGeo, beamMat, bx, 10.5, -1.5, scene); m.userData.n=n; return m; });
+  const N=V?260:420, dp=new Float32Array(N*3); for(let i=0;i<N;i++){ dp[i*3]=(Math.random()-0.5)*(V?7:15); dp[i*3+1]=Math.random()*6.5+0.3; dp[i*3+2]=Math.random()*6-1.5; }
+  const dg=keep(new T.BufferGeometry()); dg.setAttribute("position", new T.BufferAttribute(dp,3));
+  const dcv=cv(32,32); { const x=dcv.getContext("2d"), gr=x.createRadialGradient(16,16,0,16,16,16); gr.addColorStop(0,"rgba(255,255,255,1)"); gr.addColorStop(1,"rgba(255,255,255,0)"); x.fillStyle=gr; x.fillRect(0,0,32,32); }
+  const dust=new T.Points(dg, keep(new T.PointsMaterial({size:V?0.045:0.05, map:keep(new T.CanvasTexture(dcv)), color:col(0xb8ccff,0.9), transparent:true, opacity:0.5, depthWrite:false, blending:T.AdditiveBlending, toneMapped:false}))); scene.add(dust);
+  scene.add(new T.HemisphereLight(0x5577cc,0x05060a,0.45)); const key=new T.DirectionalLight(0xdfe8ff,1.4); key.position.set(2,6,8); scene.add(key);
+  const warm=new T.PointLight(0xff9a6a,40,14,2); warm.position.set(-SW/2-1,1.2,2.5); scene.add(warm); const cool=new T.PointLight(0x6d8fff,48,14,2); cool.position.set(SW/2+1,1.5,2.5); scene.add(cool);
+  /* caméra de grue : descend sur le plateau au générique, change d'angle à chaque sujet en avançant doucement vers le mur, recule à la fin */
+  const cam=new T.PerspectiveCamera(V?56:33, W/H, 0.1, 80), base=V?{y:1.95, z:7.1, ly:SY-0.87}:{y:2.0, z:10.8, ly:SY-0.8};
+  const SHOTS=V?[[0,0,0],[-0.4,0.1,-0.1],[0.4,0.1,-0.1],[0,-0.3,0.2]]:[[0,0,0],[-1.2,0.2,-0.2],[1.2,0.2,-0.2],[0,-0.4,0.35]], ease=x=>x<=0?0:x>=1?1:x*x*(3-2*x);
+  function render(t,s){
+    tex.needsUpdate=true; drawPillar(t);
+    let x=0, y=base.y, z=base.z;
+    if(s.kind==="intro"){ const e=ease(t/3.6); x=-2.6*(1-e)*(V?0.4:1); y+=2.6*(1-e); z+=5.5*(1-e); }
+    else if(s.kind==="fin"){ const e=ease(s.gt/Math.max(2,s.gd)); z+=1.4*e; y+=0.5*e; }
+    else { const sh=SHOTS[Math.max(0,s.gi)%4], pr=ease(Math.min(1,s.gt/Math.max(2,s.gd))); x+=sh[0]*(1-0.35*pr); y+=sh[1]; z+=sh[2]-(V?0.25:0.35)*pr; }
+    x+=Math.sin(t*0.23)*0.05; y+=Math.sin(t*0.19)*0.03;
+    cam.position.set(x,y,z); cam.lookAt(x*0.3, base.ly+(y-base.y)*0.35, 0);
+    beams.forEach(m=>m.rotation.set(0, Math.atan2(x-m.position.x, z-m.position.z), Math.sin(t*0.35+m.userData.n*2.1)*0.22));
+    dust.rotation.y=t*0.015; dust.position.y=Math.sin(t*0.2)*0.08;
+    arcs.forEach((m,n)=>m.material.color.copy(m.userData.c).multiplyScalar(m.userData.k*(1+0.25*Math.sin(t*1.4+n*1.3))));
+    R.render(scene,cam);
+  }
+  /* éclat des lumières (bloom) : les zones très claires sont réduites, floutées puis ajoutées en douceur */
+  const gw=Math.round(W/4), gh=Math.round(H/4), glow=cv(gw,gh), gx=glow.getContext("2d");
+  function composite(x){ x.drawImage(canvas,0,0); gx.globalCompositeOperation="copy"; gx.filter="brightness(0.62) contrast(2.6) blur(2px)"; gx.drawImage(canvas,0,0,gw,gh); gx.filter="none"; x.save(); x.globalCompositeOperation="screen"; x.globalAlpha=0.5; x.drawImage(glow,0,0,W,H); x.restore(); }
+  R.compile(scene,cam);
+  return {canvas, render, composite, dispose(){ bin.forEach(b=>{ try{ b.dispose(); }catch(e){} }); try{ R.dispose(); R.forceContextLoss(); }catch(e){} }};
+}
+/* Décor, images et habillage de la vidéo : draw(t) dessine l'émission à l'instant t (vidéo, aperçu, miniature).
+   Styles : « studio3d » (plateau 3D, repli automatique sur le studio 2D), « studio » (studio 2D), « diapo » ; formats 16:9 et 9:16 */
+async function prStage(opt){
+  const r=PR.r, plan=PR.mixPlan||prPlanGuess(), style=opt.style||"studio3d", studio=style!=="diapo", vertical=opt.format==="9:16", land=!vertical;
+  const W=vertical?720:1280, H=vertical?1280:720, U=Math.min(W,H)/720, subs=opt.subs!==false;
   const mk=()=>{ const c=document.createElement("canvas"); c.width=W; c.height=H; return c; }, canvas=mk(), g=canvas.getContext("2d"), A=mk(), B=mk(), C=mk(), gA=A.getContext("2d"), gB=B.getContext("2d"), gC=C.getContext("2d");
   const ACC="#e07c50", GOLD="#ffd23f", INK="#0d1220", SERIF='Georgia, "Times New Roman", serif';
   const font=(w,sz,fam)=>`${w} ${Math.round(sz*U)}px ${fam||'"Segoe UI", Arial, sans-serif'}`;
@@ -4815,10 +4908,6 @@ async function prVideo(){
   const grainPat=g.createPattern(grain,"repeat");
   const vig=mk(); { const x=vig.getContext("2d"), gr=x.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.78); gr.addColorStop(0,"rgba(0,0,0,0)"); gr.addColorStop(1,"rgba(0,0,0,0.58)"); x.fillStyle=gr; x.fillRect(0,0,W,H); }
   const nom=r.nom_emission||"Revue de presse", date=prDay(), segs=r.segments.length, ps=plan.parts;
-  await resumed; const dest=ac.createMediaStreamDestination(), sound=await ac.decodeAudioData(await PR.mixBlob.arrayBuffer()), src=ac.createBufferSource(); src.buffer=sound; src.connect(dest);
-  const mime=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t))||"";
-  const rec=new MediaRecorder(new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]), mime?{mimeType:mime, videoBitsPerSecond:6e6}:{}), chunks=[];
-  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
 
   /* fond animé quand un sujet n'a pas d'image */
   const bg=(x,t)=>{ const gr=x.createLinearGradient(0,0,W,H); gr.addColorStop(0,"#13203d"); gr.addColorStop(1,"#5a2312"); x.fillStyle=gr; x.fillRect(0,0,W,H);
@@ -4904,79 +4993,103 @@ async function prVideo(){
     x.font=font("600",18); const dw=x.measureText(date).width+24*U; if(24*U+tw+dw<W-16*U){ x.fillStyle="rgba(0,0,0,.6)"; x.fillRect(24*U+tw,26*U,dw,38*U); x.fillStyle="#fff"; x.fillText(date,36*U+tw,51*U); }
     x.fillStyle="rgba(255,255,255,.2)"; x.fillRect(0,H-6*U,W,6*U); x.fillStyle=ACC; x.fillRect(0,H-6*U,W*Math.min(1,t/plan.total),6*U);
     x.globalAlpha=0.06; x.globalCompositeOperation="overlay"; x.translate(-Math.random()*192,-Math.random()*192); x.fillStyle=grainPat; x.fillRect(0,0,W+192,H+192); x.restore(); };
-  /* ---------- Style « Grand écran » : studio télé virtuel, mur d'écran géant qui se manipule tout seul (motion design), bandeau d'info, défilant ---------- */
-  const WALL={x:Math.round(W*0.135), y:Math.round(H*0.07), w:Math.round(W*0.79), h:Math.round(H*0.6)}, INKC="#0b1230", place=label("pays",(PR.o&&PR.o.pays)||"")||"", tickTxt=r.segments.map(x=>x.titre).filter(Boolean).join("   •   ");
+  /* ---------- Style « Grand écran » : studio télé virtuel, mur d'écran géant qui se manipule tout seul (motion design), bandeau d'info, défilant.
+     En 9:16 (TikTok, Shorts, Reels) : mur en haut, bandeau et sous-titres au-dessus de la zone des boutons et de la légende des applications ---------- */
+  const WALL=land?{x:Math.round(W*0.135), y:Math.round(H*0.07), w:Math.round(W*0.79), h:Math.round(H*0.6)}:{x:36, y:180, w:648, h:620}, INKC="#0b1230", place=label("pays",(PR.o&&PR.o.pays)||"")||"", tickTxt=r.segments.map(x=>x.titre).filter(Boolean).join("   •   ");
+  const WS=style==="studio3d"?1.25:1, floorY=WALL.y+WALL.h+Math.round(H*0.03);   /* mur en plus haute définition pour le plateau 3D : texte net à l'écran */
   const rr=(x,X,Y,w,h,rad)=>{ x.beginPath(); x.moveTo(X+rad,Y); x.arcTo(X+w,Y,X+w,Y+h,rad); x.arcTo(X+w,Y+h,X,Y+h,rad); x.arcTo(X,Y+h,X,Y,rad); x.arcTo(X,Y,X+w,Y,rad); x.closePath(); };
   const wallBg=document.createElement("canvas"); wallBg.width=WALL.w; wallBg.height=WALL.h;
   { const x=wallBg.getContext("2d"), gr=x.createLinearGradient(0,0,WALL.w,WALL.h); gr.addColorStop(0,"#16205a"); gr.addColorStop(1,"#2a1650"); x.fillStyle=gr; x.fillRect(0,0,WALL.w,WALL.h);
     for(let yy=8;yy<WALL.h;yy+=12) for(let xx=8;xx<WALL.w;xx+=12){ const n=Math.sin(xx*0.013)*Math.cos(yy*0.021)+Math.sin((xx+yy)*0.007); if(n>0.35){ x.fillStyle=`rgba(120,170,255,${0.16+0.25*Math.min(1,n-0.35)})`; x.beginPath(); x.arc(xx,yy,1.6,0,7); x.fill(); } } }   /* carte à points stylisée */
   const studioBg=mk();
   { const x=studioBg.getContext("2d"), gr=x.createRadialGradient(W*0.55,H*0.35,50,W*0.55,H*0.4,W*0.8); gr.addColorStop(0,"#121c46"); gr.addColorStop(1,"#03050f"); x.fillStyle=gr; x.fillRect(0,0,W,H);
-    const lp=x.createLinearGradient(0,H*0.1,0,H*0.66); lp.addColorStop(0,"#ff8a6b"); lp.addColorStop(1,"#c2306a"); x.globalAlpha=0.85; x.fillStyle=lp; x.fillRect(0,H*0.1,W*0.1,H*0.56); x.globalAlpha=1;
-    for(let k=0;k<5;k++){ const bx=W*(0.2+k*0.17), g2=x.createLinearGradient(bx,0,bx+W*0.05,H*0.7); g2.addColorStop(0,"rgba(120,150,255,0.07)"); g2.addColorStop(1,"rgba(120,150,255,0)"); x.fillStyle=g2; x.beginPath(); x.moveTo(bx,0); x.lineTo(bx+W*0.04,0); x.lineTo(bx+W*0.1,H*0.7); x.lineTo(bx-W*0.03,H*0.7); x.fill(); }
-    const fl=x.createLinearGradient(0,H*0.7,0,H); fl.addColorStop(0,"#0b1028"); fl.addColorStop(1,"#020308"); x.fillStyle=fl; x.fillRect(0,H*0.7,W,H*0.3); x.strokeStyle="rgba(140,170,255,.25)"; x.lineWidth=2; x.beginPath(); x.moveTo(0,H*0.7); x.lineTo(W,H*0.7); x.stroke(); }
-  const WC=document.createElement("canvas"); WC.width=WALL.w; WC.height=WALL.h; const wx=WC.getContext("2d");
+    const lp=x.createLinearGradient(0,WALL.y+WALL.h*0.05,0,WALL.y+WALL.h); lp.addColorStop(0,"#ff8a6b"); lp.addColorStop(1,"#c2306a"); x.globalAlpha=0.85; x.fillStyle=lp; x.fillRect(0,WALL.y+WALL.h*0.05,W*0.1,WALL.h*0.93); x.globalAlpha=1;
+    for(let k=0;k<5;k++){ const bx=W*(0.2+k*0.17), g2=x.createLinearGradient(bx,0,bx+W*0.05,floorY); g2.addColorStop(0,"rgba(120,150,255,0.07)"); g2.addColorStop(1,"rgba(120,150,255,0)"); x.fillStyle=g2; x.beginPath(); x.moveTo(bx,0); x.lineTo(bx+W*0.04,0); x.lineTo(bx+W*0.1,floorY); x.lineTo(bx-W*0.03,floorY); x.fill(); }
+    const fl=x.createLinearGradient(0,floorY,0,H); fl.addColorStop(0,"#0b1028"); fl.addColorStop(1,"#020308"); x.fillStyle=fl; x.fillRect(0,floorY,W,H-floorY); x.strokeStyle="rgba(140,170,255,.25)"; x.lineWidth=2; x.beginPath(); x.moveTo(0,floorY); x.lineTo(W,floorY); x.stroke(); }
+  const WC=document.createElement("canvas"); WC.width=Math.round(WALL.w*WS); WC.height=Math.round(WALL.h*WS); const wx=WC.getContext("2d");
   const ripple=(x,X,Y,e)=>{ if(e<=0||e>=1) return; x.save(); x.strokeStyle=`rgba(255,255,255,${0.85*(1-e)})`; x.lineWidth=3; x.beginPath(); x.arc(X,Y,6+42*e,0,7); x.stroke(); x.fillStyle=`rgba(255,255,255,${0.55*(1-e)})`; x.beginPath(); x.arc(X,Y,9,0,7); x.fill(); x.restore(); };   /* le mur « se touche » tout seul */
   const node=(x,X,Y,t)=>{ x.save(); x.strokeStyle="rgba(124,200,255,.85)"; x.lineWidth=2; for(let k=0;k<2;k++){ const e=(t*0.6+k*0.5)%1; x.globalAlpha=1-e; x.beginPath(); x.arc(X,Y,10+30*e,0,7); x.stroke(); } x.globalAlpha=1; x.fillStyle="#7cc8ff"; x.beginPath(); x.arc(X,Y,6,0,7); x.fill(); x.restore(); };
   const fitIn=(x,im,X,Y,w,h,zoom,fx)=>{ x.save(); rr(x,X,Y,w,h,10); x.clip(); const s=Math.max(w/im.width,h/im.height)*(zoom||1), dw=im.width*s, dh=im.height*s; x.drawImage(im,X+(w-dw)/2+(fx||0)*(dw-w)/2,Y+(h-dh)/2,dw,dh); x.restore(); };
   const panel=(x,X,Y,w,h,a)=>{ x.save(); x.globalAlpha=a; x.shadowColor="rgba(0,0,0,.45)"; x.shadowBlur=24; x.fillStyle="#eef0ff"; rr(x,X,Y,w,h,10); x.fill(); x.restore(); };
   const imgOf=i=>{ const A=arts[i]; if(A&&A.im) return {im:A.im, cap:`Image de l’article · ${A.a.site||prSourceName(A.a.site_name||"")}`}; if(unes[i]) return {im:unes[i], cap:`À la une · ${prUne(i).journal}`}; const sh=(shots[i]||[])[0]; return sh?{im:sh.im, cap:"Image d’illustration"}:null; };
   const wallContent=(k,t)=>{
-    const x=wx, w=WALL.w, h=WALL.h, p=k>=0?ps[k]:null, kind=p?p.meta.kind:"intro"; x.setTransform(1,0,0,1,0,0); x.globalAlpha=1; x.drawImage(wallBg,0,0); x.fillStyle="rgba(140,180,255,.07)"; x.fillRect(0,(t*60)%h,w,3); x.textAlign="left";
-    if(kind==="intro"||kind==="open"){ const e=prBack(t/0.9); x.textAlign="center"; x.globalAlpha=Math.min(1,t/0.5); x.font=font("900",64); x.fillStyle="#fff"; prWrap(x,nom.toUpperCase(),w*0.8).slice(0,2).forEach((l,j)=>x.fillText(l,w/2,h*0.42+j*70+(1-e)*30)); x.font=font("600",24); x.fillStyle="#ffb59c"; x.fillText(`${date} · LA REVUE DE PRESSE`,w/2,h*0.42+140); x.globalAlpha=1; x.textAlign="left"; node(x,w*0.82,h*0.22,t); node(x,w*0.16,h*0.78,t+0.4); }
+    const x=wx, w=WALL.w, h=WALL.h, p=k>=0?ps[k]:null, kind=p?p.meta.kind:"intro"; x.setTransform(WS,0,0,WS,0,0); x.globalAlpha=1; x.drawImage(wallBg,0,0); x.fillStyle="rgba(140,180,255,.07)"; x.fillRect(0,(t*60)%h,w,3); x.textAlign="left";
+    if(kind==="intro"||kind==="open"){ const e=prBack(t/0.9), y0=land?h*0.42:h*0.36, lh=land?70:66; x.textAlign="center"; x.globalAlpha=Math.min(1,t/0.5); x.font=font("900",land?64:58); x.fillStyle="#fff"; const ls=prWrap(x,nom.toUpperCase(),w*0.84).slice(0,land?2:3); ls.forEach((l,j)=>x.fillText(l,w/2,y0+j*lh+(1-e)*30));
+      x.font=font("600",24); x.fillStyle="#ffb59c"; if(land) x.fillText(`${date} · LA REVUE DE PRESSE`,w/2,h*0.42+140); else { x.fillText(date,w/2,y0+ls.length*lh+20); x.font=font("800",22); x.fillStyle="#fff"; x.fillText("LA REVUE DE PRESSE",w/2,y0+ls.length*lh+58); }
+      x.globalAlpha=1; x.textAlign="left"; node(x,w*0.82,h*0.22,t); node(x,w*0.16,h*0.78,t+0.4); }
     else if(kind==="sommaire"){ const lt=t-p.start; x.font=font("900",30); x.fillStyle="#fff"; x.fillText("AU SOMMAIRE",36,56); x.fillStyle=ACC; x.fillRect(36,68,120*prEase(lt/0.5),5);
-      r.segments.slice(0,4).forEach((s0,j)=>{ const e=prBack((lt-0.3-j*0.4)/0.6); if(e<=0) return; const yy=96+j*82; x.save(); x.translate((1-e)*-w*0.5,0); x.globalAlpha=Math.min(1,e*1.5); panel(x,36,yy,w*0.5,66,1); x.fillStyle=ACC; x.fillRect(36,yy,8,66); x.fillStyle=INKC; x.font=font("900",22); x.fillText(`${j+1}`,58,yy+42); x.font=font("800",20); prWrap(x,s0.titre||"",w*0.5-90).slice(0,2).forEach((l,m)=>x.fillText(l,88,yy+30+m*24)); x.restore(); });
-      const ims=r.segments.map((_,i)=>imgOf(i)).filter(Boolean).slice(0,4); ims.forEach((o,j)=>{ const e=prBack((lt-0.5-j*0.3)/0.6); if(e<=0) return; const gw=w*0.2, gh=gw*0.62, gx=w*0.58+(j%2)*(gw+14), gy=100+Math.floor(j/2)*(gh+14); x.globalAlpha=Math.min(1,e*1.4); fitIn(x,o.im,gx,gy+(1-e)*30,gw,gh,1.05,0); x.globalAlpha=1; }); }
+      if(land){ r.segments.slice(0,4).forEach((s0,j)=>{ const e=prBack((lt-0.3-j*0.4)/0.6); if(e<=0) return; const yy=96+j*82; x.save(); x.translate((1-e)*-w*0.5,0); x.globalAlpha=Math.min(1,e*1.5); panel(x,36,yy,w*0.5,66,1); x.fillStyle=ACC; x.fillRect(36,yy,8,66); x.fillStyle=INKC; x.font=font("900",22); x.fillText(`${j+1}`,58,yy+42); x.font=font("800",20); prWrap(x,s0.titre||"",w*0.5-90).slice(0,2).forEach((l,m)=>x.fillText(l,88,yy+30+m*24)); x.restore(); });
+        const ims=r.segments.map((_,i)=>imgOf(i)).filter(Boolean).slice(0,4); ims.forEach((o,j)=>{ const e=prBack((lt-0.5-j*0.3)/0.6); if(e<=0) return; const gw=w*0.2, gh=gw*0.62, gx=w*0.58+(j%2)*(gw+14), gy=100+Math.floor(j/2)*(gh+14); x.globalAlpha=Math.min(1,e*1.4); fitIn(x,o.im,gx,gy+(1-e)*30,gw,gh,1.05,0); x.globalAlpha=1; }); }
+      else r.segments.slice(0,4).forEach((s0,j)=>{ const e=prBack((lt-0.3-j*0.4)/0.6); if(e<=0) return; const ph=116, yy=92+j*(ph+12), pw=w-72, io=imgOf(j); x.save(); x.translate((1-e)*-w*0.6,0); x.globalAlpha=Math.min(1,e*1.5); panel(x,36,yy,pw,ph,1); x.fillStyle=ACC; x.fillRect(36,yy,8,ph);
+        if(io) fitIn(x,io.im,36+pw-148,yy+10,136,ph-20,1.05,0); x.fillStyle=INKC; x.font=font("900",26); x.fillText(`${j+1}`,58,yy+44); x.font=font("800",21); prWrap(x,s0.titre||"",pw-(io?220:80)).slice(0,3).forEach((l,m)=>x.fillText(l,92,yy+36+m*27)); x.restore(); }); }
     else if(kind==="seg"){ let j=k, z=k; while(j>0&&sameSeg(ps[j-1],p)) j--; while(z+1<ps.length&&sameSeg(ps[z+1],p)) z++;
       const i=p.meta.i, s0=r.segments[i]||{}, lt=t-ps[j].start, dur=Math.max(1,ps[z].end-ps[j].start), out=t>ps[z].end?Math.min(1,(t-ps[z].end)/0.45):0, A=arts[i], io=imgOf(i);
       const site=(A&&prSourceName(A.a.site_name||A.a.site))||prSourceName((s0.sources||[])[0]||"")||"", head=(A&&A.a.title)||s0.titre||"", body=(A&&A.a.description)||s0.texte||"", big=io?prEase((lt-dur*0.42)/0.8):0;
       x.save(); x.globalAlpha=1-out; x.translate(-out*w*0.35,0);
-      const e1=prBack(lt/0.7), cw=w*(0.46-0.2*big), chh=h*(0.8-0.42*big), cx=w*0.04+(1-e1)*w*0.5, cy=h*0.1+big*h*0.5;
+      const e1=prBack(lt/0.7), cw=land?w*(0.46-0.2*big):w*0.9, chh=land?h*(0.8-0.42*big):io?h*(0.44-0.25*big):h*0.5, cx=land?w*0.04+(1-e1)*w*0.5:w*0.05+(1-e1)*w*0.6, cy=land?h*0.1+big*h*0.5:h*0.04;
       const headCard=()=>{ const small=big>0.5, ch2=small?Math.min(chh,112):chh; panel(x,cx,cy+(chh-ch2),cw,ch2,Math.min(1,e1*1.4)*(1-out)); x.save(); rr(x,cx,cy+(chh-ch2),cw,ch2,10); x.clip(); const y0=cy+(chh-ch2); x.fillStyle=ACC; x.fillRect(cx,y0,cw,6);
         x.font=font("800",small?13:16); x.fillText(`${site.toUpperCase()} · ${date}`,cx+20,y0+(small?28:34)); x.fillStyle=INKC; const fs=small?19:30; x.font=font("900",fs); const hl=prWrap(x,head,cw-40).slice(0,small?3:4); hl.forEach((l,m)=>x.fillText(l,cx+20,y0+(small?54:68)+m*fs*1.15));
-        if(!small){ x.font=font("500",17); x.fillStyle="#38405f"; prWrap(x,body,cw-40).slice(0,6).forEach((l,m)=>x.fillText(l,cx+20,y0+84+hl.length*fs*1.15+m*24)); } x.restore(); };
+        if(!small){ const room=Math.floor((ch2-94-hl.length*fs*1.15)/24); x.font=font("500",17); x.fillStyle="#38405f"; prWrap(x,body,cw-40).slice(0,Math.max(0,Math.min(6,room))).forEach((l,m)=>x.fillText(l,cx+20,y0+84+hl.length*fs*1.15+m*24)); } x.restore(); };
       if(big<=0.5) headCard();
       ripple(x,cx+cw*0.85,cy+chh*0.2,(lt-0.5)/0.6);
-      if(io){ const e2=prBack((lt-0.55)/0.7); if(e2>0){ const iw=w*(0.44+0.5*big), ih=h*(0.66+0.2*big), ix=w*(0.52-0.48*big), iy=h*(0.1-0.07*big);
+      if(io){ const e2=prBack((lt-0.55)/0.7); if(e2>0){ let iw, ih, ix, iy; if(land){ iw=w*(0.44+0.5*big); ih=h*(0.66+0.2*big); ix=w*(0.52-0.48*big); iy=h*(0.1-0.07*big); } else { ix=w*0.05; iw=w*0.9; iy=cy+chh+h*0.03; ih=h*0.97-iy; iy+=(1-Math.min(1,e2))*h*0.12; }
           x.save(); x.globalAlpha=Math.min(1,e2*1.4)*(1-out); x.shadowColor="rgba(0,0,0,.5)"; x.shadowBlur=30; x.fillStyle="#000"; rr(x,ix,iy,iw,ih,10); x.fill(); x.shadowColor="transparent"; fitIn(x,io.im,ix,iy,iw,ih,1.04+0.08*prEase(lt/dur),(i%2?1:-1)*(prEase(lt/dur)-0.5));
           x.strokeStyle="rgba(150,190,255,.7)"; x.lineWidth=2; rr(x,ix,iy,iw,ih,10); x.stroke(); x.font=font("700",14); const cwid=x.measureText(io.cap).width+20; x.fillStyle="rgba(5,8,20,.78)"; x.fillRect(ix+10,iy+ih-34,cwid,24); x.fillStyle="#fff"; x.fillText(io.cap,ix+20,iy+ih-17); x.restore();
-          if(big<0.95){ x.save(); x.globalAlpha=(1-big)*(1-out); x.strokeStyle="rgba(124,200,255,.55)"; x.lineWidth=2; x.beginPath(); x.moveTo(cx+cw,cy+chh*0.4); x.lineTo(ix,iy+ih*0.5); x.stroke(); node(x,ix,iy+ih*0.5,t); x.restore(); } } }
-      else { const e3=prBack((lt-0.6)/0.7); if(e3>0){ const q=(String(s0.texte||"").split(/(?<=[.!?…])\s+/)[0]||"").slice(0,180); x.save(); x.globalAlpha=Math.min(1,e3)*(1-out); x.fillStyle="#fff"; x.font=font("800",30); x.fillText("«",w*0.54,h*0.2); x.font=font("700",26); prWrap(x,q,w*0.4).slice(0,6).forEach((l,m)=>x.fillText(l,w*0.56,h*0.28+m*36)); x.restore(); node(x,w*0.9,h*0.15,t); } }
+          if(big<0.95){ const ax=land?cx+cw:cx+cw*0.5, ay=land?cy+chh*0.4:cy+chh, bx=land?ix:ix+iw*0.5, by=land?iy+ih*0.5:iy; x.save(); x.globalAlpha=(1-big)*(1-out); x.strokeStyle="rgba(124,200,255,.55)"; x.lineWidth=2; x.beginPath(); x.moveTo(ax,ay); x.lineTo(bx,by); x.stroke(); node(x,bx,by,t); x.restore(); } } }
+      else { const e3=prBack((lt-0.6)/0.7); if(e3>0){ const q=(String(s0.texte||"").split(/(?<=[.!?…])\s+/)[0]||"").slice(0,180); x.save(); x.globalAlpha=Math.min(1,e3)*(1-out); x.fillStyle="#fff";
+          if(land){ x.font=font("800",30); x.fillText("«",w*0.54,h*0.2); x.font=font("700",26); prWrap(x,q,w*0.4).slice(0,6).forEach((l,m)=>x.fillText(l,w*0.56,h*0.28+m*36)); }
+          else { x.font=font("800",30); x.fillText("«",w*0.07,cy+chh+h*0.09); x.font=font("700",26); prWrap(x,q,w*0.82).slice(0,6).forEach((l,m)=>x.fillText(l,w*0.1,cy+chh+h*0.16+m*36)); }
+          x.restore(); node(x,w*0.9,land?h*0.15:h*0.6,t); } }
       if(big>0.5) headCard();   /* en grand : le titre reste lisible, en petit, devant l'image */
-      ripple(x,w*0.72,h*0.42,(lt-dur*0.42+0.3)/0.6);
+      ripple(x,land?w*0.72:w*0.5,land?h*0.42:h*0.72,(lt-dur*0.42+0.3)/0.6);
       if(lt<0.35){ x.fillStyle=`rgba(255,255,255,${0.22*(1-lt/0.35)})`; x.fillRect(0,0,w,h); x.fillStyle="rgba(255,255,255,.5)"; x.fillRect(w*(lt/0.35)-40,0,40,h); }   /* balayage lumineux au changement de sujet */
       x.restore(); }
-    else if(kind==="chiffre"){ const lt=t-p.start, e=prBack(lt/0.6); panel(x,w*0.18,h*0.12,w*0.64,h*0.74,Math.min(1,e*1.3)); x.textAlign="center"; x.fillStyle=ACC; x.font=font("900",22); x.fillText("LE CHIFFRE DU JOUR",w/2,h*0.25); x.fillStyle=INKC; x.font=font("900",44);
-      prWrap(x,p.text,w*0.56).slice(0,4).forEach((l,m)=>x.fillText(l,w/2,h*0.4+m*52)); const so=(r.chiffre_du_jour||{}).source; if(so){ x.font=font("700",18); x.fillStyle="#38405f"; x.fillText(`Source : ${prSourceName(so)}`,w/2,h*0.8); } x.textAlign="left";
-      x.save(); x.strokeStyle=ACC; x.lineWidth=6; x.beginPath(); x.arc(w*0.86,h*0.2,34,-Math.PI/2,-Math.PI/2+Math.PI*2*prEase(lt/1.2)); x.stroke(); x.restore(); }
-    else { const lt=t-p.start; if(t<p.end-0.2){ const e=prBack(lt/0.6); panel(x,w*0.14,h*0.16,w*0.72,h*0.66,Math.min(1,e*1.3)); x.textAlign="center"; x.fillStyle=ACC; x.font=font("900",22); x.fillText("CE QU’IL FAUT RETENIR",w/2,h*0.3); x.fillStyle=INKC; x.font=font("800",34); prWrap(x,r.a_retenir||r.titre,w*0.62).slice(0,4).forEach((l,m)=>x.fillText(l,w/2,h*0.45+m*44)); x.textAlign="left"; }
-      else { const e=prBack((t-p.end+0.2)/0.7), pulse=1+0.04*Math.sin(t*6); x.textAlign="center"; x.globalAlpha=Math.min(1,e*1.4); x.fillStyle="#fff"; x.font=font("900",56); prWrap(x,nom.toUpperCase(),w*0.8).slice(0,2).forEach((l,m)=>x.fillText(l,w/2,h*0.38+m*62)); x.font=font("600",24); x.fillStyle="#ffb59c"; x.fillText("Demain, même heure",w/2,h*0.62);
+    else if(kind==="chiffre"){ const lt=t-p.start, e=prBack(lt/0.6), PXL=land?w*0.18:w*0.06, PWD=land?w*0.64:w*0.88; panel(x,PXL,land?h*0.12:h*0.16,PWD,land?h*0.74:h*0.66,Math.min(1,e*1.3)); x.textAlign="center"; x.fillStyle=ACC; x.font=font("900",22); x.fillText("LE CHIFFRE DU JOUR",w/2,land?h*0.25:h*0.26); x.fillStyle=INKC; x.font=font("900",land?44:40);
+      prWrap(x,p.text,PWD*0.875).slice(0,land?4:6).forEach((l,m)=>x.fillText(l,w/2,(land?h*0.4:h*0.36)+m*(land?52:48))); const so=(r.chiffre_du_jour||{}).source; if(so){ x.font=font("700",18); x.fillStyle="#38405f"; x.fillText(`Source : ${prSourceName(so)}`,w/2,land?h*0.8:h*0.78); } x.textAlign="left";
+      x.save(); x.strokeStyle=ACC; x.lineWidth=6; x.beginPath(); x.arc(land?w*0.86:w*0.84,land?h*0.2:h*0.21,34,-Math.PI/2,-Math.PI/2+Math.PI*2*prEase(lt/1.2)); x.stroke(); x.restore(); }
+    else { const lt=t-p.start; if(t<p.end-0.2){ const e=prBack(lt/0.6); panel(x,land?w*0.14:w*0.06,land?h*0.16:h*0.18,land?w*0.72:w*0.88,land?h*0.66:h*0.62,Math.min(1,e*1.3)); x.textAlign="center"; x.fillStyle=ACC; x.font=font("900",22); x.fillText("CE QU’IL FAUT RETENIR",w/2,h*0.3); x.fillStyle=INKC; x.font=font("800",land?34:32); prWrap(x,r.a_retenir||r.titre,land?w*0.62:w*0.78).slice(0,land?4:6).forEach((l,m)=>x.fillText(l,w/2,h*0.45+m*(land?44:42))); x.textAlign="left"; }
+      else { const e=prBack((t-p.end+0.2)/0.7), pulse=1+0.04*Math.sin(t*6); x.textAlign="center"; x.globalAlpha=Math.min(1,e*1.4); x.fillStyle="#fff"; x.font=font("900",land?56:52); prWrap(x,nom.toUpperCase(),w*0.8).slice(0,land?2:3).forEach((l,m)=>x.fillText(l,w/2,h*0.38+m*62)); x.font=font("600",24); x.fillStyle="#ffb59c"; x.fillText("Demain, même heure",w/2,h*0.62);
         x.save(); x.translate(w/2,h*0.78); x.scale(pulse*e,pulse*e); x.font=font("900",26); const tw=x.measureText("ABONNE-TOI").width+50; x.fillStyle="#e53935"; x.fillRect(-tw/2,-28,tw,56); x.fillStyle="#fff"; x.fillText("ABONNE-TOI",0,9); x.restore(); x.globalAlpha=1; x.textAlign="left"; } }
   };
+  /* groupe de parties d'un même sujet : la caméra du plateau 3D garde son angle pendant tout le sujet */
+  const grp=k=>{ if(k<0) return {kind:"intro", gi:-1, gs:0, ge:plan.intro}; const p=ps[k]; let j=k, z=k; while(j>0&&sameSeg(ps[j-1],p)) j--; while(z+1<ps.length&&sameSeg(ps[z+1],p)) z++; return {kind:p.meta.kind, gi:j, gs:ps[j].start, ge:ps[z].end}; };
+  let S3=null, note3="";
   const sceneStudio=(x,k,t)=>{
-    x.save(); x.drawImage(studioBg,0,0); const dz=1+0.025*Math.sin(t*0.12), dx=Math.sin(t*0.07)*W*0.008; x.translate(W/2,H/2); x.scale(dz,dz); x.translate(-W/2+dx,-H/2);
     wallContent(k,t);
-    x.save(); x.globalAlpha=0.16; x.translate(0,(WALL.y+WALL.h)*2+H*0.04); x.scale(1,-1); x.drawImage(WC,WALL.x,WALL.y,WALL.w,WALL.h); x.restore();   /* reflet du mur sur le sol */
-    const fade=x.createLinearGradient(0,WALL.y+WALL.h+H*0.02,0,H); fade.addColorStop(0,"rgba(3,5,15,0.25)"); fade.addColorStop(1,"rgba(3,5,15,1)"); x.fillStyle=fade; x.fillRect(0,WALL.y+WALL.h+H*0.02,W,H);
-    x.save(); x.shadowColor="rgba(90,140,255,.55)"; x.shadowBlur=40; x.fillStyle="#000"; x.fillRect(WALL.x,WALL.y,WALL.w,WALL.h); x.restore(); x.drawImage(WC,WALL.x,WALL.y); x.strokeStyle="rgba(160,190,255,.35)"; x.lineWidth=2; x.strokeRect(WALL.x,WALL.y,WALL.w,WALL.h);
-    x.restore();
-    const p=k>=0?ps[k]:null; if(p&&p.meta.kind!=="chiffre") subtitle(x,p,t,H*0.735);
+    if(S3){ const gr=grp(k); S3.render(t,{kind:gr.kind, gi:gr.gi, gt:t-gr.gs, gd:Math.max(1,gr.ge-gr.gs)}); S3.composite(x); }
+    else { x.save(); x.drawImage(studioBg,0,0); const dz=1+0.025*Math.sin(t*0.12), dx=Math.sin(t*0.07)*W*0.008; x.translate(W/2,H/2); x.scale(dz,dz); x.translate(-W/2+dx,-H/2);
+      x.save(); x.globalAlpha=0.16; x.translate(0,(WALL.y+WALL.h)*2+H*0.04); x.scale(1,-1); x.drawImage(WC,WALL.x,WALL.y,WALL.w,WALL.h); x.restore();   /* reflet du mur sur le sol */
+      const fade=x.createLinearGradient(0,WALL.y+WALL.h+H*0.02,0,H); fade.addColorStop(0,"rgba(3,5,15,0.25)"); fade.addColorStop(1,"rgba(3,5,15,1)"); x.fillStyle=fade; x.fillRect(0,WALL.y+WALL.h+H*0.02,W,H);
+      x.save(); x.shadowColor="rgba(90,140,255,.55)"; x.shadowBlur=40; x.fillStyle="#000"; x.fillRect(WALL.x,WALL.y,WALL.w,WALL.h); x.restore(); x.drawImage(WC,WALL.x,WALL.y,WALL.w,WALL.h); x.strokeStyle="rgba(160,190,255,.35)"; x.lineWidth=2; x.strokeRect(WALL.x,WALL.y,WALL.w,WALL.h);
+      x.restore(); }
+    const p=k>=0?ps[k]:null; if(p&&p.meta.kind!=="chiffre") subtitle(x,p,t,land?H*0.735:1030);
   };
   const hudStudio=(x,t)=>{ const k=t<plan.intro?-1:partAt(t), p=k>=0?ps[k]:null; x.save(); x.textAlign="left";
-    if(place){ x.font=font("800",16); x.fillStyle="rgba(255,255,255,.9)"; x.fillText(place.toUpperCase(),28,40); }
-    x.font=font("900",18); const tag=nom.toUpperCase().slice(0,30), tw=x.measureText(tag).width+28; x.fillStyle=ACC; x.fillRect(W-tw-28,22,tw,34); x.fillStyle="#fff"; x.fillText(tag,W-tw-14,45); x.font=font("600",14); x.fillStyle="rgba(255,255,255,.85)"; x.textAlign="right"; x.fillText(date,W-28,74); x.textAlign="left";
     const seg=p&&p.meta.kind==="seg"?r.segments[p.meta.i]:null, head=seg?(seg.titre||""):p&&p.meta.kind==="chiffre"?"Le chiffre du jour":p&&p.meta.kind==="fin"?"Ce qu’il faut retenir":p&&p.meta.kind==="sommaire"?"Au sommaire":"La revue de presse du jour";
-    const A=seg?arts[p.meta.i]:null, sub=seg?`${(seg.sources||[]).map(prSourceName).join(", ")}${A&&A.a.site&&!(seg.sources||[]).some(x=>{ const a=prJournalKey(prSourceName(x)), b=prJournalKey(A.a.site); return a&&b&&(b.includes(a)||a.includes(b)); })?` · ${A.a.site}`:""}`:date, by=Math.round(H*0.785), e=Math.min(1,prBack(((p?t-p.start:t)+0.1)/0.6));
-    x.save(); x.translate((1-e)*-W*0.4,0);
-    x.fillStyle="#0d1530"; x.fillRect(60,by,150,66); x.fillStyle="#fff"; x.font=font("900",20); x.fillText("REVUE",76,by+29); x.font=font("700",13); x.fillStyle="#ffb59c"; x.fillText("DE PRESSE",76,by+50);
-    x.fillStyle="#d7261e"; x.fillRect(210,by,W-270,44); x.fillStyle="#fff"; let fs=28; x.font=font("900",fs); const H1=String(head).toUpperCase(); while(x.measureText(H1).width>W-300&&fs>15){ fs-=2; x.font=font("900",fs); } x.fillText(H1,226,by+32);
-    x.fillStyle="#fff"; x.fillRect(210,by+44,W-270,22); x.fillStyle="#0d1530"; x.font=font("800",14); x.fillText(clip(String(sub).toUpperCase(),110),226,by+60);
-    if(seg){ x.font=font("800",13); const st=`SUJET ${p.meta.i+1} / ${segs}`, sw=x.measureText(st).width+16; x.fillStyle=ACC; x.fillRect(210,by-24,sw,22); x.fillStyle="#fff"; x.fillText(st,218,by-8); }
-    x.restore();
+    const A=seg?arts[p.meta.i]:null, sub=seg?`${(seg.sources||[]).map(prSourceName).join(", ")}${A&&A.a.site&&!(seg.sources||[]).some(x=>{ const a=prJournalKey(prSourceName(x)), b=prJournalKey(A.a.site); return a&&b&&(b.includes(a)||a.includes(b)); })?` · ${A.a.site}`:""}`:date, e=Math.min(1,prBack(((p?t-p.start:t)+0.1)/0.6));
+    if(land){
+      if(place){ x.font=font("800",16); x.fillStyle="rgba(255,255,255,.9)"; x.fillText(place.toUpperCase(),28,40); }
+      x.font=font("900",18); const tag=nom.toUpperCase().slice(0,30), tw=x.measureText(tag).width+28; x.fillStyle=ACC; x.fillRect(W-tw-28,22,tw,34); x.fillStyle="#fff"; x.fillText(tag,W-tw-14,45); x.font=font("600",14); x.fillStyle="rgba(255,255,255,.85)"; x.textAlign="right"; x.fillText(date,W-28,74); x.textAlign="left";
+      const by=Math.round(H*0.785); x.save(); x.translate((1-e)*-W*0.4,0);
+      x.fillStyle="#0d1530"; x.fillRect(60,by,150,66); x.fillStyle="#fff"; x.font=font("900",20); x.fillText("REVUE",76,by+29); x.font=font("700",13); x.fillStyle="#ffb59c"; x.fillText("DE PRESSE",76,by+50);
+      x.fillStyle="#d7261e"; x.fillRect(210,by,W-270,44); x.fillStyle="#fff"; let fs=28; x.font=font("900",fs); const H1=String(head).toUpperCase(); while(x.measureText(H1).width>W-300&&fs>15){ fs-=2; x.font=font("900",fs); } x.fillText(H1,226,by+32);
+      x.fillStyle="#fff"; x.fillRect(210,by+44,W-270,22); x.fillStyle="#0d1530"; x.font=font("800",14); x.fillText(clip(String(sub).toUpperCase(),110),226,by+60);
+      if(seg){ x.font=font("800",13); const st=`SUJET ${p.meta.i+1} / ${segs}`, sw=x.measureText(st).width+16; x.fillStyle=ACC; x.fillRect(210,by-24,sw,22); x.fillStyle="#fff"; x.fillText(st,218,by-8); }
+      x.restore(); }
+    else {   /* 9:16 : en-tête sous la zone des onglets de l'application, bandeau sous le mur, marge à droite pour les boutons */
+      x.font=font("900",22); const tag=nom.toUpperCase().slice(0,28), tw=Math.min(W-72,x.measureText(tag).width+30); x.fillStyle=ACC; x.fillRect(36,96,tw,40); x.fillStyle="#fff"; x.fillText(tag,51,124,tw-30);
+      x.font=font("700",17); const dl=`${place?place.toUpperCase()+"  ·  ":""}${date}`, dlw=Math.min(W-72,x.measureText(dl).width+16); x.fillStyle="rgba(3,5,15,.62)"; x.fillRect(36,145,dlw,27); x.fillStyle="rgba(255,255,255,.95)"; x.fillText(dl,44,164,W-88);
+      const by=WALL.y+WALL.h+34, bw=W-72-60; x.save(); x.translate((1-e)*-W*0.5,0);
+      if(seg){ x.font=font("800",15); const st=`SUJET ${p.meta.i+1} / ${segs}`, sw=x.measureText(st).width+18; x.fillStyle=ACC; x.fillRect(36,by-26,sw,24); x.fillStyle="#fff"; x.fillText(st,45,by-8); }
+      let fs=27; x.font=font("900",fs); const H1=String(head).toUpperCase(); let ls=prWrap(x,H1,bw-28); while(ls.length>2&&fs>17){ fs-=1; x.font=font("900",fs); ls=prWrap(x,H1,bw-28); } ls=ls.slice(0,2);
+      const bh=Math.round(ls.length*fs*1.2+16); x.fillStyle="#d7261e"; x.fillRect(36,by,bw,bh); x.fillStyle="#fff"; ls.forEach((l,m)=>x.fillText(l,50,by+fs+6+m*fs*1.2,bw-28));
+      x.fillStyle="#fff"; x.fillRect(36,by+bh,bw,26); x.fillStyle="#0d1530"; x.font=font("800",14); x.fillText(clip(String(sub).toUpperCase(),60),48,by+bh+18,bw-24);
+      x.restore(); }
     x.fillStyle="#0a0f22"; x.fillRect(0,H-30,W,30); x.fillStyle=ACC; x.fillRect(0,H-30,118,30); x.fillStyle="#fff"; x.font=font("900",14); x.fillText("EN BREF",14,H-10);
     if(tickTxt){ x.save(); x.beginPath(); x.rect(124,H-30,W-124,30); x.clip(); x.font=font("700",15); x.fillStyle="#dfe6ff"; const tw2=x.measureText(tickTxt+"   •   ").width||1, off=(t*70)%tw2; x.fillText(`${tickTxt}   •   ${tickTxt}   •   ${tickTxt}`,124-off,H-10); x.restore(); }
     x.fillStyle=ACC; x.fillRect(0,H-32,W*Math.min(1,t/plan.total),2);
     x.globalAlpha=0.05; x.globalCompositeOperation="overlay"; x.translate(-Math.random()*192,-Math.random()*192); x.fillStyle=grainPat; x.fillRect(0,0,W+192,H+192); x.restore(); };
+  if(style==="studio3d"){ try{ S3=await prStudio3D({W,H,vertical,WC}); }catch(e){ note3=`plateau 3D indisponible ici (${String(e&&e.message||e).slice(0,70)}) : studio 2D utilisé`; } }
   const scene=studio?sceneStudio:sceneDiapo;
   /* transitions entre sujets, pendant le souffle de la fusion : poussée, zoom avec flash, volet aux couleurs de l'émission, glissement */
   const TR=0.7;
@@ -4988,13 +5101,136 @@ async function prVideo(){
       else { g.drawImage(A,0,-H*e); g.drawImage(B,0,H*(1-e)); } }
     else scene(g,k,t);
     (studio?hudStudio:hud)(g,t); };
-  PR.vstop=false; draw(0); rec.start(1000); const t0=ac.currentTime+0.08; src.start(t0);
-  const msg=$("pr-video-msg"), dur=sound.duration; let t=0;
-  await new Promise(res=>{ const tick=()=>{ t=Math.max(0,ac.currentTime-t0); draw(t); if(msg) msg.textContent=`Montage en direct : ${Math.round(t)} s sur ${Math.round(dur)} s…`; if(PR.vstop||t>=dur) return res(); requestAnimationFrame(tick); }; tick(); });
-  try{ src.stop(); }catch(e){} await new Promise(res=>{ rec.onstop=res; rec.stop(); }); try{ ac.close(); }catch(e){}
-  const type=(rec.mimeType||mime||"video/webm").split(";")[0], ext=/mp4/.test(type)?"mp4":"webm", blob=new Blob(chunks,{type});
-  return {blob, ext, seconds:Math.round(Math.min(t,dur)), stopped:PR.vstop};
+  return {W, H, canvas, draw, plan, fmt:vertical?"9:16":"16:9",
+    mode:()=>S3?"3d":studio?"2d":"diapo", note:()=>note3,
+    bench(){ for(let i=0;i<3;i++) draw(plan.intro+0.2*i); const a=performance.now(); for(let i=0;i<8;i++) draw(plan.intro+1+i*0.37); return (performance.now()-a)/8; },
+    drop3d(why){ if(S3){ S3.dispose(); S3=null; } note3=why; },
+    dispose(){ if(S3){ S3.dispose(); S3=null; } }};
 }
+async function prVideo(opt){
+  /* Le moteur audio démarre pendant le clic (sinon le navigateur bloque le son) : il est créé par le bouton et partagé entre les formats */
+  opt=opt||{}; const ac=opt.ac||new (window.AudioContext||window.webkitAudioContext)(), mine=!opt.ac, resumed=ac.resume().catch(()=>{});
+  const plan=PR.mixPlan, r=PR.r; if(!plan||!PR.mixBlob){ if(mine) ac.close(); throw {message:"Crée d'abord la fusion finale."}; }
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){ if(mine) ac.close(); throw {message:"Ce navigateur ne peut pas fabriquer la vidéo : utilise Chrome ou Edge à jour."}; }
+  const msg=$("pr-video-msg"), say=t=>{ if(msg) msg.textContent=t; }, tag=opt.label?`${opt.label} · `:"";
+  say(`${tag}préparation du décor et des images…`);
+  const st=await prStage(Object.assign({style:($("pr-vstyle")||{}).value||"studio3d", format:($("pr-vformat")||{}).value||"16:9", subs:$("pr-vsubs").checked}, opt));
+  /* le plateau 3D doit tenir le temps réel : sinon, le studio 2D prend le relais (une vidéo fluide avant tout) */
+  if(st.mode()==="3d"){ const ms=st.bench(); if(ms>42&&!window.__s3Force) st.drop3d(`ordinateur trop lent pour le plateau 3D en direct (${Math.round(ms)} ms par image) : studio 2D utilisé`); }
+  const {W,H,canvas,draw}=st, vertical=H>W;
+  await resumed; const dest=ac.createMediaStreamDestination(), sound=await ac.decodeAudioData(await PR.mixBlob.arrayBuffer()), src=ac.createBufferSource(); src.buffer=sound; src.connect(dest);
+  const mime=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t))||"";
+  const rec=new MediaRecorder(new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]), mime?{mimeType:mime, videoBitsPerSecond:6e6}:{}), chunks=[];
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  PR.vstop=false; draw(0); rec.start(1000); const t0=ac.currentTime+0.08; src.start(t0);
+  const dur=sound.duration; let t=0;
+  await new Promise(res=>{ const tick=()=>{ t=Math.max(0,ac.currentTime-t0); draw(t); say(`${tag}${tag?"montage":"Montage"} en direct : ${Math.round(t)} s sur ${Math.round(dur)} s…`); if(PR.vstop||t>=dur) return res(); requestAnimationFrame(tick); }; tick(); });
+  try{ src.stop(); }catch(e){} await new Promise(res=>{ rec.onstop=res; rec.stop(); }); if(mine) try{ ac.close(); }catch(e){}
+  const mode=st.mode(), note=st.note(); st.dispose();
+  const type=(rec.mimeType||mime||"video/webm").split(";")[0], ext=/mp4/.test(type)?"mp4":"webm", blob=new Blob(chunks,{type});
+  return {blob, ext, seconds:Math.round(Math.min(t,dur)), stopped:PR.vstop, fmt:vertical?"9:16":"16:9", mode, note};
+}
+/* Aperçu du plateau sans fabriquer la vidéo (marche aussi avant la voix, avec un minutage estimé) : générique et un sujet avec son image */
+async function prPreview(opt){
+  const st=await prStage(Object.assign({subs:($("pr-vsubs")||{}).checked!==false}, opt)), plan=st.plan, ps=plan.parts, seg=ps.find(p=>p.meta.kind==="seg"), som=ps.find(p=>p.meta.kind==="sommaire");
+  const times=[seg?seg.start+Math.min(7,(seg.end-seg.start)*0.75):plan.intro+1, som?som.start+Math.min(3.5,(som.end-som.start)*0.8):Math.min(3,plan.intro+0.5)];
+  const shots=times.map(t=>{ st.draw(t); return st.canvas.toDataURL("image/jpeg",0.86); }), out={shots, fmt:st.fmt, mode:st.mode(), note:st.note()}; st.dispose(); return out;
+}
+/* ---------- Kit de publication : pour chaque réseau, le fichier à mettre, le titre, le texte, les mots-clés, les chapitres et la meilleure heure.
+   Les textes viennent de la revue écrite par l'agent (titres, description, légende courte, texte de miniature, hashtags) ; les chapitres, du minutage
+   de la fusion ; les heures sont données dans le fuseau du pays visé, avec l'analyse du pays et les leçons des statistiques quand elles existent ---------- */
+const PR_TZ = {sn:"Africa/Dakar", ci:"Africa/Abidjan", ml:"Africa/Bamako", gn:"Africa/Conakry", cm:"Africa/Douala", bf:"Africa/Ouagadougou", bj:"Africa/Porto-Novo", tg:"Africa/Lome", ne:"Africa/Niamey", cd:"Africa/Kinshasa", ga:"Africa/Libreville", ma:"Africa/Casablanca", dz:"Africa/Algiers", tn:"Africa/Tunis", ng:"Africa/Lagos", gh:"Africa/Accra", ke:"Africa/Nairobi", za:"Africa/Johannesburg", us:"America/New_York", gb:"Europe/London", ca:"America/Toronto", au:"Australia/Sydney", nz:"Pacific/Auckland", ie:"Europe/Dublin", no:"Europe/Oslo", se:"Europe/Stockholm", dk:"Europe/Copenhagen", nl:"Europe/Amsterdam", de:"Europe/Berlin", at:"Europe/Vienna", ch:"Europe/Zurich", fr:"Europe/Paris", be:"Europe/Brussels", es:"Europe/Madrid", it:"Europe/Rome", br:"America/Sao_Paulo", in:"Asia/Kolkata", sa:"Asia/Riyadh", ae:"Asia/Dubai"};
+/* Repères généraux pour une info du jour (heure locale du public) : le matin d'abord, puis la pause de midi et la soirée */
+const PR_NETS = [
+  {id:"youtube", nom:"YouTube", fmt:"16:9", heures:[[7,0],[12,0],[18,0]], url:"https://www.youtube.com/upload", aide:"YouTube Studio : « Créer », puis « Importer des vidéos ». Colle le titre, la description et les tags, choisis la catégorie « Actualités et politique » et ajoute la miniature. Pour publier plus tard : « Visibilité », puis « Programmer »."},
+  {id:"shorts", nom:"YouTube Shorts", fmt:"9:16", heures:[[7,30],[12,30],[19,0]], url:"https://www.youtube.com/upload", aide:"Même page que YouTube, avec la vidéo 9:16 : YouTube en fait un Short tout seul si elle dure 3 minutes au plus."},
+  {id:"tiktok", nom:"TikTok", fmt:"9:16", heures:[[7,0],[13,0],[20,0]], url:"https://www.tiktok.com/tiktokstudio/upload", aide:"Téléphone : « + », puis « Importer ». Ordinateur : TikTok Studio, qui permet aussi de programmer. Mets la couverture, colle la légende ; les sous-titres sont déjà dans la vidéo."},
+  {id:"instagram", nom:"Instagram Reels", fmt:"9:16", heures:[[8,0],[12,30],[19,30]], url:"https://www.instagram.com/", aide:"« + », puis « Reel ». Colle la légende et ajoute la couverture. Un Reel peut durer jusqu’à 3 minutes."},
+  {id:"facebook", nom:"Facebook", fmt:"16:9", heures:[[8,0],[13,0],[19,0]], url:"https://www.facebook.com/", aide:"Publie la vidéo 16:9 sur ta page, ou la 9:16 en Reel. Meta Business Suite permet de programmer."},
+  {id:"whatsapp", nom:"WhatsApp", fmt:"9:16", heures:[[7,0],[13,0],[19,0]], url:"", aide:"Chaîne ou groupes WhatsApp : envoie ce message avec le lien de ta vidéo YouTube ou TikTok. Pour le statut, WhatsApp coupe les vidéos longues : mets plutôt le lien."}
+];
+function prTzParts(d, tz){ const o={}; new Intl.DateTimeFormat("en-GB",{timeZone:tz, hourCycle:"h23", year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"}).formatToParts(d).forEach(p=>{ o[p.type]=p.value; }); return o; }
+/* instant où il est h:m dans le fuseau tz, aujourd'hui (dans ce fuseau) */
+function prTzAt(h, m, tz){ const o=prTzParts(new Date(),tz), guess=Date.UTC(+o.year,+o.month-1,+o.day,h,m), q=prTzParts(new Date(guess),tz), off=Date.UTC(+q.year,+q.month-1,+q.day,+q.hour%24,+q.minute)-guess; return new Date(guess-off); }
+const prHm = (d, tz) => { const o=prTzParts(d,tz); return `${+o.hour%24} h ${o.minute}`; };
+function prKit(){
+  const r=PR.r, o=PR.o||{}, pub=r.publication||{titres:[], hashtags:[]}, pays=o.pays&&o.pays!=="monde"?o.pays:"", nomPays=pays?label("pays",pays):"", nom=r.nom_emission||"Revue de presse";
+  const one=s=>String(s||"").replace(/\s+/g," ").trim(), cut=(s,n)=>{ s=one(s); return s.length<=n?s:s.slice(0,n-1).replace(/[\s,;:.!?…-]+\S*$/,"")+"…"; };
+  const tg=w=>"#"+String(w||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,""), tags=[...new Set((pub.hashtags||[]).concat(["#revuedepresse", nomPays?tg(nomPays):"", "#actualite"]).filter(x=>x&&x.length>2))];
+  const titre=cut((pub.titres||[])[0]||r.titre,100), hook=cut(pub.legende_courte||String(r.accroche||pub.description||titre).split(/(?<=[.!?…])\s+/).find(x=>x.length>25)||titre,150);
+  const srcs=[...new Set(r.segments.flatMap(s=>s.sources||[]).map(prSourceName).filter(Boolean))], liste=r.segments.map((s,i)=>`${i+1}. ${one(s.titre)}`);
+  const credits=[prPhotoCredits()?`Photos : ${prPhotoCredits()}`:"", PR.voiceCredit||""].filter(Boolean), sources=srcs.length?`Sources : ${srcs.join(", ")}.`:"";
+  /* chapitres YouTube, d'après le minutage de la fusion : départ à 0:00, au moins 3, chacun d'au moins 10 secondes */
+  const plan=PR.mixPlan, ch=[[0,"Ouverture"]]; if(plan) plan.parts.forEach(p=>{ const k=p.meta.kind, lab=k==="seg"?one((r.segments[p.meta.i]||{}).titre||p.title):k==="sommaire"?"Au sommaire":k==="chiffre"?"Le chiffre du jour":k==="fin"?"Ce qu’il faut retenir":""; if(lab&&lab!==ch[ch.length-1][1]) ch.push([Math.floor(p.start),lab]); });
+  const chap=[]; ch.forEach(c=>{ if(!chap.length||c[0]-chap[chap.length-1][0]>=10) chap.push(c); }); if(plan&&chap.length>1&&plan.total-chap[chap.length-1][0]<10) chap.pop();
+  const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`, chapTxt=plan&&chap.length>=3?chap.map(([s,l])=>`${mmss(s)} ${l}`).join("\n"):"";
+  const kw=[nom, "revue de presse", nomPays?`actualité ${nomPays}`:"actualité", nomPays?`infos ${nomPays}`:"infos du jour"].concat((pub.hashtags||[]).map(h=>h.replace(/^#/,"")), r.segments.map(s=>one(s.titre))); let ytTags=""; [...new Set(kw.filter(Boolean))].forEach(k=>{ const n=ytTags?`${ytTags}, ${k}`:k; if(n.length<=480) ytTags=n; });
+  const join=a=>a.join("\n").replace(/\n{3,}/g,"\n\n").trim();
+  const tz=PR_TZ[pays]||Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC", myTz=Intl.DateTimeFormat().resolvedOptions().timeZone||tz;
+  const lp=(()=>{ try{ return JSON.parse(localStorage.getItem("sp-last-pays")||"null"); }catch(e){ return null; } })(), paysHeures=lp&&pays&&lp._pays===pays&&lp.contexte&&lp.contexte.heures?one(lp.contexte.heures):"";
+  const lecons=activeLessons({outil:""},"strategie").filter(l=>l.domaine==="publication").map(l=>l.regle).slice(0,3);
+  const txt={
+    youtube:{titre, description:join([one(pub.description)||hook, "", `Au programme :\n${chapTxt||liste.join("\n")}`, "", sources, ...credits, "", tags.slice(0,3).join(" ")]), tags:ytTags},
+    shorts:{titre:cut(titre,90), description:join([hook, "", sources, ...credits, "", tags.slice(0,3).join(" ")+" #Shorts"])},
+    tiktok:{legende:join([hook, "", liste.slice(0,4).join("\n"), "", tags.slice(0,5).join(" ")])},
+    instagram:{legende:join([hook, "", liste.slice(0,4).join("\n"), "", sources, ...credits, "", tags.slice(0,5).join(" ")])},
+    facebook:{texte:join([titre, "", one(pub.description)||hook, "", liste.join("\n"), "", sources, ...credits, "", tags.slice(0,3).join(" ")])},
+    whatsapp:{texte:join([`*${nom}* · ${prDay()}`, ...r.segments.slice(0,5).map(s=>`▪️ ${one(s.titre)}`), "", "👉 La revue en vidéo : colle ici ton lien YouTube ou TikTok"])}
+  };
+  return {nom, titre, alt:(pub.titres||[]).slice(1).map(one), miniature:one(pub.texte_miniature)||cut(titre,42), tz, myTz, nomPays, paysHeures, lecons, chap:chapTxt, txt, duree:plan?Math.round(plan.total):0};
+}
+/* prochain créneau du jour pour un réseau ; une revue du jour se publie le jour même */
+function prSlot(net, k){
+  const now=Date.now(), slots=net.heures.map(([h,m])=>prTzAt(h,m,k.tz)), next=slots.find(d=>d.getTime()>now+10*60e3), fmt=d=>`${prHm(d,k.tz)}${k.myTz!==k.tz?` (${prHm(d,k.myTz)} chez toi)`:""}`;
+  return {all:slots.map(d=>prHm(d,k.tz)).join(" · "), next, txt:next?`aujourd’hui à ${fmt(next)}`:"publie maintenant : l’actualité vieillit vite"};
+}
+function prKitHtml(){
+  if(!PR.r) return ""; const k=prKit(), vids=PR.videos||[], fld=(id,lab,txt,rows)=>`<div class="field"><label for="kit-${id}">${lab} <span class="hint">(${txt.length} caractères)</span></label><textarea id="kit-${id}" rows="${rows||3}" data-kit-txt="${id}">${esc(txt)}</textarea><div class="actions"><button type="button" class="btn small copy" data-kit-copy="${id}">Copier</button></div></div>`;
+  const gcal=(net,d,details)=>{ const f=x=>x.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,""); return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Publier sur ${net.nom} : ${k.titre}`)}&dates=${f(d)}/${f(new Date(d.getTime()+15*60e3))}&details=${encodeURIComponent(details.slice(0,1200))}`; };
+  const card=(net,i)=>{ const s=prSlot(net,k), v=vids.find(x=>x.fmt===net.fmt), t=k.txt[net.id], main=t.description||t.legende||t.texte||"", long=k.duree>180&&net.fmt==="9:16"&&net.id!=="tiktok";
+    const fields=net.id==="youtube"?fld("yt-titre","Titre",t.titre,2)+fld("yt-desc","Description (chapitres, sources, crédits)",t.description,8)+fld("yt-tags","Tags",t.tags,3):net.id==="shorts"?fld("sh-titre","Titre",t.titre,2)+fld("sh-desc","Description",t.description,5):fld(net.id,net.id==="whatsapp"?"Message":"Légende",main,net.id==="facebook"?8:6);
+    return `<details class="pr-net"${i?"":" open"} data-net="${net.id}"><summary><b>${net.nom}</b><span class="hint">vidéo ${net.fmt}</span><span class="chip ${s.next?"ok":"mid"}">${esc(s.next?`prochain créneau : ${prHm(s.next,k.tz)}`:"publie maintenant")}</span></summary><div class="pr-net-b">
+      <div class="actions">${v?`<button type="button" class="btn small primary" data-kit-vdl="${net.fmt}">⬇ Vidéo ${net.fmt}</button>`:`<span class="hint">Crée d’abord la vidéo ${net.fmt} (format « Les deux » ou « ${net.fmt} »).</span>`}${net.url?`<a class="btn small" href="${net.url}" target="_blank" rel="noopener">Ouvrir ${net.nom} ↗</a>`:`<a class="btn small" href="https://wa.me/?text=${encodeURIComponent(main)}" target="_blank" rel="noopener">Envoyer sur WhatsApp ↗</a>`}${s.next?`<a class="btn small quiet" href="${gcal(net,s.next,main)}" target="_blank" rel="noopener">⏰ Rappel dans Google Agenda</a>`:""}</div>
+      ${long?`<p class="alert">La revue dure ${Math.floor(k.duree/60)} min ${k.duree%60} s : ${net.nom} accepte 3 minutes au plus. Publie-la sur TikTok ou en 16:9, ou fais une revue plus courte.</p>`:""}
+      ${fields}<p class="hint"><b>Meilleures heures</b> (heure du pays${k.nomPays?` : ${esc(k.nomPays)}`:""}) : ${esc(s.all)}. Conseil : ${esc(s.txt)}.</p><p class="hint">${esc(net.aide)}</p></div></details>`; };
+  return `<h4>📤 Publier partout : YouTube, TikTok, Instagram, Facebook, WhatsApp</h4>
+    <p class="hint">Tout est prêt réseau par réseau : la vidéo au bon format, le titre, le texte, les mots-clés et la meilleure heure. Les textes viennent de la revue écrite par l’agent : relis-les, puis copie, colle et publie (ou programme).</p>
+    <div class="actions"><button type="button" class="btn" data-kit-thumb="16:9">🖼 Miniature YouTube (1280 × 720)</button><button type="button" class="btn" data-kit-thumb="9:16">🖼 Couverture TikTok, Reels (1080 × 1920)</button><button type="button" class="btn quiet" id="pr-kit-txt">⬇ Tout le kit (.txt)</button></div>
+    <div class="pr-kit-thumbs" id="pr-kit-thumbs"></div>
+    <p class="hint">Une revue du jour se publie le jour même, de préférence le matin : c’est l’heure où l’on cherche les infos.${k.alt.length?` Autres titres possibles : ${k.alt.map(t=>`« ${esc(t)} »`).join(", ")}.`:""}</p>
+    ${k.paysHeures?`<p class="hint"><b>D’après ton analyse du pays :</b> ${esc(k.paysHeures)}</p>`:""}${k.lecons.length?`<p class="hint"><b>D’après tes statistiques :</b> ${k.lecons.map(esc).join(" · ")}</p>`:""}
+    ${PR_NETS.map(card).join("")}`;
+}
+function prKitRender(done){ const el=$("pr-kit"); if(!el) return; const thumbs=($("pr-kit-thumbs")||{}).innerHTML||"", open=[...el.querySelectorAll(".pr-net[open]")].map(d=>d.dataset.net);
+  el.innerHTML=prKitHtml(); el.querySelectorAll(".pr-net").forEach(d=>{ d.open=open.length?open.includes(d.dataset.net):d.open; }); if(thumbs) $("pr-kit-thumbs").innerHTML=thumbs;   /* miniatures et cartes ouvertes gardées */
+  if(done) toast("Vidéo prête : le kit pour publier (textes, heures, miniature) est juste en dessous."); }
+function prKitText(){
+  const k=prKit(); let out=`KIT DE PUBLICATION · ${k.nom} · ${prDay()}\nHeures données à l'heure du pays${k.nomPays?` (${k.nomPays})`:""}.\n`;
+  PR_NETS.forEach(net=>{ const s=prSlot(net,k), t=k.txt[net.id]; out+=`\n=== ${net.nom.toUpperCase()} (vidéo ${net.fmt}) ===\nMeilleures heures : ${s.all} · ${s.txt}\n`;
+    if(t.titre) out+=`TITRE : ${t.titre}\n`; if(t.description) out+=`DESCRIPTION :\n${t.description}\n`; if(t.tags) out+=`TAGS : ${t.tags}\n`; if(t.legende) out+=`LÉGENDE :\n${t.legende}\n`; if(t.texte) out+=`TEXTE :\n${t.texte}\n`; out+=`${net.aide}\n`; });
+  return out;
+}
+/* Miniature YouTube (16:9) ou couverture TikTok, Reels (9:16) : le plateau en fond, le texte fort de l'agent en très gros, une photo libre de droits.
+   Jamais l'image d'un article : elle appartient à son site. */
+async function prThumb(fmt){
+  const k=prKit(), V=fmt==="9:16", st=await prStage({style:loadPrefs().presseStyle||"studio3d", format:fmt, subs:false}), plan=st.plan, som=plan.parts.find(p=>p.meta.kind==="sommaire");
+  st.draw(som?som.start+Math.min(3,(som.end-som.start)*0.8):plan.intro+1);
+  const W=V?1080:1280, H=V?1920:720, u=W/(V?1080:1280), c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d"), ACC="#e07c50", GOLD="#ffd23f";
+  x.filter="blur(4px) brightness(0.42) saturate(1.25)"; x.drawImage(st.canvas,-W*0.03,-H*0.03,W*1.06,H*1.06); x.filter="none"; st.dispose();
+  const ph=Object.keys(PR.photos||{}).map(i=>PR.photos[i]).find(p=>p&&p.local), im=ph?await prLoadImg(ph.local):null, F=(w,s)=>`${w} ${Math.round(s*u)}px "Segoe UI", Arial, sans-serif`;
+  if(im){ const bw=V?W*0.82:W*0.42, bh=bw*0.7, cx=V?W/2:W*0.74, cy=V?H*0.7:H*0.5; x.save(); x.translate(cx,cy); x.rotate((V?-2:3)*Math.PI/180); x.shadowColor="rgba(0,0,0,.6)"; x.shadowBlur=40*u; x.fillStyle="#fff"; x.fillRect(-bw/2-10*u,-bh/2-10*u,bw+20*u,bh+20*u); x.shadowColor="transparent";
+    const s=Math.max(bw/im.width,bh/im.height); x.beginPath(); x.rect(-bw/2,-bh/2,bw,bh); x.clip(); x.drawImage(im,-im.width*s/2,-im.height*s/2,im.width*s,im.height*s); x.restore(); }
+  x.font=F("900",V?44:30); const tag=k.nom.toUpperCase().slice(0,30), tw=x.measureText(tag).width+40*u, tx=V?(W-tw)/2:60*u, ty=V?250*u:56*u; x.fillStyle=ACC; x.fillRect(tx,ty,tw,(V?70:52)*u); x.fillStyle="#fff"; x.fillText(tag,tx+20*u,ty+(V?50:37)*u);
+  const big=k.miniature.toUpperCase(), maxW=V?W*0.86:(im?W*0.5:W*0.86); let fs=V?150:118, ls=[]; for(;fs>=48;fs-=6){ x.font=F("900",fs); ls=prWrap(x,big,maxW); if(ls.length<=(V?4:3)) break; } ls=ls.slice(0,V?4:3);
+  x.lineJoin="round"; x.textAlign=V?"center":"left"; const lh=fs*1.08*u, y0=V?H*0.24+fs*u:H*0.3+fs*0.8*u;
+  ls.forEach((l,j)=>{ const yy=y0+j*lh, xx=V?W/2:60*u; x.lineWidth=14*u; x.strokeStyle="rgba(0,0,0,.85)"; x.strokeText(l,xx,yy); x.fillStyle=j%2?GOLD:"#fff"; x.fillText(l,xx,yy); });
+  x.textAlign="left"; x.font=F("800",V?38:26); const band=`REVUE DE PRESSE · ${prDay().toUpperCase()}`, bw2=Math.min(W-80*u,x.measureText(band).width+40*u), bx=V?(W-bw2)/2:60*u, by=V?H*0.88:H-110*u; x.fillStyle="#d7261e"; x.fillRect(bx,by,bw2,(V?64:46)*u); x.fillStyle="#fff"; x.fillText(band,bx+20*u,by+(V?44:32)*u,bw2-40*u);
+  return await new Promise(res=>c.toBlob(res,"image/jpeg",0.9));
+}
+const PR_VHINT = "« Plateau 3D » : studio télé virtuel de dernière génération, grand mur LED courbe qui s’anime tout seul (la une, le vrai article et sa vraie image, chiffres), sol miroir, colonnes lumineuses et caméra de grue qui change d’angle à chaque sujet ; s’il ne peut pas tourner sur cet ordinateur, le studio 2D prend le relais. Formats 16:9 (YouTube) et 9:16 (TikTok, Shorts, Reels), ou les deux. Fabriquée en temps réel : garde cet onglet ouvert et visible.";
+/* Vidéos fabriquées (16:9 et 9:16), chacune avec son bouton de téléchargement ; le premier garde l'identifiant historique pr-video-dl */
+function prVideosHtml(){ const vs=PR.videos||[]; if(!vs.length) return "";
+  return `<div class="pr-vids${vs.length>1?" two":""}">${vs.map((v,n)=>`<figure class="pr-vid${v.fmt==="9:16"?" v9":""}"><figcaption>${v.fmt==="9:16"?"9:16 · TikTok, Shorts, Reels, WhatsApp":"16:9 · YouTube, Facebook"}${v.mode==="3d"?" · plateau 3D":""}</figcaption><video controls playsinline src="${v.url}"></video><div class="actions"><button type="button" class="btn${n?"":" primary"}" ${n?`data-vdl="${n}"`:'id="pr-video-dl"'}>Télécharger ${v.fmt} (${v.ext.toUpperCase()})</button></div></figure>`).join("")}</div>`; }
 function prMixDl(){ return `<div class="pr-dl-row"><button type="button" class="btn primary" id="pr-mix-mp3">⬇ Revue finale en MP3</button><button type="button" class="btn small quiet" id="pr-mix-dl">WAV (qualité studio)</button><button type="button" class="btn small quiet" id="pr-srt">Sous-titres (.srt)</button><button type="button" class="btn small quiet" id="pr-txt">Texte et sources (.txt)</button></div>`; }
 const prScript = r => [r.nom_emission?`${r.nom_emission} · ${prDay()}`:"", r.titre, "", r.accroche, r.sommaire, ...r.segments.map(s=>s.texte), r.chiffre_du_jour.texte?`Le chiffre du jour : ${r.chiffre_du_jour.texte}`:"", [r.a_retenir,r.conclusion,r.appel].filter(Boolean).join(" ")].filter(x=>x!==undefined).join("\n\n").replace(/\n{3,}/g,"\n\n").trim();
 $("pr-form").addEventListener("submit", prWrite);
@@ -5034,24 +5270,39 @@ document.addEventListener("click", async e=>{
   if(t.id==="pr-improve"){ await prImprove(t); return; }
   if(t.id==="pr-mix"){ const m=$("pr-mix-msg"); t.disabled=true; m.textContent="Composition de l'émission (jingle, transitions, musique)…";
     try{ const sp=Number(($("pr-speed")||{}).value)||1; savePrefs({presseVitesse:String(sp)}); const x=await prMix($("pr-mood").value, sp, ($("pr-vboost")||{}).checked!==false); if(PR.mixUrl) URL.revokeObjectURL(PR.mixUrl); PR.mixUrl=URL.createObjectURL(x.blob); PR.mixBlob=x.blob; PR.mixBuf=x.buf;
-      $("pr-mix-out").innerHTML=`<audio controls src="${PR.mixUrl}"></audio>${prMixDl()}`; m.textContent=`Émission de ${x.seconds} s prête : ${x.sujets} séquences, jingle et transitions.`; const vb=$("pr-video"); if(vb){ vb.disabled=false; const h=vb.closest(".pr-video").querySelector(".hint"); if(h) h.textContent="« Grand écran » : studio télé virtuel en 16:9, mur d’écran géant qui s’anime tout seul (la une, le vrai article et sa vraie image, chiffres, cercles lumineux), bandeau rouge avec le titre et la source, texte défilant. Ou « Diaporama » plein écran. Fabriquée en temps réel : garde cet onglet ouvert et visible."; } }
+      $("pr-mix-out").innerHTML=`<audio controls src="${PR.mixUrl}"></audio>${prMixDl()}`; m.textContent=`Émission de ${x.seconds} s prête : ${x.sujets} séquences, jingle et transitions.`; prKitRender(); const vb=$("pr-video"); if(vb){ vb.disabled=false; const h=vb.closest(".pr-video").querySelector(".hint"); if(h) h.textContent=PR_VHINT; } }
     catch(err){ m.textContent=err&&err.message?err.message:"La fusion a échoué : réessaie."; }
     finally{ t.disabled=false; } return; }
   if(t.id==="pr-arts"){ t.disabled=true; const m=$("pr-photos-msg"); try{ const n=await prArticleImages(x=>{ m.textContent=x; }); m.textContent=n?`${n} vraie${n>1?"s":""} image${n>1?"s":""} d’article trouvée${n>1?"s":""}.`:"Aucune nouvelle image d’article trouvée (articles déjà faits, ou sites sans image)."; }catch(err){ m.textContent=err.message||"Recherche impossible."; } t.disabled=false; return; }
   if(t.id==="pr-photos-all"){ t.disabled=true; const m=$("pr-photos-msg"); try{ await prArticleImages(x=>{ m.textContent=x; }); }catch(e){} for(let i=0;i<PR.r.segments.length;i++){ if(m) m.textContent=`Sujet ${i+1} sur ${PR.r.segments.length}…`; await prPhotoSearch(i,true); } if(m) m.textContent="Images choisies : clique sur une autre vignette pour changer."; t.disabled=false; return; }
   if(t.dataset.phSearch!=null){ await prPhotoSearch(Number(t.dataset.phSearch),false); return; }
   if(t.dataset.phPick){ const [i,j]=t.dataset.phPick.split(":").map(Number); await prPhotoPick(i,j); return; }
-  if(t.id==="pr-video"){ const m=$("pr-video-msg"); t.disabled=true; $("pr-video-stop").hidden=false;
-    try{ const v=await prVideo(); const url=URL.createObjectURL(v.blob); PR.video=v; $("pr-video-out").innerHTML=`<video controls src="${url}"></video><div class="actions"><button type="button" class="btn primary" id="pr-video-dl">Télécharger la vidéo (${v.ext.toUpperCase()})</button></div>`; m.textContent=`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo.`; }
+  if(t.id==="pr-video"){ const m=$("pr-video-msg"), style=$("pr-vstyle").value, fsel=$("pr-vformat").value, fmts=fsel==="both"?["16:9","9:16"]:[fsel];
+    const ac=new (window.AudioContext||window.webkitAudioContext)();   /* créé pendant le clic : sinon le navigateur bloque le son */
+    savePrefs({presseStyle:style, presseFormat:fsel}); t.disabled=true; $("pr-video-stop").hidden=false; (PR.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PR.videos=[]; PR.video=null; $("pr-video-out").innerHTML="";
+    try{ for(const [n,format] of fmts.entries()){ const v=await prVideo({style, format, ac, label:fmts.length>1?`Vidéo ${n+1} sur ${fmts.length} (${format})`:""}); v.url=URL.createObjectURL(v.blob); PR.videos.push(v); PR.video=PR.videos[0]; $("pr-video-out").innerHTML=prVideosHtml(); if(v.stopped) break; }
+      m.textContent=PR.videos.map(v=>`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"}${PR.videos.length>1?` (${v.fmt})`:""} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo.${v.note?` (${v.note})`:""}`).join(" ");
+      if(typeof prKitRender==="function") prKitRender(true); }
     catch(err){ m.textContent=err&&err.message?err.message:"La vidéo a échoué : réessaie."; }
-    finally{ t.disabled=false; $("pr-video-stop").hidden=true; } return; }
+    finally{ try{ ac.close(); }catch(e){} t.disabled=false; $("pr-video-stop").hidden=true; } return; }
+  if(t.id==="pr-preview"){ const out=$("pr-preview-out"), style=$("pr-vstyle").value, fsel=$("pr-vformat").value, fmts=fsel==="both"?["16:9","9:16"]:[fsel]; t.disabled=true; out.innerHTML=`<p class="hint">Préparation de l’aperçu du plateau…</p>`;
+    try{ prReadEdits(); const res=[]; for(const format of fmts) res.push(await prPreview({style, format}));
+      out.innerHTML=res.map(p=>p.shots.map((u,j)=>`<figure class="${p.fmt==="9:16"?"v9":""}"><img src="${u}" alt="Aperçu ${p.fmt}, ${j?"sommaire":"un sujet"}"><figcaption class="hint">${p.fmt} · ${j?"sommaire":"un sujet"}${p.mode==="3d"?" · plateau 3D":p.mode==="2d"?" · studio 2D":" · diaporama"}</figcaption></figure>`).join("")).join("")+res.filter(p=>p.note).map(p=>`<p class="hint">${esc(p.note)}</p>`).join(""); }
+    catch(err){ out.innerHTML=`<p class="chip mid">Aperçu impossible : ${esc(String(err&&err.message||err).slice(0,120))}</p>`; }
+    finally{ t.disabled=false; } return; }
   if(t.id==="pr-video-stop"){ PR.vstop=true; return; }
-  if(t.id==="pr-video-dl"&&PR.video){ await prSaveBlob(PR.video.blob, `${slug(PR.r.titre)}-revue-video.${PR.video.ext}`); return; }
+  if(t.dataset.kitCopy){ const ta=document.querySelector(`[data-kit-txt="${t.dataset.kitCopy}"]`); if(ta) await copyText(ta.value, ta, t); return; }
+  if(t.dataset.kitVdl){ const v=(PR.videos||[]).find(x=>x.fmt===t.dataset.kitVdl); if(v) await prSaveBlob(v.blob, `${slug(PR.r.titre)}-revue-video-${v.fmt.replace(":","x")}.${v.ext}`); return; }
+  if(t.dataset.kitThumb){ const f=t.dataset.kitThumb; t.disabled=true; prReadEdits();
+    try{ const b=await prThumb(f), box=$("pr-kit-thumbs"); if(box) box.insertAdjacentHTML("beforeend",`<figure><img src="${URL.createObjectURL(b)}" alt="${f==="9:16"?"Couverture TikTok":"Miniature YouTube"}"><figcaption class="hint">${f==="9:16"?"Couverture 9:16 · TikTok, Reels":"Miniature 16:9 · YouTube"}</figcaption></figure>`); await prSaveBlob(b, `${slug(PR.r.titre)}-${f==="9:16"?"couverture-tiktok":"miniature-youtube"}.jpg`); }
+    catch(err){ toast(`Image impossible : ${String(err&&err.message||err).slice(0,100)}`); } finally{ t.disabled=false; } return; }
+  if(t.id==="pr-kit-txt"){ prReadEdits(); await prSaveBlob(new Blob([prKitText()],{type:"text/plain;charset=utf-8"}), `${slug(PR.r.titre)}-kit-publication.txt`); return; }
+  if((t.id==="pr-video-dl"||t.dataset.vdl!=null)&&(PR.videos||[]).length){ const v=PR.videos[Number(t.dataset.vdl||0)]; if(v) await prSaveBlob(v.blob, `${slug(PR.r.titre)}-revue-video${PR.videos.length>1||v.fmt==="9:16"?"-"+v.fmt.replace(":","x"):""}.${v.ext}`); return; }
   if(t.id==="pr-mix-dl"&&PR.mixBlob){ await prSaveBlob(PR.mixBlob, `${slug(PR.r.titre)}-revue-finale.wav`); return; }
   if(t.id==="pr-copy"){ prReadEdits(); prSave(); copyText(prScript(PR.r), null, t); return; }
   if(t.id==="pr-studio"){ prReadEdits(); prSave(); setView("studio"); $("idee").value=`Vidéo de revue de presse (${label("pays",(PR.o&&PR.o.pays)||"monde")}, ${prDay()}) : garde exactement ce texte, fidèle aux sources, et illustre chaque sujet avec des images d'information sobres, sans personne réelle reconnaissable.\n\n${prScript(PR.r)}`; toast("Texte envoyé dans « Depuis une idée » : choisis la durée puis lance."); return; }
 });
-document.addEventListener("change", e=>{ const t=e.target; if(t&&t.id==="pr-une-recree"){ savePrefs({presseUneRecreee:t.checked}); if(PR.r) prRender(); return; } if(t&&t.id==="pr-vstyle"){ const f=$("pr-vformat"); if(f){ f.disabled=t.value!=="diapo"; if(t.value!=="diapo") f.value="16:9"; } } if(t&&t.id==="pr-own-jingle") PR.own.jingle=t.files&&t.files[0]||null; if(t&&t.id==="pr-own-bed") PR.own.bed=t.files&&t.files[0]||null; if(t&&t.dataset&&t.dataset.phOwn!=null) prPhotoOwn(Number(t.dataset.phOwn), t.files&&t.files[0]); if(t&&t.dataset&&t.dataset.uneOwn!=null) prUneOwn(Number(t.dataset.uneOwn), t.files&&t.files[0]); if(t&&t.dataset&&t.dataset.phQ!=null) PR.photoQ[Number(t.dataset.phQ)]=t.value; });
+document.addEventListener("change", e=>{ const t=e.target; if(t&&t.id==="pr-une-recree"){ savePrefs({presseUneRecreee:t.checked}); if(PR.r) prRender(); return; } if(t&&(t.id==="pr-vstyle"||t.id==="pr-vformat")) savePrefs(t.id==="pr-vstyle"?{presseStyle:t.value}:{presseFormat:t.value}); if(t&&t.id==="pr-own-jingle") PR.own.jingle=t.files&&t.files[0]||null; if(t&&t.id==="pr-own-bed") PR.own.bed=t.files&&t.files[0]||null; if(t&&t.dataset&&t.dataset.phOwn!=null) prPhotoOwn(Number(t.dataset.phOwn), t.files&&t.files[0]); if(t&&t.dataset&&t.dataset.uneOwn!=null) prUneOwn(Number(t.dataset.uneOwn), t.files&&t.files[0]); if(t&&t.dataset&&t.dataset.phQ!=null) PR.photoQ[Number(t.dataset.phQ)]=t.value; });
 document.addEventListener("input", e=>{ if(e.target&&e.target.dataset&&e.target.dataset.prEdit!=null){ clearTimeout(prReadEdits._t); prReadEdits._t=setTimeout(()=>{ prReadEdits(); prSave(); },400); } });
 
 /* =================== PRÉ-MONTAGE AUTOMATIQUE : les clips dans l'ordre, coupés à la durée de leur plan, avec le son (dans le navigateur) =================== */
@@ -6242,7 +6493,7 @@ $("py-form").addEventListener("submit", async e=>{
   try{
     const r=await sample.json(paysPrompt(f),{cache:false,signal:pyctl.signal,onText:({text})=>{ const k=(text.match(/"phase"\s*:/g)||[]).length; showStatus("py-", k?"Étapes de construction de la chaîne…":"Analyse du pays et des niches…", false, k?85:40); }});
     if(!r||!r.niches) throw {code:"invalid_json"};
-    try{ localStorage.setItem("sp-last-pays", JSON.stringify(r)); }catch(err){}
+    try{ r._pays=f.pays; localStorage.setItem("sp-last-pays", JSON.stringify(r)); }catch(err){}
     $("py-status").hidden=true; renderPays(r); $("py-res").scrollIntoView({behavior:"smooth",block:"start"});
   }catch(err){ if(err&&err.code==="cancelled") $("py-status").hidden=true; else showStatus("py-",errText(err),true); }
   finally{ $("py-go").disabled=false; $("py-stop").hidden=true; pyctl=null; }
