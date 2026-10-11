@@ -559,6 +559,40 @@ Demande de l'utilisateur (8 octobre) : « le format des vidéos de chaque onglet
 
 **Aussi le 11 octobre** : un PDF déposé par erreur dans « Ton export YouTube Studio » donne un message clair. Il est rangé dans « Apprendre depuis un document PDF » sans lancer l'agent (`stats-test.js`). Les menus « Format » de Projet libre et du Cours du jour portent les mêmes noms (téléphone, PC, carré).
 
+### 4.3 decies Cours du jour : des diapos adaptées à chaque cours (11 octobre)
+Remarque de l'utilisateur : « tous les cours ont toujours le même format ; je veux que chaque cours ait des diapos adaptées, pas un seul design ».
+
+**Les deux causes corrigées**
+- `crPrompt` imposait à tous les cours la même grammaire (« présentation technologique sur fond bleu nuit »), et `crCourseFrame` n'avait qu'un seul fond.
+- La « mise en scène » choisie (tableau, infographie…) était dessinée par `mdMakeVideo`, puis recouverte par ce fond : elle ne se voyait jamais.
+
+**Habillages** (`CR_THEMES`, après `crCourseFrame`)
+- Il y en a 9 : nuit technologique, tableau à craie, cahier d'écolier, éditorial clair, archives et frises, laboratoire, plan d'ingénieur, couleurs vives, professionnel.
+- Chacun a son fond (3 couleurs), son encre, ses cadres (`forme` : hex, trait, post-it, bloc, sceau, rond, cote, bulle), son décor (`motif` : grille, craie et cadre en bois, lignes et marge, filets, papier ancien, papier millimétré, plan, confettis sur les bords, diagonales) et ses polices (titres et texte). Le décor est fixe : son « hasard » ne scintille pas.
+- Lisibilité contrôlée : encre ≥ 7 de contraste sur le fond, texte secondaire ≥ 4,5, accents ≥ 3. Les couleurs proposées par l'IA ne remplacent celles de l'habillage que si elles restent lisibles (≥ 2,4).
+
+**Choix de l'habillage** (`crThemeOf`)
+- Ordre : choix fait à la main (`direction.habillage_main`), puis mise en scène imposée (« tableau » → tableau à craie, « 3d » → nuit), puis choix de l'agent (`direction.habillage`, avec `habillage_raison`).
+- Sans choix valable, l'habillage est déduit du domaine et du niveau (enfant → couleurs vives ou cahier). Il varie d'un cours à l'autre selon le titre.
+- Écran du résultat (`crThemeCard`, `crThemePreview`) : le nom de l'habillage, sa raison, un menu « Changer l'habillage », et un aperçu de trois diapos (première, milieu, dernière), redessiné à chaque changement. La vidéo suit ce choix.
+
+**Mises en page** (13, une par diapo selon son contenu)
+- Celles d'avant : hero, network, cards, compare, quiz, 3d.
+- Les nouvelles :
+  - definition : le mot souligné, sa définition, un exemple ;
+  - formule : calcul ligne par ligne, résultat encadré ;
+  - frise : dates et événements, verticale en 9:16, horizontale en 16:9 ;
+  - schema : l'objet au centre, ses parties reliées ;
+  - etapes : cartes avec flèches en 9:16, chevrons en 16:9 ;
+  - chiffre : le nombre monte jusqu'à sa valeur exacte, avec sa source ;
+  - citation : texte exact et auteur.
+- Le contenu exact de chaque diapo est dans `scene.items` (`titre`, `texte`, `valeur`), nettoyé par `crNormalizeLayouts` (6 éléments au plus). Sans `items`, les points de la scène servent. Deux mises en page identiques ne se suivent jamais, et la commission (`crReviewPrompt`) garde l'habillage et les items.
+- « Erreur fréquente » : deux cadres l'un sous l'autre, en grand texte. Le trait doré de l'accroche passe sous la phrase, et non plus au travers.
+
+**Plus de mots techniques à l'écran** : « CANVAS • WEBGL • FFMPEG » (cours) et « CANVAS + WEB AUDIO + FFMPEG » (projet libre) sont retirés. Le bas de la diapo indique le niveau, et le projet libre la fonction de la scène en français (« ACCROCHE », « À RETENIR »…).
+
+Test : `cours-habillage-test.js`. Faux canvas, sans navigateur ni IA : 9 habillages × 13 mises en page × 2 formats, lisibilité, choix de l'habillage, normalisation, consignes. Bout en bout : `cours-video-test.js`. La consigne garde le titre « GRAMMAIRE VISUELLE DE RÉFÉRENCE », pour la partie commune à tous les habillages (`cours-ultra-test.js`).
+
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
@@ -762,6 +796,8 @@ Ce que le code corrige :
 | `cours-ultra-test.js` | Cours du jour (sans navigateur) : compositions, normaliseur face à de mauvais JSON, format carré 1080 × 1080, liens des sources validés |
 | `course-ffmpeg-test.js` | Finition FFmpeg réelle : MP4 H.264 yuv420p, AAC 48 kHz, SRT servi, capture temporaire supprimée, repli navigateur |
 | `professional-tabs-test.js` | Structure accessible des 6 onglets de Motion design (`node:test`) |
+| `cours-habillage-test.js` | Cours du jour : 9 habillages lisibles et distincts, choix (main, mise en scène, agent, matière, niveau), 13 mises en page dessinées en 9:16 et 16:9 sur un faux canvas, normalisation des items, consignes, aperçu, aucun mot technique à l'écran |
+| `cours-video-test.js` | Cours du jour de bout en bout (IA simulée) : consigne avec les habillages, mise en scène « tableau » → tableau à craie, aperçu de trois diapos, changement d'habillage à la main, vraie vidéo 1080 × 1920 de 30 s avec FFmpeg qui suit ce choix, téléphone sans défilement |
 | `motion-libre-test.js` | Projet libre : IA simulée, vraie vidéo fabriquée image par image en 1080 × 1920, finition FFmpeg (H.264, −14 LUFS), scènes visibles, console sans erreur |
 
 **Règles**
@@ -801,12 +837,13 @@ Les commits sont en français. Étapes majeures :
 16. images du Storyboard, analyse des paroles, mode secours, **analyse complète des vidéos** (commencées par un autre assistant, terminées et testées) ;
 17. page **Motion design** : revue de presse en plateau 3D, quiz « 5 secondes », publicités, agence, puis **Succès YouTube**, voix de premier niveau et couche cinéma (6 au 8 octobre) ;
 18. ajouts de l'autre outil (Cours du jour, montage de pub, quiz premium, mémoire PDF, sauvegarde Supabase), puis réparation des 14 régressions (11 octobre, §4.3 octies) ;
-19. export professionnel Full HD de toutes les vidéos de Motion design, téléphone d'abord (11 octobre, §4.3 nonies).
+19. export professionnel Full HD de toutes les vidéos de Motion design, téléphone d'abord (11 octobre, §4.3 nonies) ;
+20. Cours du jour : un habillage propre à chaque cours et une mise en page adaptée à chaque diapo (11 octobre, §4.3 decies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 
 **Prochains chantiers** (formats Full HD faits le 11 octobre, §4.3 nonies) :
-- **Cours du jour : des diapos adaptées à chaque cours** (demande du 11 octobre). Aujourd'hui, tous les cours ont le même habillage bleu nuit (consigne unique dans `crPrompt`, fond fixe dans `crCourseFrame`), et la « mise en scène » choisie est recouverte par ce fond.
+- Fait le 11 octobre : Cours du jour, des diapos adaptées à chaque cours (§4.3 decies).
 - Ensuite, un « mode simple » en 3 étapes : type de vidéo, 3 questions, puis l'onglet rempli avec le vrai agent. L'idée vient d'une maquette faite dans une autre conversation.
 
 Par ordre de valeur pour l'utilisateur :
