@@ -567,6 +567,10 @@ input[type=text].plain-in{background:var(--surface)}
 .strat-tabs button{flex:none;white-space:nowrap;border:0;background:none;padding:8px 16px;border-radius:99px;font-weight:600;font-size:14px;color:var(--muted);min-height:38px}
 .strat-tabs button:hover{color:var(--ink)}
 .strat-tabs button[aria-current="page"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.grp-tabs{margin:0 0 4px}   /* onglets d'une entrée du menu simplifié (pages proches) */
+.as-input{display:flex;flex-direction:column;gap:10px;margin-top:12px}.as-input:empty{display:none}.as-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#as-duree{margin-top:10px}
+@media (max-width:560px){ .grp-tabs{flex-wrap:wrap;border-radius:18px;align-self:stretch} .grp-tabs button{flex:1 1 calc(50% - 4px);white-space:normal;text-align:center} }   /* téléphone : tous les onglets visibles, 2 par ligne */
 /* carte-lien vers un outil voisin */
 .link-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;margin-top:4px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px}
 .link-card:hover{border-color:var(--accent)}
@@ -660,6 +664,7 @@ section[data-view]{
 #view-connexions{--view-accent:#3D6A7D;--view-accent-2:#48B8A3;--view-deep:#142B36}
 #view-memoire{--view-accent:#5E4BB7;--view-accent-2:#56B8C9;--view-deep:#241B4D}
 #view-projets{--view-accent:#4B5563;--view-accent-2:#4B91C3;--view-deep:#1C2430}
+#view-assistant{--view-accent:#B0502A;--view-accent-2:#E49357;--view-deep:#32170F}
 
 /* Le hub Motion change réellement d'identité selon son format actif. */
 #view-presse[data-motion="libre"]{--view-accent:#5147D9;--view-accent-2:#35B8D0;--view-deep:#171442}
@@ -802,23 +807,12 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
     </div>
     <nav class="side-nav" aria-label="Pages">
       <button type="button" class="side-link" data-go="accueil"><svg class="ico"><use href="#i-home"/></svg><span class="side-lbl">Accueil</span></button>
-      <span class="side-group">Créer</span>
-      <button type="button" class="side-link" data-go="studio"><svg class="ico"><use href="#i-studio"/></svg><span class="side-lbl">Depuis une idée</span></button>
-      <button type="button" class="side-link" data-go="audio"><svg class="ico"><use href="#ic-wave"/></svg><span class="side-lbl">Depuis un audio</span></button>
-      <button type="button" class="side-link" data-go="reel"><svg class="ico"><use href="#ic-film"/></svg><span class="side-lbl">Depuis une vidéo</span></button>
-      <button type="button" class="side-link" data-go="presse"><svg class="ico"><use href="#i-news"/></svg><span class="side-lbl">Motion design</span></button>
-      <span class="side-group">Trouver quoi faire</span>
-      <button type="button" class="side-link" data-go="tendances" id="side-tendances"><svg class="ico"><use href="#i-trend"/></svg><span class="side-lbl">Veille du jour</span><span class="side-count" id="side-tv-count" hidden></span></button>
-      <button type="button" class="side-link" data-go="idees"><svg class="ico"><use href="#i-idea"/></svg><span class="side-lbl">Idées</span></button>
-      <span class="side-group">Mes contenus</span>
-      <button type="button" class="side-link" data-go="projets" id="side-projets"><svg class="ico"><use href="#i-folder"/></svg><span class="side-lbl">Projets</span><span class="side-count" id="side-count" hidden></span></button>
-      <button type="button" class="side-link" data-go="agence"><svg class="ico"><use href="#i-folder"/></svg><span class="side-lbl">Agence (mes clients)</span></button>
-      <button type="button" class="side-link" data-go="persos"><svg class="ico"><use href="#i-user"/></svg><span class="side-lbl">Personnages</span></button>
-      <button type="button" class="side-link" data-go="images"><svg class="ico"><use href="#i-image"/></svg><span class="side-lbl">Images</span></button>
-      <button type="button" class="side-link" data-go="memoire" id="side-memoire"><svg class="ico"><use href="#i-brain"/></svg><span class="side-lbl">Mémoire de l'agent</span><span class="side-count" id="side-mem-count" hidden></span></button>
+      <button type="button" class="side-link" data-go="creer"><svg class="ico"><use href="#i-studio"/></svg><span class="side-lbl">Créer</span></button>
+      <button type="button" class="side-link" data-go="trouver" id="side-tendances"><svg class="ico"><use href="#i-idea"/></svg><span class="side-lbl">Idées</span><span class="side-count" id="side-tv-count" hidden></span></button>
+      <button type="button" class="side-link" data-go="contenus" id="side-projets"><svg class="ico"><use href="#i-folder"/></svg><span class="side-lbl">Mes projets</span><span class="side-count" id="side-count" hidden></span></button>
+      <button type="button" class="side-link" data-go="strategie" id="side-memoire"><svg class="ico"><use href="#ic-globe"/></svg><span class="side-lbl">Ma chaîne</span><span class="side-count" id="side-mem-count" hidden></span></button>
+      <span class="side-group">Réglages</span>
       <button type="button" class="side-link" data-go="connexions"><svg class="ico"><use href="#i-plug"/></svg><span class="side-lbl">Connexions et voix</span></button>
-      <span class="side-group">Stratégie</span>
-      <button type="button" class="side-link" data-go="strategie"><svg class="ico"><use href="#ic-globe"/></svg><span class="side-lbl">Niches, pays et chaîne</span></button>
     </nav>
     <div class="side-foot">
       <div class="theme-sw" role="group" aria-label="Apparence">
@@ -848,6 +842,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
             <h1>Que veux-tu créer aujourd’hui ?</h1>
             <p>Choisis ton point de départ : l’agent s’occupe de l’histoire, de la réalisation et des prompts.</p>
             <div class="welcome-actions">
+              <button type="button" class="welcome-action" data-go-inline="assistant"><b>✨ Créer en 3 questions</b><span>Le plus simple : choisis le type de vidéo, ton point de départ et le format. L’agent fait le reste.</span></button>
               <button type="button" class="welcome-action" data-go-inline="studio"><svg class="ico"><use href="#i-studio"/></svg><b>Depuis une idée</b><span>Une phrase suffit : l’histoire, les plans et les prompts pour Veo, Runway ou Wan.</span></button>
               <button type="button" class="welcome-action" data-go-inline="audio"><svg class="ico"><use href="#ic-wave"/></svg><b>Depuis un audio</b><span>Histoire racontée ou chanson : transcrite, découpée, un plan pour chaque moment.</span></button>
               <button type="button" class="welcome-action" data-go-inline="reel"><svg class="ico"><use href="#ic-film"/></svg><b>Depuis une vidéo</b><span>Ta vidéo est analysée scène par scène, puis refaite en mieux.</span></button>
@@ -922,6 +917,23 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
       </section>
 
       <!-- ============ STUDIO ============ -->
+      <section id="view-assistant" data-view="assistant" hidden>
+        <div class="content" style="max-width:none">
+          <div class="page-head">
+            <span class="kicker">Créer · en 3 questions</span>
+            <h1>Quelle vidéo veux-tu créer ?</h1>
+            <p>Réponds à 3 questions : l’agent ouvre le bon outil, déjà rempli, et se met au travail.</p>
+          </div>
+          <form class="panel" id="as-form" autocomplete="off" novalidate>
+            <div class="field"><span class="flabel" id="as-l1">1. Quel type de vidéo ?</span><div class="modes" role="radiogroup" aria-labelledby="as-l1" id="as-type"></div></div>
+            <div class="field" id="as-q2" hidden><span class="flabel" id="as-l2">2. Tu pars de quoi ?</span><div class="modes" role="radiogroup" aria-labelledby="as-l2" id="as-depart"></div><div id="as-input" class="as-input"></div></div>
+            <div class="field" id="as-q3" hidden><span class="flabel" id="as-l3">3. Pour où, et combien de temps ?</span><div class="modes" role="radiogroup" aria-labelledby="as-l3" id="as-fmt"></div><div class="modes" role="radiogroup" aria-label="Durée" id="as-duree"></div></div>
+            <div class="actions" id="as-actions" hidden><button type="submit" class="btn primary" id="as-go">✨ Créer ma vidéo</button><span class="hint" id="as-msg" aria-live="polite"></span></div>
+            <p class="hint" id="as-free">Gratuit : l’agent utilise ta clé Gemini gratuite. Quota épuisé ? Le quiz « au hasard » et la pub « sans IA » marchent toujours, sans quota. Les réglages experts restent dans les autres onglets de « Créer ».</p>
+          </form>
+        </div>
+      </section>
+
       <section id="view-studio" data-view="studio" hidden>
         <div class="content" style="max-width:none">
           <div class="page-head">
@@ -1121,7 +1133,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
                 <div class="field"><label for="cr-quality">Qualité de conception</label><div class="sel"><select id="cr-quality"><option value="ultra" selected>Ultra · recherche + 3 agents + contrôle</option><option value="rapide">Rapide · conception directe</option></select></div><span class="hint">Ultra utilise Sol au maximum : documentaliste, professeur-réalisateur, puis inspecteur pédagogique.</span></div></div>
               <div class="field"><label for="cr-source">Contenu ou références à respecter <span class="hint">(facultatif)</span></label><textarea id="cr-source" rows="4" placeholder="Colle ici un chapitre, des notes, une définition ou les points obligatoires. L’agent ne les remplacera pas par des inventions."></textarea></div>
               <div class="opts"><div class="field"><label for="cr-images">Illustrations</label><div class="sel"><select id="cr-images"><option value="none">Graphismes HTML/Canvas sans quota</option><option value="ai">Images IA adaptées aux scènes</option></select></div></div><div class="field"><label for="cr-voix">Voix</label><div class="sel"><select id="cr-voix"><option value="ai">Voix pédagogique IA</option><option value="none">Sans voix · musique discrète</option></select></div></div><div class="field"><label for="cr-subs">Sous-titres FFmpeg</label><div class="sel"><select id="cr-subs"><option value="burn">Incrustés dans l’image</option><option value="track">Piste activable dans le MP4</option><option value="none">Sans sous-titres</option></select></div></div></div>
-              <div class="actions"><button type="submit" class="btn primary" id="cr-go">✨ Créer le cours complet</button><button type="button" class="btn quiet" id="cr-stop" hidden>Arrêter</button></div>
+              <div class="actions"><button type="submit" class="btn primary" id="cr-go">✨ Créer le cours complet</button><button type="button" class="btn quiet" id="cr-stop" hidden>Arrêter</button><button type="button" class="btn quiet" id="cr-skip" hidden>Passer cette étape</button></div>
               <div class="status" id="cr-status" hidden><span id="cr-status-text"></span><div class="bar"><i id="cr-status-bar"></i></div></div>
             </form>
             <div id="cr-res" aria-live="polite"></div>
@@ -1295,7 +1307,6 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
       <!-- ============ NICHES ============ -->
       <section id="view-niches" data-view="niches" hidden>
         <div class="content" style="max-width:none">
-          <nav class="strat-tabs" aria-label="Stratégie"><button type="button" data-go-inline="niches" aria-current="page">Niches</button><button type="button" data-go-inline="pays">Pays et monétisation</button><button type="button" data-go-inline="chaine">Chaîne YouTube</button></nav>
           <div class="page-head">
             <span class="kicker">Stratégie · niches</span>
             <h1>Une niche maîtrisée de A à Z.</h1>
@@ -1319,7 +1330,6 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
       <!-- ============ PAYS ET MONÉTISATION ============ -->
       <section id="view-pays" data-view="pays" hidden>
         <div class="content" style="max-width:none">
-          <nav class="strat-tabs" aria-label="Stratégie"><button type="button" data-go-inline="niches">Niches</button><button type="button" data-go-inline="pays" aria-current="page">Pays et monétisation</button><button type="button" data-go-inline="chaine">Chaîne YouTube</button></nav>
           <div class="page-head">
             <span class="kicker">Stratégie · pays et monétisation</span>
             <h1>Le bon pays, la bonne niche, les vrais revenus.</h1>
@@ -1423,7 +1433,6 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
       <!-- ============ CHAÎNE YOUTUBE ============ -->
       <section id="view-chaine" data-view="chaine" hidden>
         <div class="content" style="max-width:none">
-          <nav class="strat-tabs" aria-label="Stratégie"><button type="button" data-go-inline="niches">Niches</button><button type="button" data-go-inline="pays">Pays et monétisation</button><button type="button" data-go-inline="chaine" aria-current="page">Chaîne YouTube</button></nav>
           <div class="page-head">
             <span class="kicker">Stratégie · chaîne YouTube</span>
             <h1>Une série qui donne envie de revenir.</h1>
@@ -1518,10 +1527,10 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 
   <nav class="tabbar" aria-label="Navigation">
     <button type="button" class="tab" data-go="accueil"><svg class="ico"><use href="#i-home"/></svg>Accueil</button>
-    <button type="button" class="tab" data-go="studio"><svg class="ico"><use href="#i-studio"/></svg>Créer</button>
-    <button type="button" class="tab" data-go="idees"><svg class="ico"><use href="#i-idea"/></svg>Idées</button>
-    <button type="button" class="tab" data-go="projets"><svg class="ico"><use href="#i-folder"/></svg>Projets</button>
-    <button type="button" class="tab" id="tab-menu" aria-label="Toutes les pages"><svg class="ico"><use href="#i-menu"/></svg>Menu</button>
+    <button type="button" class="tab" data-go="creer"><svg class="ico"><use href="#i-studio"/></svg>Créer</button>
+    <button type="button" class="tab" data-go="trouver"><svg class="ico"><use href="#i-idea"/></svg>Idées</button>
+    <button type="button" class="tab" data-go="contenus"><svg class="ico"><use href="#i-folder"/></svg>Projets</button>
+    <button type="button" class="tab" data-go="strategie"><svg class="ico"><use href="#ic-globe"/></svg>Ma chaîne</button>
   </nav>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -3191,9 +3200,10 @@ const LOCAL_ERR = new Set(["no_credit","no_key","no_model","bad_key","network","
 const errText = e => { if(e && !ERR[e.code] && !LOCAL_ERR.has(e.code)) console.error(e); return ERR[e&&e.code] || (e && LOCAL_ERR.has(e.code) && e.message) || `La demande a échoué${e&&e.message?` (${String(e.message).slice(0,160)})`:""}. Réessaie.`; };
 
 /* =================== ROUTER =================== */
-const VIEWS = {accueil:"Accueil", connexions:"Connexions et voix", presse:"Créer · motion design", agence:"Agence · clients et créations", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
+const VIEWS = {accueil:"Accueil", assistant:"Créer · en 3 questions", connexions:"Connexions et voix", presse:"Créer · motion design", agence:"Agence · clients et créations", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
 const VIEW_PROFILES = Object.freeze({
   accueil:{family:"command",index:"00",code:"EXECUTIVE STUDIO",accent:"#B0502A",accent2:"#E49357",deep:"#32170F",tags:["Créer","Produire","Publier"]},
+  assistant:{family:"command",index:"18",code:"GUIDED START",accent:"#B0502A",accent2:"#E49357",deep:"#32170F",tags:["Type","Départ","Format"]},
   tendances:{family:"radar",index:"01",code:"NEWS INTELLIGENCE",accent:"#087B83",accent2:"#35C8D0",deep:"#06363D",tags:["Signaux du jour","Pays","Sources"]},
   idees:{family:"editorial",index:"02",code:"WRITERS' ROOM",accent:"#A54A16",accent2:"#F2A13A",deep:"#42210D",tags:["Angle","Audience","Originalité"]},
   studio:{family:"production",index:"03",code:"PRODUCTION DESK",accent:"#3559D7",accent2:"#72A6FF",deep:"#121C48",tags:["Script","Storyboard","Prompts"]},
@@ -3239,19 +3249,48 @@ function applyMotionIdentity(k){
   const view=$("view-presse"),p=MOTION_PROFILES[k]||MOTION_PROFILES.libre;if(!view)return;view.dataset.motion=k;view.style.setProperty("--view-accent",p.accent);view.style.setProperty("--view-accent-2",p.accent2);view.style.setProperty("--view-deep",p.deep);viewSignature(view,p);if(!view.hidden)syncProfessionalShell("presse");
 }
 initProfessionalViews();
-/* Page affichée → bouton surligné : barre du bas (TAB_OF) et menu latéral (NAV_OF) */
-const TAB_OF = {audio:"studio", reel:"studio", presse:"studio", tendances:"idees", son:"projets"};   /* les autres pages s'ouvrent par « Menu » */
-const NAV_OF = {niches:"strategie", pays:"strategie", chaine:"strategie", qualite:"images", son:"projets"};
+/* =================== MENU SIMPLIFIÉ (11 octobre) : 5 entrées ===================
+   Chaque entrée regroupe des pages proches, montrées en onglets en haut de la page (syncGroupNav), et rouvre le dernier onglet utilisé.
+   Aucune page n'est supprimée : les adresses (#studio, #presse, #niches…) marchent toujours.
+   « presse:succes » = l'onglet Succès YouTube de Motion design (rangé dans Idées) ; « presse:motion » = Motion design, dernier type de vidéo choisi. */
+const GROUPS = {
+  accueil:{nom:"Accueil", tabs:[["accueil","Accueil"]]},
+  creer:{nom:"Créer", tabs:[["assistant","✨ En 3 questions"],["studio","Depuis une idée"],["audio","Depuis un audio"],["reel","Depuis une vidéo"],["presse:motion","Motion design"]]},
+  trouver:{nom:"Idées", tabs:[["idees","Idées originales"],["tendances","Tendances du jour"],["presse:succes","Vidéos à succès"]]},
+  contenus:{nom:"Mes projets", tabs:[["projets","Projets"],["persos","Personnages"],["images","Images"],["agence","Mes clients"]]},
+  strategie:{nom:"Ma chaîne", tabs:[["niches","Niches"],["pays","Pays et monétisation"],["chaine","Chaîne YouTube"],["memoire","Mémoire et statistiques"]]},
+  connexions:{nom:"Réglages", tabs:[["connexions","Connexions et voix"]]}
+};
+const SUBVIEW_OF = {qualite:"images", son:"projets"};   /* pages ouvertes depuis une autre page */
 const STRAT = ["niches","pays","chaine"];
+function groupOf(name){
+  const v=SUBVIEW_OF[name]||name;
+  if(v==="presse") return ((($("view-presse")||{}).dataset||{}).motion==="succes")?["trouver","presse:succes"]:["creer","presse:motion"];
+  for(const [g,G] of Object.entries(GROUPS)) if(G.tabs.some(t=>t[0]===v)) return [g,v];
+  return ["accueil","accueil"];
+}
+/* entrée surlignée (menu et barre du bas), onglets du groupe en haut de la page, dernier onglet retenu */
+function syncGroupNav(name){
+  const [g,cur]=groupOf(name), G=GROUPS[g];
+  document.querySelectorAll(".side-link[data-go], .tab[data-go]").forEach(b=>{ if(b.dataset.go===g) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+  document.querySelectorAll(".grp-tabs").forEach(n=>n.remove());
+  const view=$("view-"+name), host=view&&(view.querySelector(".content")||view);
+  if(host&&G.tabs.length>1){ const nav=document.createElement("nav"); nav.className="strat-tabs grp-tabs"; nav.setAttribute("aria-label",G.nom);
+    G.tabs.forEach(([t,l])=>{ const b=document.createElement("button"); b.type="button"; b.dataset.goTab=t; b.textContent=l; if(t===cur) b.setAttribute("aria-current","page"); nav.append(b); }); host.prepend(nav); }
+  const grp=Object.assign({},loadPrefs().grp||{}); if(grp[g]!==cur){ grp[g]=cur; savePrefs({grp}); }
+}
 function setView(name, opts){
-  if(name==="strategie"){ let last="niches"; try{ last=localStorage.getItem("sp-strat")||"niches"; }catch(e){} name=STRAT.includes(last)?last:"niches"; }
+  let sub="";
+  if(GROUPS[name]&&!VIEWS[name]){ const G=GROUPS[name]; let last=(loadPrefs().grp||{})[name]; if(name==="strategie"&&!last){ try{ last=localStorage.getItem("sp-strat")||""; }catch(e){} } name=G.tabs.some(t=>t[0]===last)?last:G.tabs[0][0]; }
+  if(String(name).includes(":")) [name,sub]=String(name).split(":");
   if(name==="experts") name="accueil";   /* ancienne page Experts : remplacée par le menu */
   if(!VIEWS[name]) name="accueil";
   if(STRAT.includes(name)) try{ localStorage.setItem("sp-strat",name); }catch(e){}
   document.querySelectorAll("[data-view]").forEach(s=>{ s.hidden = s.dataset.view!==name; });
-  document.querySelectorAll("[data-go]").forEach(b=>{ const on = b.classList.contains("tab") ? b.dataset.go===(TAB_OF[name]||name) : b.dataset.go===(NAV_OF[name]||name); if(on) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
-  const tm=document.getElementById("tab-menu"); if(tm){ if(document.querySelector('.tab[data-go][aria-current="page"]')) tm.removeAttribute("aria-current"); else tm.setAttribute("aria-current","page"); }
+  document.querySelectorAll("[data-go]:not(.side-link):not(.tab)").forEach(b=>{ if(b.dataset.go===name) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
   if(typeof onViewShown==="function") onViewShown(name);
+  if(name==="presse"&&sub) mtShow(sub==="motion"?(loadPrefs().motionCreer||"libre"):MOTION_TABS.includes(sub)?sub:"libre");
+  syncGroupNav(name);
   $("top-hint").textContent = VIEWS[name];
   syncProfessionalShell(name);
   try{ history.replaceState(null,"","#"+name); }catch(e){}
@@ -3259,7 +3298,8 @@ function setView(name, opts){
   if(!(opts&&opts.keepScroll)){ window.scrollTo(0,0); const h=$("view-"+name).querySelector("h1"),before=document.activeElement; if(h) requestAnimationFrame(()=>{if(document.activeElement===before||document.activeElement===document.body)h.focus({preventScroll:true});}); }
 }
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.go)));
-window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VIEWS[h]||h==="strategie"||h==="experts") setView(h); });
+document.addEventListener("click", e=>{ const b=e.target.closest&&e.target.closest("[data-go-tab]"); if(b) setView(b.dataset.goTab); });
+window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VIEWS[h]||GROUPS[h]||h==="experts"||/^presse:(succes|motion|libre|cours|infos|quiz|pub)$/.test(h)) setView(h); });
 
 /* =================== MÉMOIRE D'APPRENTISSAGE : ce que les vrais clips de l'utilisateur ont appris à l'agent =================== */
 /* Raisons proposées, avec la règle générale utilisée quand l'IA n'est pas disponible pour tirer la leçon */
@@ -3466,7 +3506,7 @@ function applyTheme(t){
   document.querySelectorAll("[data-theme-set]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.themeSet===t)));
 }
 $("menu-btn").addEventListener("click", openMenu);
-$("tab-menu").addEventListener("click", openMenu);
+if($("tab-menu")) $("tab-menu").addEventListener("click", openMenu);
 $("side-close").addEventListener("click", ()=>closeMenu(true));
 $("side-scrim").addEventListener("click", ()=>closeMenu(true));
 $("side").addEventListener("click", e=>{
@@ -4884,8 +4924,9 @@ async function mdFinalizeFfmpeg(video,say){
   say("1/3 · Envoi sécurisé de la capture au serveur local…");
   const up=await genApi.upload(video.blob,{project,base:"capture-navigateur"});
   say("2/3 · FFmpeg encode le master H.264/AAC et normalise le son à -14 LUFS…");
-  const resp=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({input:up.url,title,duration:MD_RESULT.f.duration,subtitles,srt:courseSrt(MD_RESULT.r)})});
-  const out=await resp.json().catch(()=>({}));
+  let resp, out;   /* une autre vidéo en finition : on attend son tour (5 min au plus) */
+  for(let k=0;;k++){ resp=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({input:up.url,title,duration:MD_RESULT.f.duration,subtitles,srt:courseSrt(MD_RESULT.r)})}); out=await resp.json().catch(()=>({}));
+    if(!(out.busy||resp.status===429)||k>=60) break; say("2/3 · Une autre vidéo est en finition : la tienne passe juste après…"); await new Promise(z=>setTimeout(z,5000)); }
   if(!resp.ok||!out.finalized||!out.url) throw new Error(out.message||`FFmpeg refuse la finition (${resp.status}).`);
   if(video.url&&video.url.startsWith("blob:")) URL.revokeObjectURL(video.url);
   say("3/3 · Master MP4 finalisé et contrôlé par le serveur.");
@@ -5041,20 +5082,37 @@ async function cr3dOpen(){ const host=$("cr-3d"), info=$("cr-3d-info"), d=MD_RES
     const ro=new ResizeObserver(()=>{if(!alive)return;const w=Math.max(320,host.clientWidth),h=Math.max(360,host.clientHeight);cam.aspect=w/h;cam.updateProjectionMatrix();R.setSize(w,h,false);}); ro.observe(host); const obs=new MutationObserver(()=>{if(!document.body.contains(host))dispose();}); obs.observe(document.body,{childList:true,subtree:true}); const loop=()=>{if(!alive)return;group.rotation.x=rx;group.rotation.y=ry+.12*Math.sin(performance.now()/2500);R.render(scene,cam);raf=requestAnimationFrame(loop);}; loop(); $("cr-3d-open").textContent="Démonstration 3D ouverte";
   }catch(err){ host.style.height="auto"; host.innerHTML=`<p class="alert">La 3D WebGL n’est pas disponible sur cet appareil : ${esc(String(err.message||err))}</p>`; $("cr-3d-open").disabled=false; $("cr-3d-open").textContent="Réessayer"; } }
 document.addEventListener("click",e=>{ if(e.target&&e.target.id==="cr-3d-open") cr3dOpen(); });
+/* Une étape du cours : progression en direct (secondes, caractères reçus) et délai maximum. Si le meilleur modèle tarde ou tourne en rond,
+   l'étape est relancée une fois avec le modèle rapide (opts.over). Les étapes facultatives (documentaliste, commission) ont « Passer cette étape ». */
+async function crStep(label, pct, limit, run, optional){
+  const t0=Date.now(), skip=$("cr-skip"); let chars=0, why="";
+  const once=async o=>{ const ctl=new AbortController(), stop=()=>ctl.abort(); CR_CTL.signal.addEventListener("abort",stop,{once:true});
+    const timer=setTimeout(()=>{ why="timeout"; ctl.abort(); },limit);
+    if(optional&&skip){ skip.hidden=false; skip.onclick=()=>{ why="skip"; ctl.abort(); }; }
+    try{ return await run(Object.assign({signal:ctl.signal, onText:x=>{ chars=String(x&&x.text||"").length; }},o)); }
+    catch(e){ if(CR_CTL.signal.aborted) throw e; if(why){ const w=why; why=""; throw Object.assign(new Error(w==="skip"?"étape passée":"le modèle a mis trop de temps"),{code:w}); } throw e; }
+    finally{ clearTimeout(timer); CR_CTL.signal.removeEventListener("abort",stop); if(skip){ skip.hidden=true; skip.onclick=null; } } };
+  const show=extra=>showStatus("cr-",`${label}${extra||""} · ${Math.round((Date.now()-t0)/1000)} s${chars?` · ${chars.toLocaleString("fr-FR")} caractères reçus`:""}`,false,pct);
+  let extra=""; const iv=setInterval(()=>show(extra),1000); show();
+  try{
+    try{ return await once({}); }
+    catch(e){ if(CR_CTL.signal.aborted||e.code==="skip"||!/^(timeout|loop|server_error|overloaded|rate_limited|invalid_json|network)$/.test(e.code||"")) throw e;
+      chars=0; extra=" · le modèle rapide prend le relais"; show(extra); return await once({over:{modelTier:"default",engine:"default"}}); }
+  }finally{ clearInterval(iv); }
+}
 $("cr-form").addEventListener("submit",async e=>{ e.preventDefault(); const sujet=$("cr-sujet").value.trim(); if(sujet.length<5){ showStatus("cr-","Écris le sujet exact du cours.",true); return; }
   const pays=($("cr-find-country")&&$("cr-find-country").value)||(form&&form.pays)||"monde", f={sujet,domaine:$("cr-domaine").value,niveau:$("cr-niveau").value,langue:$("cr-langue").value,mode:$("cr-mode").value,duration:Number($("cr-duree").value)||120,format:$("cr-format").value,quality:$("cr-quality").value,subtitles:$("cr-subs").value,pays,paysNom:pays==="monde"?"programme international":label("pays",pays),source:$("cr-source").value.trim(),brief:sujet,style:"education "+$("cr-mode").value,goal:"enseigner"};
   CR_CTL=new AbortController(); $("cr-go").disabled=true; $("cr-stop").hidden=false;
-  try{ let research=null,r;
-    if(f.quality==="ultra"){ showStatus("cr-","1/4 · Le documentaliste vérifie les connaissances et les sources…",false,8); research=crVerifyResearch(await sample.json(crResearchPrompt(f),{modelTier:"complex",engine:"best",search:true,web:crWebHint(f.pays,f),cache:false,signal:CR_CTL.signal})); }
-    showStatus("cr-",`${f.quality==="ultra"?"2/4":"1/2"} · Le professeur et le réalisateur construisent la démonstration…`,false,f.quality==="ultra"?34:18);
-    r=await sample.json(crPrompt(f,research),{modelTier:"complex",engine:"best",cache:false,signal:CR_CTL.signal});
-    if(f.quality==="ultra"){ showStatus("cr-","3/4 · La commission contrôle les faits, la pédagogie, la 3D et l’accessibilité…",false,62); r=await sample.json(crReviewPrompt(f,research,r),{modelTier:"complex",engine:"best",search:true,web:crWebHint(f.pays,f),cache:false,signal:CR_CTL.signal}); }
-    r=crNormalizeLayouts(crNormalize(r,f,research)); MD_RESULT={f,r,research,course:true}; $("md-image-mode").value=$("cr-images").value; $("md-audio-mode").value=$("cr-voix").value; showStatus("cr-",`${f.quality==="ultra"?"4/4":"2/2"} · Fabrication des illustrations et de la voix…`,false,84); await mdPrepareMedia(r,f); $("cr-status").hidden=true; crRender(r); }
+  try{ let research=null,r; const notes=[], why=e=>e.code==="skip"?"étape passée":e.code==="timeout"?"le modèle a mis trop de temps":errText(e);
+    if(f.quality==="ultra"){ research=await crStep("1/4 · Le documentaliste vérifie les connaissances et les sources…",8,150000,o=>sample.json(crResearchPrompt(f),{modelTier:"complex",engine:"best",search:true,web:crWebHint(f.pays,f),cache:false,signal:o.signal,onText:o.onText,...o.over}),true).then(crVerifyResearch,e=>{ if(CR_CTL.signal.aborted) throw e; notes.push(`Documentaliste : ${why(e)}. Le cours est écrit sans dossier web : vérifie les faits avant de publier.`); return null; }); }
+    r=await crStep(`${f.quality==="ultra"?"2/4":"1/2"} · Le professeur et le réalisateur construisent la démonstration…`,f.quality==="ultra"?34:18,360000,o=>sample.json(crPrompt(f,research),{modelTier:"complex",engine:"best",cache:false,signal:o.signal,onText:o.onText,...o.over}));
+    if(f.quality==="ultra"){ r=await crStep("3/4 · La commission contrôle les faits, la pédagogie, la 3D et l’accessibilité…",62,240000,o=>sample.json(crReviewPrompt(f,research,r),{modelTier:"complex",engine:"best",search:true,web:crWebHint(f.pays,f),cache:false,signal:o.signal,onText:o.onText,...o.over}),true).catch(e=>{ if(CR_CTL.signal.aborted) throw e; notes.push(`Commission finale : ${why(e)}. Le cours garde la version du professeur, sans contrôle final.`); return r; }); }
+    r=crNormalizeLayouts(crNormalize(r,f,research)); MD_RESULT={f,r,research,course:true}; $("md-image-mode").value=$("cr-images").value; $("md-audio-mode").value=$("cr-voix").value; showStatus("cr-",`${f.quality==="ultra"?"4/4":"2/2"} · Fabrication des illustrations et de la voix…`,false,84); await mdPrepareMedia(r,f); $("cr-status").hidden=true; crRender(r); if(notes.length) $("cr-res").insertAdjacentHTML("afterbegin",`<p class="alert" role="status">${notes.map(esc).join("<br>")}</p>`); }
   catch(err){ if(err.code==="cancelled") $("cr-status").hidden=true; else showStatus("cr-",errText(err),true); }
   finally{ $("cr-go").disabled=false; $("cr-stop").hidden=true; CR_CTL=null; }
 });
 $("cr-stop").addEventListener("click",()=>{ if(CR_CTL) CR_CTL.abort(); });
-function mtShow(k){ const ALL=MOTION_TABS; k=ALL.includes(k)?k:"libre"; document.querySelectorAll("[data-mt]").forEach(b=>{const on=b.dataset.mt===k;b.setAttribute("aria-selected",String(on));b.tabIndex=on?0:-1;}); ALL.forEach(n=>{ const el=$("mt-"+n); if(el) el.hidden=n!==k; }); applyMotionIdentity(k); savePrefs({motion:k}); if(k==="libre") mdShow(); if(k==="cours") crInit(); if(k==="quiz") jxShow(); if(k==="pub") pbShow(); if(k==="succes") ytShow(); }
+function mtShow(k){ const ALL=MOTION_TABS; k=ALL.includes(k)?k:"libre"; document.querySelectorAll("[data-mt]").forEach(b=>{const on=b.dataset.mt===k;b.setAttribute("aria-selected",String(on));b.tabIndex=on?0:-1;}); ALL.forEach(n=>{ const el=$("mt-"+n); if(el) el.hidden=n!==k; }); applyMotionIdentity(k); savePrefs(k==="succes"?{motion:k}:{motion:k,motionCreer:k}); if(!$("view-presse").hidden) syncGroupNav("presse"); if(k==="libre") mdShow(); if(k==="cours") crInit(); if(k==="quiz") jxShow(); if(k==="pub") pbShow(); if(k==="succes") ytShow(); }
 document.addEventListener("click", e=>{ const b=e.target.closest&&e.target.closest("[data-mt]"); if(b) mtShow(b.dataset.mt); });
 async function prShow(){
   prInit(); mtShow(loadPrefs().motion||"libre");
@@ -10130,7 +10188,80 @@ async function saveIdea(x){
 /* =================== BOOT =================== */
 try{ const li=JSON.parse(localStorage.getItem("sp-last-ideas")||"[]"); if(Array.isArray(li)) lastIdeas=li.map(normIdea); }catch(e){}
 try{ const lm=JSON.parse(localStorage.getItem("sp-last-img")||"null"); if(lm&&lm.f&&lm.res){ lm.res=normImg(lm.res); lastImg=lm; } }catch(e){}
-setView(VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : (prefs0.view||"accueil"), {keepScroll:true});
+/* =================== CRÉER EN 3 QUESTIONS (menu simplifié, étape 2) ===================
+   Une seule porte d'entrée : type de vidéo → point de départ → format et durée. L'assistant ouvre l'outil existant
+   (studio, audio, vidéo, Motion design), le remplit avec les réponses et lance l'agent : aucun moteur en double. */
+const AS_TYPES=[["film","🎬 Histoire / film IA","Personnages, scènes et prompts pour Veo, Runway ou Wan."],["infos","📰 Infos du jour","Revue de presse fidèle aux sources, voix et plateau télé."],["quiz","🧠 Quiz « 5 secondes »","Questions, compte à rebours et réponses justes."],["cours","🎓 Cours","Une leçon claire, avec des diapos adaptées au sujet."],["pub","📣 Publicité","Pour un commerce : produit, prix et bouton WhatsApp."],["anim","🎨 Animation","Motion design libre : une idée en graphismes animés."]];
+const AS_DEPARTS={
+  film:[["idee","💡 Une idée","Une ou deux phrases suffisent."],["audio","🎵 Un audio","Une chanson, une voix, un récit."],["video","🎞 Une vidéo","Un fichier ou un lien YouTube à refaire en mieux."]],
+  infos:[["pays","🌍 L’actualité du jour","Les grands journaux d’un pays."],["textes","📝 Mes textes ou mes liens","Les articles que tu as choisis."]],
+  quiz:[["theme","💡 Un thème","Animaux, capitales, football…"],["hasard","🎲 Au hasard, sans IA","Gratuit, sans quota, réponses calculées."]],
+  cours:[["sujet","💡 Un sujet","Le sujet exact de la leçon."],["doc","📄 Un document","Un PDF ou un texte à transformer en cours."]],
+  pub:[["commerce","🏪 Mon commerce","Le produit, le prix et ton WhatsApp."]],
+  anim:[["idee","💡 Une idée","Ce que l’animation doit montrer."]]
+};
+const AS_DUREES={film:["30","120","300"],cours:["30","120","300"],anim:["30","60","120"],infos:["60","120","300"],quiz:["3","4","5"],pub:["15","30","30"]};
+let AS=Object.assign({type:"",depart:"",fmt:"9:16",duree:"courte",texte:"",lien:"",doc:"",pays:"",nom:"",prod:"",prix:"",wa:""},loadPrefs().assistant||{}), AS_FILE=null;
+function asSave(){ const k=Object.assign({},AS); savePrefs({assistant:k}); }
+function asRadios(host,name,items,cur,on){ host.innerHTML=""; items.forEach(([id,t,d])=>{ const w=document.createElement("div"); w.className="mode"; w.innerHTML=`<input type="radio" name="${name}" id="${name}-${id}" value="${id}"><label for="${name}-${id}"><b>${esc(t)}</b><span>${esc(d)}</span></label>`; const inp=w.querySelector("input"); inp.checked=id===cur; inp.addEventListener("change",()=>{ if(inp.checked) on(id); }); host.append(w); }); }
+function asField(html){ const d=document.createElement("div"); d.className="field"; d.innerHTML=html; return d; }
+function asRender(){
+  asRadios($("as-type"),"as-type",AS_TYPES,AS.type,id=>{ AS.type=id; AS.depart=AS_DEPARTS[id][0][0]; AS_FILE=null; asSave(); asRender(); requestAnimationFrame(()=>$("as-q2").scrollIntoView({behavior:"smooth",block:"nearest"})); });
+  const T=AS.type, open=!!AS_DEPARTS[T]; $("as-q2").hidden=!open; $("as-q3").hidden=!open; $("as-actions").hidden=!open; if(!open) return;
+  if(!AS_DEPARTS[T].some(x=>x[0]===AS.depart)) AS.depart=AS_DEPARTS[T][0][0];
+  asRadios($("as-depart"),"as-depart",AS_DEPARTS[T],AS.depart,id=>{ AS.depart=id; AS_FILE=null; asSave(); asRender(); });
+  /* ce qu'il faut pour partir */
+  const D=AS.depart, box=$("as-input"); box.innerHTML="";
+  const text=(label,ph,key,rows)=>{ const f=asField(`<label for="as-${key}">${label}</label><textarea id="as-${key}" rows="${rows||3}" placeholder="${esc(ph)}"></textarea>`); const el=f.querySelector("textarea"); el.value=AS[key]||""; el.addEventListener("input",()=>{ AS[key]=el.value; asSave(); }); box.append(f); };
+  const file=(label,accept)=>{ const f=asField(`<label for="as-file">${label}</label><input type="file" id="as-file" accept="${accept}">`); f.querySelector("input").addEventListener("change",e=>{ AS_FILE=e.target.files&&e.target.files[0]||null; }); box.append(f); };
+  if((T==="film"||T==="anim")&&D==="idee") text(T==="film"?"Ton idée":"Ce que l’animation doit montrer","Exemple : une jeune couturière ouvre son atelier malgré les doutes de sa famille.","texte");
+  if(T==="film"&&D==="audio") file("Ton audio (chanson, voix, récit)","audio/*,.mp3,.wav,.m4a,.ogg");
+  if(T==="film"&&D==="video"){ file("Ta vidéo","video/*,.mp4,.mov,.webm"); text("ou un lien YouTube","https://www.youtube.com/watch?v=…","lien",1); }
+  if(T==="infos"&&D==="pays"){ const f=asField(`<label for="as-pays">Pays</label><div class="sel"><select id="as-pays">${COUNTRIES.filter(c=>c[0]!=="monde").map(([c,l])=>`<option value="${c}">${esc(l)}</option>`).join("")}</select></div>`), sel=f.querySelector("select"); sel.value=AS.pays||((typeof form!=="undefined"&&form.pays)||"sn"); if(!sel.value) sel.selectedIndex=0; AS.pays=sel.value; sel.addEventListener("change",()=>{ AS.pays=sel.value; asSave(); }); box.append(f); }
+  if(T==="infos"&&D==="textes") text("Tes textes ou tes liens","Colle les articles ou leurs liens, un par ligne.","texte",5);
+  if(T==="quiz"&&D==="theme") text("Le thème du quiz","Exemple : les capitales d’Afrique","texte",1);
+  if(T==="cours") text("Le sujet exact du cours","Exemple : les fractions, lire et additionner","texte",2);
+  if(T==="cours"&&D==="doc"){ file("Ton document PDF (facultatif)",".pdf,application/pdf"); text("ou colle le texte du document","Le texte à transformer en cours","doc",4); }
+  if(T==="pub"){ const f=document.createElement("div"); f.className="as-row"; [["nom","Nom du commerce","Boutique Awa"],["prod","Produit ou service","Robe en wax"],["prix","Prix","15 000 FCFA"],["wa","WhatsApp","+221 77 000 00 00"]].forEach(([k,l,ph])=>{ const d=asField(`<label for="as-${k}">${l}</label><input type="text" id="as-${k}" placeholder="${esc(ph)}">`), el=d.querySelector("input"); el.value=AS[k]||""; el.addEventListener("input",()=>{ AS[k]=el.value; asSave(); }); f.append(d); }); box.append(f); }
+  /* format et durée */
+  const both=["infos","quiz","pub"].includes(T), fmts=[["9:16","📱 Téléphone","TikTok, Shorts, Reels, statut WhatsApp"],["16:9","💻 PC","YouTube, Facebook"]].concat(both?[["both","📱 + 💻 Les deux","Une vidéo pour chaque écran"]]:[]);
+  if(!fmts.some(x=>x[0]===AS.fmt)) AS.fmt="9:16";
+  asRadios($("as-fmt"),"as-fmt",fmts,AS.fmt,id=>{ AS.fmt=id; asSave(); });
+  const fromMedia=T==="film"&&D!=="idee", v=AS_DUREES[T], lab=x=>T==="quiz"?`${x} niveaux`:Number(x)>=60?`${String(x/60).replace(".",",")} min`:`${x} s`;
+  $("as-duree").hidden=fromMedia;
+  asRadios($("as-duree"),"as-duree",[["courte","⚡ Courte",lab(v[0])],["moyenne","⏱ Moyenne",lab(v[1])],["longue","🕰 Longue",lab(v[2])]].filter((x,i,a)=>i<2||a[2][2]!==a[1][2]),AS.duree,id=>{ AS.duree=id; asSave(); });
+}
+async function asGo(){
+  const T=AS.type, D=AS.depart, msg=$("as-msg"), say=t=>{ msg.textContent=t; }, v=AS_DUREES[T]||[], dur=v[{courte:0,moyenne:1,longue:2}[AS.duree]||0], one=AS.fmt==="16:9"?"16:9":"9:16", txt=String(AS.texte||"").trim();
+  const set=(id,val)=>{ const el=$(id); if(el&&val!=null&&[...(el.options||[{value:val}])].some(o=>o.value===String(val))){ el.value=String(val); el.dispatchEvent(new Event("change",{bubbles:true})); } };
+  const put=(id,f)=>{ try{ const dt=new DataTransfer(); dt.items.add(f); const el=$(id); el.files=dt.files; el.dispatchEvent(new Event("change",{bubbles:true})); return true; }catch(e){ return false; } };
+  const need=(ok,t)=>{ if(!ok){ say(t); return false; } return true; };
+  if(!T) return say("Choisis d’abord le type de vidéo.");
+  if(((T==="film"||T==="anim")&&D==="idee")||(T==="quiz"&&D==="theme")||(T==="infos"&&D==="textes")||T==="cours"){ if(!need(txt.length>=4,"Écris d’abord quelques mots à la question 2.")) return; }
+  if(T==="film"&&D==="audio"&&!need(AS_FILE,"Choisis d’abord ton fichier audio.")) return;
+  if(T==="film"&&D==="video"&&!need(AS_FILE||/^https?:\/\//.test(String(AS.lien||"").trim()),"Choisis ta vidéo ou colle un lien YouTube.")) return;
+  if(T==="pub"&&!need(String(AS.nom||"").trim()&&String(AS.prod||"").trim(),"Écris au moins le nom du commerce et le produit.")) return;
+  asSave(); say("");
+  if(T==="film"){
+    if(D==="audio"){ setView("audio"); put("au-file",AS_FILE); set("au-format",one); toast("Ton audio est chargé : l’agent peut le transcrire et le découper ici."); return; }
+    if(D==="video"){ setView("reel"); if(AS_FILE) put("rm-file",AS_FILE); else { $("rm-yt").value=String(AS.lien).trim(); } set("rm-format",one); toast(AS_FILE?"Ta vidéo est chargée : lance l’analyse ici.":"Ton lien est prêt : lance l’étude de la vidéo ici."); return; }
+    setView("studio"); $("idee").value=txt; set("f-format",one); set("f-duree",dur); $("go").click(); return;
+  }
+  if(T==="anim"){ setView("presse:libre"); $("md-brief").value=txt; set("md-format",one); set("md-duration",dur); $("md-go").click(); return; }
+  if(T==="cours"){
+    let doc=String(AS.doc||"").trim();
+    if(D==="doc"&&AS_FILE){ say("Lecture du document…"); try{ const r=await fetch("/api/pdf/text",{method:"POST",headers:{"Content-Type":"application/pdf"},body:AS_FILE}), x=await r.json().catch(()=>({})); if(!r.ok) throw new Error(x.message||"PDF illisible"); doc=String(x.text||"").slice(0,20000); }catch(e){ return say(`${e.message||"PDF illisible"} : colle plutôt le texte du document.`); } say(""); }
+    setView("presse:cours"); $("cr-sujet").value=txt; if(doc) $("cr-source").value=doc; set("cr-format",one); set("cr-duree",dur); $("cr-go").click(); return;
+  }
+  if(T==="infos"){ savePrefs({presseFormat:AS.fmt}); setView("presse:infos"); set("pr-duree",dur);
+    if(D==="pays"){ set("pr-mode","auto"); set("pr-pays",AS.pays); $("pr-fetch").click(); } else { set("pr-mode","textes"); $("pr-text").value=txt; $("pr-go").click(); } return; }
+  if(T==="quiz"){ savePrefs({jeuxFormat:AS.fmt}); setView("presse:quiz"); set("jx-n",dur); if(D==="hasard") $("jx-rand").click(); else { $("jx-theme").value=txt; $("jx-go").click(); } return; }
+  if(T==="pub"){ savePrefs({pubFormat:AS.fmt}); setView("presse:pub"); [["pb-nom","nom"],["pb-prod","prod"],["pb-prix","prix"],["pb-wa","wa"]].forEach(([id,k])=>{ const el=$(id); if(el&&String(AS[k]||"").trim()){ el.value=String(AS[k]).trim(); el.dispatchEvent(new Event("input",{bubbles:true})); } }); set("pb-duree",dur); $("pb-go").click(); return; }
+}
+$("as-form").addEventListener("submit",async e=>{ e.preventDefault(); await asGo(); if($("view-assistant").hidden){ const g=Object.assign({},loadPrefs().grp||{}); g.creer="assistant"; savePrefs({grp:g}); } });   /* « Créer » revient ensuite à l'assistant */
+asRender();
+
+setView((VIEWS[location.hash.slice(1)]||GROUPS[location.hash.slice(1)]) ? location.hash.slice(1) : (prefs0.view||"accueil"), {keepScroll:true});
 renderIdeas(); renderProject(); renderImg(); renderLists();
 /* Vidéo longue : estimation du découpage et du nombre de demandes à l'IA, avant de lancer */
 function durHint(){

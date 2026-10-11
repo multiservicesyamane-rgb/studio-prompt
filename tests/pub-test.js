@@ -37,7 +37,7 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){} return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(AGENT)}) + "\n"}); } r.continue(); });
     // 1. onglet
-    await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
+    await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
     const initialTabs = await pg.evaluate(() => ({order: [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join(), selected: document.querySelector('[data-mt][aria-selected="true"]')?.dataset.mt, libre: !document.getElementById("mt-libre").hidden}));
     check("page Motion design : six onglets dans l'ordre, Projet libre ouvert par défaut après effacement du stockage", initialTabs.order === "libre,cours,infos,quiz,pub,succes" && initialTabs.selected === "libre" && initialTabs.libre, JSON.stringify(initialTabs));
     await pg.click('[data-mt="pub"]'); await pg.waitForFunction(() => !document.getElementById("mt-pub").hidden, {timeout: 10000});

@@ -50,7 +50,7 @@ const PORT = 3000 + 200 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ seen.prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){} return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(REVUE)}) + "\n"}); } r.continue(); });
     // 1. infos du jour (liens Google Actualités) puis revue
-    await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
+    await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
     await pg.evaluate(() => { document.getElementById("pr-sites").value = ""; }); await pg.click("#pr-fetch"); await pg.waitForSelector("#pr-news .pr-list", {timeout: 15000});
     await pg.select("#pr-duree", "60"); await pg.click("#pr-go"); await pg.waitForSelector("#pr-res .pr-seg", {timeout: 20000}); await new Promise(r => setTimeout(r, 800));
     // 2. vraies images des articles

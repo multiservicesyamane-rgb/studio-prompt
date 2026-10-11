@@ -31,9 +31,10 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){} return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(AGENT)}) + "\n"}); } r.continue(); });
     // 1. page et fiche client
-    const nav = await pg.evaluate(() => ({agence: !!document.querySelector('.side-link[data-go="agence"]'), links: document.querySelectorAll(".side-link").length}));
-    check("menu : « Agence (mes clients) » dans « Mes contenus »", nav.agence && nav.links === 14, JSON.stringify(nav));
-    await pg.click('.side-link[data-go="agence"]'); await pg.waitForFunction(() => !document.getElementById("view-agence").hidden, {timeout: 10000});
+    await pg.click('.side-link[data-go="contenus"]'); await pg.waitForSelector('.grp-tabs [data-go-tab="agence"]', {visible: true, timeout: 10000});
+    const nav = await pg.evaluate(() => ({agence: (document.querySelector('.grp-tabs [data-go-tab="agence"]') || {}).textContent, links: document.querySelectorAll(".side-link").length}));
+    check("menu simplifié : « Mes clients » (agence) en onglet de « Mes projets »", nav.agence === "Mes clients" && nav.links === 6, JSON.stringify(nav));
+    await pg.click('.grp-tabs [data-go-tab="agence"]'); await pg.waitForFunction(() => !document.getElementById("view-agence").hidden, {timeout: 10000});
     check("nom de l'agence modifiable (Yamane Tech par défaut)", await pg.evaluate(() => document.getElementById("ag-name").value === "Yamane Tech"));
     await pg.click("#ag-new"); await pg.waitForSelector("#ag-client-form", {timeout: 5000});
     await pg.type("#agc-nom", "Chez Fatou"); await pg.type("#agc-act", "Restaurant"); await pg.type("#agc-wa", "77 111 22 33"); await pg.type("#agc-adr", "Rue 10, Médina"); await pg.evaluate(() => { document.getElementById("agc-col").value = "#2e7d32"; });
@@ -67,7 +68,7 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     const pub = await pg.evaluate(() => ({nom: document.getElementById("pb-nom").value, wa: document.getElementById("pb-wa").value, col: document.getElementById("pb-color").value, logo: (JSON.parse(localStorage.getItem("sp-pub") || "{}").logo) || ""}));
     check("« Faire sa pub vidéo » : la fiche du client remplit l'onglet Publicités (nom, WhatsApp, couleur, logo)", pub.nom === "Chez Fatou" && pub.wa === "77 111 22 33" && pub.col === "#2e7d32" && /\/generated\/agence\/logo-/.test(pub.logo), JSON.stringify(pub));
     // 4. téléphone, reprise, console
-    await pg.click('.side-link[data-go="agence"]').catch(async () => { await pg.evaluate(() => { location.hash = "agence"; }); }); await new Promise(r => setTimeout(r, 400));
+    await pg.evaluate(() => { location.hash = "agence"; }); await new Promise(r => setTimeout(r, 400));
     await pg.setViewport({width: 390, height: 844}); await new Promise(r => setTimeout(r, 400));
     check("page Agence sur téléphone : pas de défilement horizontal", await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth <= 1));
     await pg.reload({waitUntil: "networkidle0"}); await pg.evaluate(() => { location.hash = "agence"; }); await pg.waitForSelector("#ag-body .ag-head", {timeout: 10000}).catch(() => {});

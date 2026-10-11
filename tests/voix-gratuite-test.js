@@ -50,7 +50,7 @@ const PORT = 3000 + 600 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST") return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(REVUE)}) + "\n" + JSON.stringify({model: "simulation"}) + "\n"}); r.continue(); });
 
     // 1. Revue de presse : les voix gratuites sont proposées à côté des voix Gemini
-    await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden && document.getElementById("pr-voix").options.length > 5, {timeout: 15000});
+    await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden && document.getElementById("pr-voix").options.length > 5, {timeout: 15000});
     const opts = await pg.evaluate(() => ({groups: [...document.querySelectorAll("#pr-voix optgroup")].map(g => g.label), local: [...document.querySelectorAll("#pr-voix option")].filter(o => /^local:/.test(o.value)).map(o => o.value), value: document.getElementById("pr-voix").value}));
     check("revue : voix gratuites de l'ordinateur proposées (sans la voix « Tom » sous licence AGPL), « la meilleure voix gratuite » (automatique) par défaut", opts.groups.length === 4 && opts.groups[0] === "Recommandé" && /Hugging Face/.test(opts.groups[2]) && /sans quota/.test(opts.groups[3]) && opts.local.length === 4 && !opts.local.some(v => /tom/.test(v)) && opts.value === "auto", JSON.stringify(opts));
     await pg.select("#pr-mode", "textes"); await pg.type("#pr-text", "Communiqué : de fortes pluies cette nuit, la rentrée est repoussée.");

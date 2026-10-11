@@ -26,14 +26,14 @@ const check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — 
   check("1366×650 : menu complet", !i.rail && i.width === 264, `${i.width}px`);
   check("1366×650 : tous les menus visibles, sans défiler", i.cachés.length === 0 && !i.navDefile, i.cachés.join(", "));
   check("état du moteur affiché", /Gemini prêt/.test(i.moteur), i.moteur);
-  check("page active surlignée", i.actif === "Depuis une idée", i.actif);
+  check("page active surlignée (Depuis une idée → « Créer »)", i.actif === "Créer", i.actif);
   check("pas de débordement", i.overflow <= 0, i.overflow + "px");
   await pg.screenshot({path: "m1-1366-complet.png"});
   // Réduire / agrandir
   await pg.click("#side-collapse"); await new Promise(r => setTimeout(r, 200)); i = await info();
   check("bouton Réduire → barre d'icônes", i.rail && i.width === 76, `${i.width}px`);
   const tip = await pg.$eval('.side-link[data-go="strategie"]', e => e.title);
-  check("bulle d'aide sur les icônes", tip === "Niches, pays et chaîne", tip);
+  check("bulle d'aide sur les icônes", tip === "Ma chaîne", tip);
   await pg.screenshot({path: "m2-1366-icones.png"});
   await go(1366, 650); i = await info(); check("choix Réduit mémorisé après rechargement", i.rail);
   await pg.click("#side-collapse"); await new Promise(r => setTimeout(r, 200)); i = await info(); check("bouton Agrandir → menu complet", !i.rail && i.width === 264);
@@ -45,19 +45,33 @@ const check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — 
   await pg.screenshot({path: "m3-1366-sombre.png"});
   await pg.click('[data-theme-set="light"]'); th = await pg.evaluate(() => document.documentElement.dataset.theme); check("thème Clair", th === "light", th);
   await pg.click('[data-theme-set="auto"]'); th = await pg.evaluate(() => document.documentElement.dataset.theme || "auto"); check("thème Automatique", th === "auto", th);
-  // Navigation par le menu
-  await pg.click('.side-link[data-go="projets"]'); i = await info();
-  check("clic sur Projets ouvre la page Projets", i.actif.startsWith("Projets") && !(await pg.$eval("#view-projets", e => e.hidden)), i.actif);
-  // Nouvelle organisation : 4 groupes, Stratégie en onglets, plus de page Experts
-  const groups = await pg.$$eval(".side-group", g => g.map(x => x.textContent.trim()));
-  check("menu en 4 groupes", groups.join(" | ") === "Créer | Trouver quoi faire | Mes contenus | Stratégie", groups.join(" | "));
-  check("14 liens dans le menu (accueil + 13, dont Motion design, Agence et Connexions et voix)", (await pg.$$(".side-link")).length === 14 && !!(await pg.$('.side-link[data-go="agence"]')) && !!(await pg.$('.side-link[data-go="connexions"]')));
+  // Menu simplifié : 5 entrées + Réglages ; les pages proches sont des onglets en haut de la page
+  const links = await pg.$$eval(".side-link", l => l.map(x => x.dataset.go).join());
+  check("menu simplifié : Accueil, Créer, Idées, Mes projets, Ma chaîne + Réglages (connexions)", links === "accueil,creer,trouver,contenus,strategie,connexions", links);
+  const gc = await pg.$$eval(".grp-tabs [data-go-tab]", t => t.map(x => x.textContent).join(" | "));
+  check("« Créer » : l'assistant en 3 questions puis les 4 façons de créer, en onglets en haut de la page", gc === "✨ En 3 questions | Depuis une idée | Depuis un audio | Depuis une vidéo | Motion design", gc);
+  await pg.click('.grp-tabs [data-go-tab="audio"]'); await new Promise(r => setTimeout(r, 300)); i = await info();
+  check("onglet « Depuis un audio » : la page s'ouvre et « Créer » reste surligné", !(await pg.$eval("#view-audio", e => e.hidden)) && i.actif === "Créer", i.actif);
+  await pg.click('.side-link[data-go="contenus"]'); i = await info();
+  check("« Mes projets » ouvre Projets, avec Personnages, Images et Mes clients en onglets", i.actif.startsWith("Mes projets") && !(await pg.$eval("#view-projets", e => e.hidden)) && (await pg.$$eval(".grp-tabs [data-go-tab]", t => t.map(x => x.dataset.goTab).join())) === "projets,persos,images,agence", i.actif);
   await pg.click('.side-link[data-go="strategie"]'); await new Promise(r => setTimeout(r, 300));
-  check("Stratégie ouvre Niches", !(await pg.$eval("#view-niches", e => e.hidden)));
-  await pg.click('#view-niches .strat-tabs [data-go-inline="pays"]'); await new Promise(r => setTimeout(r, 300)); i = await info();
-  check("onglet Pays + Stratégie reste surligné", !(await pg.$eval("#view-pays", e => e.hidden)) && i.actif === "Niches, pays et chaîne", i.actif);
+  check("« Ma chaîne » ouvre Niches", !(await pg.$eval("#view-niches", e => e.hidden)));
+  await pg.click('.grp-tabs [data-go-tab="pays"]'); await new Promise(r => setTimeout(r, 300)); i = await info();
+  check("onglet Pays + « Ma chaîne » reste surligné", !(await pg.$eval("#view-pays", e => e.hidden)) && i.actif.startsWith("Ma chaîne"), i.actif);
   await pg.click('.side-link[data-go="accueil"]'); await pg.click('.side-link[data-go="strategie"]'); await new Promise(r => setTimeout(r, 300));
-  check("Stratégie rouvre le dernier onglet (Pays)", !(await pg.$eval("#view-pays", e => e.hidden)));
+  check("« Ma chaîne » rouvre le dernier onglet (Pays)", !(await pg.$eval("#view-pays", e => e.hidden)));
+  await pg.click('.side-link[data-go="creer"]'); await new Promise(r => setTimeout(r, 300));
+  check("« Créer » rouvre le dernier onglet (Depuis un audio)", !(await pg.$eval("#view-audio", e => e.hidden)));
+  await pg.click('.side-link[data-go="trouver"]'); await new Promise(r => setTimeout(r, 300));
+  const gi = await pg.$$eval(".grp-tabs [data-go-tab]", t => t.map(x => x.textContent).join(" | "));
+  check("« Idées » : idées originales, tendances du jour et vidéos à succès au même endroit", gi === "Idées originales | Tendances du jour | Vidéos à succès" && !(await pg.$eval("#view-idees", e => e.hidden)), gi);
+  await pg.click('.grp-tabs [data-go-tab="presse:succes"]'); await new Promise(r => setTimeout(r, 600)); i = await info();
+  check("« Vidéos à succès » ouvre Succès YouTube, et « Idées » reste surligné", !(await pg.$eval("#mt-succes", e => e.hidden)) && i.actif.startsWith("Idées"), i.actif);
+  await pg.click('.side-link[data-go="creer"]'); await new Promise(r => setTimeout(r, 300)); await pg.click('.grp-tabs [data-go-tab="presse:motion"]'); await new Promise(r => setTimeout(r, 600)); i = await info();
+  check("« Motion design » depuis Créer : un type de vidéo à créer (pas Succès YouTube), « Créer » surligné", (await pg.$eval("#mt-succes", e => e.hidden)) && i.actif === "Créer", i.actif);
+  const old = [];
+  for(const h of ["studio", "reel", "persos", "memoire", "connexions", "agence", "tendances"]){ await pg.evaluate(h => { location.hash = h; }, h); await new Promise(r => setTimeout(r, 250)); if(await pg.$eval("#view-" + h, e => e.hidden)) old.push(h); }
+  check("anciennes adresses toujours valables : aucune page supprimée", !old.length, old.join(", "));
   await pg.evaluate(() => { location.hash = "experts"; }); await new Promise(r => setTimeout(r, 300));
   check("ancienne page Experts → accueil", !(await pg.$eval("#view-accueil", e => e.hidden)) && !(await pg.$("#view-experts")));
   const drops = await pg.$$eval(".fdrop", z => z.length);
@@ -73,8 +87,8 @@ const check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — 
   check("1920×1000 : menu complet", !i.rail && i.cachés.length === 0, `${i.width}px`);
   // Écran très bas : le menu défile, rien n'est perdu
   await go(1366, 520); i = await info();
-  const reach = await pg.evaluate(() => { const n = document.querySelector(".side-nav"); n.scrollTop = 1e5; const r = document.querySelector('.side-link[data-go="projets"]').getBoundingClientRect(); return r.bottom <= innerHeight; });
-  check("1366×520 : le menu défile et Projets reste atteignable", reach, i.navDefile ? "le milieu du menu défile" : "");
+  const reach = await pg.evaluate(() => { const n = document.querySelector(".side-nav"); n.scrollTop = 1e5; const r = document.querySelector('.side-link[data-go="connexions"]').getBoundingClientRect(); return r.bottom <= innerHeight; });
+  check("1366×520 : tout le menu reste atteignable", reach, i.navDefile ? "le milieu du menu défile" : "");
 
   // Téléphone
   await go(390, 844, true); i = await info();
@@ -86,14 +100,12 @@ const check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — 
   const opened = await pg.evaluate(() => ({r: Math.round(document.querySelector(".side").getBoundingClientRect().left), exp: document.getElementById("menu-btn").getAttribute("aria-expanded"), focus: document.activeElement.id}));
   check("☰ ouvre le tiroir", opened.r === 0 && opened.exp === "true", JSON.stringify(opened));
   await pg.screenshot({path: "m6-tel-ouvert.png"});
-  await pg.click('.side-link[data-go="persos"]'); await new Promise(r => setTimeout(r, 400));
-  const after = await pg.evaluate(() => ({open: document.body.classList.contains("menu-open"), niches: !document.getElementById("view-persos").hidden, chip: document.getElementById("top-hint").textContent}));
-  check("choisir une page ferme le tiroir et l'ouvre", !after.open && after.niches, after.chip);
-  const tabs = await pg.evaluate(() => { const t = [...document.querySelectorAll(".tabbar .tab")]; return {n: t.length, oneRow: new Set(t.map(x => Math.round(x.getBoundingClientRect().top))).size === 1, menuOn: document.getElementById("tab-menu").getAttribute("aria-current") === "page"}; });
-  check("téléphone : 5 boutons en bas sur une ligne, « Menu » surligné sur Personnages", tabs.n === 5 && tabs.oneRow && tabs.menuOn, JSON.stringify(tabs));
-  await pg.click("#tab-menu"); await new Promise(r => setTimeout(r, 400));
-  check("bouton Menu du bas ouvre le tiroir", await pg.evaluate(() => document.body.classList.contains("menu-open")));
-  await pg.keyboard.press("Escape"); await new Promise(r => setTimeout(r, 300));
+  await pg.click('.side-link[data-go="contenus"]'); await new Promise(r => setTimeout(r, 400));
+  const after = await pg.evaluate(() => ({open: document.body.classList.contains("menu-open"), page: !document.getElementById("view-projets").hidden, chip: document.getElementById("top-hint").textContent}));
+  check("choisir une entrée ferme le tiroir et ouvre la page", !after.open && after.page, after.chip);
+  await pg.click('.grp-tabs [data-go-tab="persos"]'); await new Promise(r => setTimeout(r, 400));
+  const tabs = await pg.evaluate(() => { const t = [...document.querySelectorAll(".tabbar .tab")], g = document.querySelector(".grp-tabs"); return {n: t.length, oneRow: new Set(t.map(x => Math.round(x.getBoundingClientRect().top))).size === 1, cur: (document.querySelector('.tabbar .tab[aria-current="page"]') || {}).textContent, persos: !document.getElementById("view-persos").hidden, over: document.documentElement.scrollWidth - innerWidth, inside: g ? g.getBoundingClientRect().right <= innerWidth + 1 : false}; });
+  check("téléphone : les 5 entrées en bas sur une ligne, « Projets » surligné sur Personnages, onglets sans débordement", tabs.n === 5 && tabs.oneRow && /Projets/.test(tabs.cur) && tabs.persos && tabs.over <= 0 && tabs.inside, JSON.stringify(tabs));
   await pg.click("#menu-btn"); await new Promise(r => setTimeout(r, 300)); await pg.keyboard.press("Escape"); await new Promise(r => setTimeout(r, 300));
   check("Échap ferme le tiroir", !(await pg.evaluate(() => document.body.classList.contains("menu-open"))));
   await pg.click("#menu-btn"); await new Promise(r => setTimeout(r, 300)); await pg.mouse.click(370, 400); await new Promise(r => setTimeout(r, 300));

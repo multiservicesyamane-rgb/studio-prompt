@@ -194,7 +194,7 @@ function runCourseFfmpeg(args,cwd,req){
 }
 async function handleCourseFinalize(req,res){
   if(!FFMPEG_PATH||!fs.existsSync(FFMPEG_PATH)) return sendJson(res,503,{code:"ffmpeg_missing",message:"FFmpeg n'est pas installé sur ce serveur."});
-  if(courseFfmpegBusy) return sendJson(res,429,{code:"busy",message:"Une finition FFmpeg est déjà en cours. Attends sa fin puis réessaie."});
+  if(courseFfmpegBusy) return sendJson(res,200,{busy:true,code:"busy",message:"Une autre vidéo est en finition : la tienne passe juste après."});   /* la page attend son tour, sans erreur */
   let input; try{input=JSON.parse(await readBody(req,2e6));}catch(e){return sendJson(res,400,{code:"bad_request",message:"Paramètres FFmpeg illisibles."});}
   const src=generatedInput(input.input); if(!src)return sendJson(res,400,{code:"bad_request",message:"La vidéo source doit être un fichier généré par Studio Prompt."});
   const mode=["burn","track","none"].includes(input.subtitles)?input.subtitles:"burn", rawSrt=String(input.srt||"");
@@ -830,6 +830,8 @@ async function handlePhotoImport(req, res){
 }
 
 /* ---------- appel du modèle, réponse en flux (une ligne JSON par morceau) ---------- */
+/* Réponse qui tourne en rond (petit modèle de secours) : les 200 derniers caractères reviennent au moins 4 fois dans les 6 000 derniers */
+function sampleLoops(t){ if(t.length < 3000) return false; const tail = t.slice(-200); if(tail.trim().length < 40) return false; const win = t.slice(-6000); let n = 0, k = -1; while((k = win.indexOf(tail, k + 1)) >= 0){ if(++n >= 4) return true; } return false; }
 async function handleSample(req, res){
   let input;
   try{ input = JSON.parse(await readBody(req, 40e6)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Requête illisible."}); }
@@ -847,7 +849,11 @@ async function handleSample(req, res){
   /* Un fichier audio (transcription) : seul Gemini sait l'écouter ici */
   const hasAudio = images.some(i => /^audio\//.test(String(i && i.mime)));
   if(hasAudio && !GEMINI_KEY) return sendJson(res, 400, {code:"no_key", message:"La transcription automatique a besoin d'une clé Gemini (GEMINI_API_KEY dans .env) : OpenAI et Claude ne peuvent pas écouter l'audio ici."});
-  const ctl = new AbortController(); res.on("close", () => { if(!res.writableEnded) ctl.abort(); });
+  const ctl = new AbortController(), SAMPLE_IDLE = Number(process.env.SAMPLE_IDLE_MS) || 150000, SAMPLE_MAX = Number(process.env.SAMPLE_MAX_MS) || 600000;
+  /* Délais de sécurité : un modèle muet (2 min 30) ou trop long (10 min) est arrêté avec un message clair, au lieu de laisser la page attendre sans fin */
+  let timedOut = "", idleT = null; const maxT = setTimeout(() => { timedOut = "max"; ctl.abort(); }, SAMPLE_MAX), bump = () => { clearTimeout(idleT); idleT = setTimeout(() => { timedOut = "idle"; ctl.abort(); }, SAMPLE_IDLE); }, stopTimers = () => { clearTimeout(maxT); clearTimeout(idleT); };
+  const TIMEOUT = () => ({code:"timeout", message: timedOut === "idle" ? "Le modèle ne répond plus (quota du meilleur modèle épuisé ou service saturé) : réessaie, un autre modèle prendra le relais." : "Le modèle a mis trop de temps (plus de 10 minutes) : réessaie, ou choisis le mode Rapide."});
+  bump(); res.on("close", () => { stopTimers(); if(!res.writableEnded) ctl.abort(); });
   /* Moteur : « best » = OpenAI Sol (réflexion maximale, recherche web fiable) s'il est disponible, sinon le moteur par défaut.
      Si un moteur échoue (quota, crédits, clé), l'autre prend le relais. */
   const best = input.engine === "best" || (input.engine !== "default" && input.tier === "complex");
@@ -931,7 +937,7 @@ async function handleSample(req, res){
       try{
         upstream = prov === "gemini" ? await callGemini() : prov === "openai" ? await callOpenAI() : await callAnthropic();
       }catch(e){
-        if(ctl.signal.aborted) return;
+        if(ctl.signal.aborted){ if(timedOut && !res.headersSent) return sendJson(res, 504, TIMEOUT()); return; }
         const why = (e && e.cause && (e.cause.code || e.cause.message)) || (e && e.message) || "erreur réseau";
         netErrs.push(`${prov} : ${why}`); upstream = null;
         if(!retried){ retried = true; console.log(`${prov} injoignable (${why}), nouvel essai dans 3 s.`); await new Promise(r => setTimeout(r, 3000)); k--; continue; }
@@ -949,7 +955,7 @@ async function handleSample(req, res){
       break;
     }
   }catch(e){
-    if(ctl.signal.aborted) return;
+    if(ctl.signal.aborted){ if(timedOut && !res.headersSent) return sendJson(res, 504, TIMEOUT()); return; }
     console.log("API injoignable :", netErrs.join(" ; ") || (e && e.message));
     return sendJson(res, 502, {code:"network", message:"Le serveur n'arrive pas à joindre l'API : vérifie ta connexion Internet puis réessaie."});
   }
@@ -962,9 +968,10 @@ async function handleSample(req, res){
   res.writeHead(200, {"Content-Type":"application/x-ndjson; charset=utf-8", "Cache-Control":"no-cache"});
   const meta = {sources:[], queries:[], suggestions:""}, seen = new Set();
   const addSource = (title, uri) => { if(uri && !seen.has(uri)){ seen.add(uri); meta.sources.push({title:String(title || uri), uri:String(uri)}); } };
+  let acc = "", lastCheck = 0;
   try{
     for await (const ev of sseEvents(upstream.body)){
-      let delta = "";
+      bump(); let delta = "";
       if(prov === "gemini"){
         const cand = (ev.candidates || [])[0] || {}, gm = cand.groundingMetadata;
         if(gm){
@@ -995,14 +1002,18 @@ async function handleSample(req, res){
         if(ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") delta = ev.delta.text;
         if(ev.type === "error"){ res.write(JSON.stringify({error:true, code:"server_error", message:(ev.error && ev.error.message) || "Erreur du modèle."}) + "\n"); break; }
       }
-      if(delta) res.write(JSON.stringify({delta}) + "\n");
+      if(delta){ res.write(JSON.stringify({delta}) + "\n"); acc += delta; if(acc.length > lastCheck + 1500){ lastCheck = acc.length; if(sampleLoops(acc)){
+        if(prov === "gemini" && geminiUsed) geminiBusy.set(geminiUsed, Date.now() + 10 * 60 * 1000);
+        console.log(`${prov === "gemini" ? geminiUsed : prov} : réponse qui tourne en rond, arrêtée (le prochain essai passera par un autre modèle).`);
+        res.write(JSON.stringify({error:true, code:"loop", message:"Le modèle s'est mis à répéter la même chose : réponse arrêtée. Réessaie, un autre modèle prendra le relais."}) + "\n"); ctl.abort(); break; } } }
     }
     res.write(JSON.stringify({model: prov === "gemini" ? geminiUsed : prov === "openai" ? oaModel : "claude"}) + "\n");
     if(search){ web.sources.forEach(x => addSource(x.title, x.uri)); if(!searchUsed && !web.text) meta.nosearch = true; if(web.text) meta.web = "Google Tendances et Actualités"; meta.engine = (prov === "openai" ? `OpenAI ${oaModel}` : prov) + (web.text ? " + flux Google" : ""); res.write(JSON.stringify({meta}) + "\n"); }
   }catch(e){
-    if(!ctl.signal.aborted) res.write(JSON.stringify({error:true, code:"server_error", message:"Flux interrompu : réessaie."}) + "\n");
+    if(timedOut) res.write(JSON.stringify(Object.assign({error:true}, TIMEOUT())) + "\n");
+    else if(!ctl.signal.aborted) res.write(JSON.stringify({error:true, code:"server_error", message:"Flux interrompu : réessaie."}) + "\n");
   }
-  res.end();
+  stopTimers(); res.end();
 }
 
 /* ---------- fichiers de l'application ---------- */

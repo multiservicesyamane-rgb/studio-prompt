@@ -593,6 +593,19 @@ Remarque de l'utilisateur : « tous les cours ont toujours le même format ; je 
 
 Test : `cours-habillage-test.js`. Faux canvas, sans navigateur ni IA : 9 habillages × 13 mises en page × 2 formats, lisibilité, choix de l'habillage, normalisation, consignes. Bout en bout : `cours-video-test.js`. La consigne garde le titre « GRAMMAIRE VISUELLE DE RÉFÉRENCE », pour la partie commune à tous les habillages (`cours-ultra-test.js`).
 
+### 4.3 undecies Plus jamais bloqué sur « 1/4 · Le documentaliste… » (11 octobre)
+Remarque de l'utilisateur : le cours restait sur « 1/4 · Le documentaliste vérifie… ». Les quotas gratuits étaient épuisés (3 modèles Gemini sur 4 bloqués, recherche web limitée à la minute, OpenAI sans crédits). La grosse demande passait donc par le petit modèle de secours, qui pouvait écrire très longtemps ou tourner en rond (jusqu'à `MAX_OUT`), et rien ne l'arrêtait.
+- **Serveur** (`handleSample`) :
+  - un modèle muet pendant `SAMPLE_IDLE_MS` (150 s) ou trop long (`SAMPLE_MAX_MS`, 10 min) est arrêté avec un message clair (`code:"timeout"`, 504 avant la réponse, ligne d'erreur pendant) ;
+  - une réponse qui tourne en rond (`sampleLoops` : les 200 derniers caractères reviennent 4 fois dans les 6 000 derniers) est coupée (`code:"loop"`), et le modèle est mis de côté 10 minutes.
+- **Cours** (`crStep`) :
+  - chaque étape affiche son temps et les caractères reçus, et a un délai (150 s, 6 min, 4 min) ;
+  - en cas de délai dépassé, de boucle, de saturation ou de réponse illisible, l'étape est relancée une fois avec le modèle rapide (`opts.over`) ;
+  - le documentaliste et la commission sont facultatifs : bouton « Passer cette étape » (`#cr-skip`). En cas d'échec, le cours continue et un avertissement le dit.
+  - Les 3 appels et leurs réglages littéraux restent, comme l'exige `cours-ultra-test.js`.
+- **Finition FFmpeg** : si elle est occupée, le serveur répond 200 `{busy:true}`, et la page attend son tour (5 min au plus) au lieu d'échouer.
+- Tests : `sample-garde-test.js` (faux Google muet, lent, en boucle) et `cours-relais-test.js` (documentaliste passé, commission relancée avec le modèle rapide).
+
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
@@ -749,8 +762,24 @@ Ce que le code corrige :
 | `presse` | « Depuis des infos » : revue de presse fidèle aux sources, avec voix d'or |
 | `connexions` | « Connexions et voix » : ce qui est gratuit et ce qui est payant, budget du jour, guides des clés (ElevenLabs, projet Google payant séparé), dernières fabrications |
 
-- Le menu compte 4 groupes et 13 liens.
-- Les anciens liens restent valides grâce aux alias (par exemple `strategie`).
+**Menu simplifié (11 octobre)** : beaucoup de pages se ressemblaient, et l'utilisateur a demandé une version plus simple.
+- Le menu compte 5 entrées (`GROUPS`) et Réglages. La barre du bas du téléphone montre les 5 entrées ; Réglages s'ouvre par ☰.
+  - **Créer** : `assistant` (en 3 questions, ouvert par défaut), `studio`, `audio`, `reel`, `presse:motion` (Motion design, avec le dernier type de vidéo choisi, `motionCreer`).
+  - **Idées** : `idees`, `tendances`, `presse:succes` (Succès YouTube).
+  - **Mes projets** : `projets`, `persos`, `images`, `agence`.
+  - **Ma chaîne** : `niches`, `pays`, `chaine`, `memoire`.
+  - **Réglages** : `connexions`.
+- Les pages d'un même groupe sont des onglets en haut de la page (`syncGroupNav`, `.grp-tabs`, 2 par ligne sur téléphone). Chaque entrée rouvre son dernier onglet (`sp-prefs.grp`).
+- `qualite` (réparer une image) et `son` restent des sous-pages d'Images et de Projets (`SUBVIEW_OF`).
+- **Aucune page n'est supprimée.** Les adresses `#studio`, `#presse`, `#niches`, `#strategie`… marchent toujours, et `#experts` mène à l'accueil.
+- **Créer en 3 questions** (`view-assistant`, `asRender`, `asGo`), premier raccourci de l'accueil :
+  1. Le type de vidéo : film IA, infos du jour, quiz, cours, publicité, animation.
+  2. Le point de départ : idée, audio, vidéo ou lien YouTube, actualité d'un pays, textes, thème, quiz au hasard sans IA, sujet, document PDF ou texte, commerce.
+  3. Le format (téléphone, PC, ou les deux pour infos, quiz et pub) et la durée (courte, moyenne, longue, convertie pour chaque outil par `AS_DUREES`).
+  - L'assistant ouvre l'outil existant (`setView("presse:quiz")`…), remplit ses champs et clique sur son bouton de lancement : aucun moteur en double.
+  - Les fichiers passent par `DataTransfer`, et un PDF de cours par `/api/pdf/text`.
+  - Ensuite, « Créer » revient à l'assistant. Les réponses sont gardées dans `sp-prefs.assistant`. Il y a toujours un chemin sans quota : quiz au hasard, pub sans IA.
+- Prochaine étape du plan : un seul fil d'idées, et des Projets qui montrent aussi les quiz, pubs, infos et cours.
 
 ## 8. Tests
 
@@ -767,7 +796,7 @@ Ce que le code corrige :
 |---|---|
 | `gates-test.js` | Routage d'entrée, tous les contrôles du code V3 et V4, `cameraOne` |
 | `audio-lock-test.js` | Alignement des plans sur l'audio importé |
-| `ui-test.js`, `menu-test.js` | Vues, menu, mobile, mode sombre, console sans erreur |
+| `ui-test.js`, `menu-test.js` | Vues, menu simplifié (5 entrées + Réglages, onglets des groupes, dernier onglet retenu, anciennes adresses), mobile, mode sombre, console sans erreur |
 | `presse-test.js` | Revue de presse avec un vrai `server.js` face à de faux Google Actualités, Google voix et site d'actualité : infos cochées, règles de vérité, voix d'or, audio complet, textes et liens, reprise, vidéo |
 | `gen-api-test.js` | `generation.js` face à de faux Google, Runway et ElevenLabs : clé gratuite pour les voix, clé payante pour Veo, budget, facturation absente, voix une à la fois, limites par minute et par jour, imports, Range, sécurité des chemins, reprise |
 | `fab-ui-test.js` | Interface de fabrication avec un vrai `server.js` (`GEN_DIR` séparé) : voix par personnage, essai, voix d'un plan ou de tout le projet, imports groupés d'images et de clips, pré-montage, page Connexions |
@@ -798,6 +827,9 @@ Ce que le code corrige :
 | `professional-tabs-test.js` | Structure accessible des 6 onglets de Motion design (`node:test`) |
 | `cours-habillage-test.js` | Cours du jour : 9 habillages lisibles et distincts, choix (main, mise en scène, agent, matière, niveau), 13 mises en page dessinées en 9:16 et 16:9 sur un faux canvas, normalisation des items, consignes, aperçu, aucun mot technique à l'écran |
 | `cours-video-test.js` | Cours du jour de bout en bout (IA simulée) : consigne avec les habillages, mise en scène « tableau » → tableau à craie, aperçu de trois diapos, changement d'habillage à la main, vraie vidéo 1080 × 1920 de 30 s avec FFmpeg qui suit ce choix, téléphone sans défilement |
+| `assistant-test.js` | Créer en 3 questions : raccourci de l'accueil, 6 types, quiz au hasard sans IA (4 niveaux, format « les deux »), retour à l'assistant, réponse manquante, cours rempli et lancé, film depuis un lien YouTube, choix gardés, téléphone, console |
+| `sample-garde-test.js` | Délais de sécurité des agents face à un faux Google : modèle muet ou qui ne commence jamais (timeout clair), réponse qui tourne en rond (coupée, code loop), serveur toujours disponible ensuite |
+| `cours-relais-test.js` | Cours Ultra sans impasse : temps affiché, « Passer cette étape » pour le documentaliste, commission en boucle reprise par le modèle rapide, cours livré avec un avertissement |
 | `motion-libre-test.js` | Projet libre : IA simulée, vraie vidéo fabriquée image par image en 1080 × 1920, finition FFmpeg (H.264, −14 LUFS), scènes visibles, console sans erreur |
 
 **Règles**
@@ -838,7 +870,8 @@ Les commits sont en français. Étapes majeures :
 17. page **Motion design** : revue de presse en plateau 3D, quiz « 5 secondes », publicités, agence, puis **Succès YouTube**, voix de premier niveau et couche cinéma (6 au 8 octobre) ;
 18. ajouts de l'autre outil (Cours du jour, montage de pub, quiz premium, mémoire PDF, sauvegarde Supabase), puis réparation des 14 régressions (11 octobre, §4.3 octies) ;
 19. export professionnel Full HD de toutes les vidéos de Motion design, téléphone d'abord (11 octobre, §4.3 nonies) ;
-20. Cours du jour : un habillage propre à chaque cours et une mise en page adaptée à chaque diapo (11 octobre, §4.3 decies).
+20. Cours du jour : un habillage propre à chaque cours et une mise en page adaptée à chaque diapo (11 octobre, §4.3 decies) ;
+21. menu simplifié : 5 entrées, les pages proches en onglets (11 octobre, §7) ; puis « Créer en 3 questions » (§7).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

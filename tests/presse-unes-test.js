@@ -55,7 +55,7 @@ const seen = {vision: 0, search: 0, prompt: ""};
       r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(rep)}) + "\n" + JSON.stringify({model: "simulation"}) + "\n"}); });
 
     // 1. recherche web des unes du jour → page lue → images en hauteur gardées → unes lues par l'agent
-    await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
+    await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
     await pg.select("#pr-mode", "textes"); await pg.evaluate(() => { document.getElementById("pr-unes-box").open = true; });
     await pg.click("#pr-unes-find"); await pg.waitForFunction(() => /unes? prêtes?/.test(document.getElementById("pr-unes-msg").textContent), {timeout: 30000}).catch(() => {});
     const g1 = await pg.evaluate(() => ({msg: document.getElementById("pr-unes-msg").textContent, cards: [...document.querySelectorAll("#pr-unes-grid .pr-une-card")].map(c => `${c.querySelector("input").value}|${c.querySelector(".hint").textContent}|${c.className}`), saved: JSON.parse(localStorage.getItem("sp-presse-unes") || "[]")}));
