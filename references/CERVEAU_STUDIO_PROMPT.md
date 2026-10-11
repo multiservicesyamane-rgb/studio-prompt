@@ -532,6 +532,33 @@ L'autre outil (Antigravity) a livré le commit 4849974. La suite complète est p
 - **Sauvegarde en ligne absente = état normal** : si Supabase n'est pas configuré, ne répond pas (projet en pause) ou n'a pas sa table, le serveur répond 200 `{ready:false, code, message}` (délai de 15 s). Après un échec, le shim ne fait plus aucun appel pendant la visite, et aucun appel non plus sur `*.github.io` ni en `file:`. Les projets restent dans le navigateur, c'est le relais gratuit. La visite suivante renvoie à Supabase la version la plus récente. Aucune erreur rouge dans la console. La page Connexions affiche « Sauvegarde des projets ».
 - **Tests** : les suites de la revue de presse et de la voix gratuite fixent `sp-prefs.motion = "infos"`, comme un utilisateur qui revient sur cet onglet. Les 3 suites de l'autre outil (`cours-ultra-test.js`, `course-ffmpeg-test.js`, `professional-tabs-test.js`) tournent dans `npm test`, et `run-all.js` compte aussi les suites `node:test` (« # pass N »).
 
+### 4.3 nonies Export professionnel des vidéos : Full HD, téléphone d'abord (11 octobre)
+Demande de l'utilisateur (8 octobre) : « le format des vidéos de chaque onglet, YouTube et TikTok, bien fait ; téléphone et PC d'abord ; des vidéos plus professionnelles ».
+
+**Couche commune** (avant `prVideo`)
+- `SP_FMT` et `SP_FMT_CHOICES` : les mêmes noms partout. 📱 Téléphone 9:16 (1080 × 1920 : TikTok, Shorts, Reels, statut WhatsApp), 💻 PC 16:9 (1920 × 1080 : YouTube, Facebook), ◻️ Carré 1:1 (1080 × 1080, pour les pubs).
+- `spFmts` : « both », le choix par défaut, donne le téléphone d'abord, puis le PC.
+- `spFmtTag` donne les noms de fichiers : `…-telephone-9x16.mp4`, `…-pc-16x9.mp4`, `…-carre-1x1.mp4`.
+- `spMakeVideo` → `spEncode` : la vidéo est fabriquée **image par image** (WebCodecs).
+  - MP4 H.264 « High » + AAC 192 kb/s, 30 images/s constantes, une image clé toutes les 2 s, index en tête du fichier.
+  - Débit : 6 Mb/s en Full HD, 4,5 Mb/s au-delà de 2 min 30.
+  - Assemblage par `public/vendor/mp4-muxer.min.js` (MIT, licence à côté), sinon jsDelivr.
+  - `spLoudness` met le son à environ −14 LUFS, crête sous −1 dB. Vérifié avec FFmpeg : −14,7 LUFS.
+- **Relais gratuit** : sans WebCodecs, ou en cas d'échec, l'enregistrement en direct d'avant est utilisé (720p, profil High d'abord). `window.__noPro` force ce relais : `succes-test.js` le vérifie.
+- `spVideoFigure` et `spReadyHtml` : sous chaque vidéo, son format, ses réseaux, « ✅ Prête à publier » et les limites (statut WhatsApp 60 s, Shorts 3 min).
+
+**Par onglet**
+- **Infos du jour** (`prStage`, `prStudio3D`) : le dessin garde ses mesures 720p (`W`, `H`, `U`). En Full HD, toutes ses images (sortie, tampons des transitions, fond, vignettage, fonds flous, mur LED, rendu 3D) sont 1,5 fois plus grandes (`K`), et leurs contextes sont mis à l'échelle. Chaque `drawImage` d'un tampon plein écran donne sa taille (`W, H`). Le plateau 3D est toujours gardé à l'export, car il n'y a plus de contrainte de temps réel.
+- **Quiz et Succès YouTube** (`jxStage`) : le fichier final est au moins en Full HD (`renderQuality` « pro », ou 2K si l'utilisateur choisit « Ultra »). Les aperçus restent rapides.
+- **Publicités** (`pbStage`) : `big="fhd"` donne le PC en 1920 × 1080 ; le téléphone et le carré sont en 1080.
+- **Projet libre et Cours du jour** (`mdMakeVideo`) : le dessin d'une image est isolé dans `drawAt(t)` (mesures 720p, échelle `KK`), et le son est rendu hors temps réel par `mdSoundOffline`, avec le même mixage. La finition FFmpeg du serveur reste appliquée ensuite et garde la taille.
+
+**Règle (à ne plus casser)** : tout dessin de vidéo doit être **indépendant de la résolution**. Soit chaque mesure est multipliée par `U` (positions, cadres, traits et polices), soit le dessin reste en mesures 720p et le contexte est mis à l'échelle (`K`). Jamais de positions fixes en pixels avec des polices agrandies : en Full HD, le texte déborderait de ses cadres. C'était le cas de l'habillage 2D des Infos, corrigé par `K`.
+
+**Tests** : vidéos 1080 × 1920 et 1920 × 1080 vérifiées dans `presse-*`, `jeux-test.js`, `pub-test.js` et `motion-libre-test.js` (nouveau : vraie vidéo de « Projet libre » + FFmpeg). Les positions lues dans les images sont proportionnelles. Délais : 9 min pour le plateau 3D sans carte graphique, 15 min par suite.
+
+**Aussi le 11 octobre** : un PDF déposé par erreur dans « Ton export YouTube Studio » donne un message clair. Il est rangé dans « Apprendre depuis un document PDF » sans lancer l'agent (`stats-test.js`). Les menus « Format » de Projet libre et du Cours du jour portent les mêmes noms (téléphone, PC, carré).
+
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
@@ -735,6 +762,7 @@ Ce que le code corrige :
 | `cours-ultra-test.js` | Cours du jour (sans navigateur) : compositions, normaliseur face à de mauvais JSON, format carré 1080 × 1080, liens des sources validés |
 | `course-ffmpeg-test.js` | Finition FFmpeg réelle : MP4 H.264 yuv420p, AAC 48 kHz, SRT servi, capture temporaire supprimée, repli navigateur |
 | `professional-tabs-test.js` | Structure accessible des 6 onglets de Motion design (`node:test`) |
+| `motion-libre-test.js` | Projet libre : IA simulée, vraie vidéo fabriquée image par image en 1080 × 1920, finition FFmpeg (H.264, −14 LUFS), scènes visibles, console sans erreur |
 
 **Règles**
 - Toute nouvelle règle du moteur ajoute un cas positif et un cas négatif dans `gates-test.js`.
@@ -772,11 +800,14 @@ Les commits sont en français. Étapes majeures :
 15. **Director Engine V4** ;
 16. images du Storyboard, analyse des paroles, mode secours, **analyse complète des vidéos** (commencées par un autre assistant, terminées et testées) ;
 17. page **Motion design** : revue de presse en plateau 3D, quiz « 5 secondes », publicités, agence, puis **Succès YouTube**, voix de premier niveau et couche cinéma (6 au 8 octobre) ;
-18. ajouts de l'autre outil (Cours du jour, montage de pub, quiz premium, mémoire PDF, sauvegarde Supabase), puis réparation des 14 régressions (11 octobre, §4.3 octies).
+18. ajouts de l'autre outil (Cours du jour, montage de pub, quiz premium, mémoire PDF, sauvegarde Supabase), puis réparation des 14 régressions (11 octobre, §4.3 octies) ;
+19. export professionnel Full HD de toutes les vidéos de Motion design, téléphone d'abord (11 octobre, §4.3 nonies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 
-**Prochain chantier, demandé le 8 octobre** : formats vidéo de tous les onglets de Motion design en Full HD. Téléphone 1080 × 1920 (TikTok, Shorts, Reels, WhatsApp) et ordinateur 1920 × 1080 (YouTube, Facebook), fabriqués image par image en MP4 H.264 + AAC (WebCodecs avec `public/vendor/mp4-muxer.min.js`, déjà copié), son au niveau des plateformes. Le Cours du jour a déjà sa finition FFmpeg : la réutiliser plutôt que la doubler. Ensuite, un « mode simple » en 3 étapes (type de vidéo, 3 questions, puis l'onglet rempli avec le vrai agent), idée tirée d'une maquette faite dans une autre conversation.
+**Prochains chantiers** (formats Full HD faits le 11 octobre, §4.3 nonies) :
+- **Cours du jour : des diapos adaptées à chaque cours** (demande du 11 octobre). Aujourd'hui, tous les cours ont le même habillage bleu nuit (consigne unique dans `crPrompt`, fond fixe dans `crCourseFrame`), et la « mise en scène » choisie est recouverte par ce fond.
+- Ensuite, un « mode simple » en 3 étapes : type de vidéo, 3 questions, puis l'onglet rempli avec le vrai agent. L'idée vient d'une maquette faite dans une autre conversation.
 
 Par ordre de valeur pour l'utilisateur :
 1. **Cost Optimizer** : estimer les crédits par plan et par modèle avant génération, et proposer de compresser ou de passer en mode image → vidéo moins cher.

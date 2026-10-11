@@ -4,7 +4,7 @@
 const {spawnSync} = require("child_process"), path = require("path"), http = require("http");
 const {BASE, OUT} = require("./env");
 const CODE = ["gates-test.js", "audio-lock-test.js", "video-analyze-test.js", "gen-api-test.js", "fab-ui-test.js", "presse-test.js", "presse-unes-test.js", "presse-studio-test.js", "presse-plateau-test.js", "manus-test.js", "agnes-test.js", "manus-clips-test.js", "voix-gratuite-test.js", "voix-relais-test.js", "jeux-test.js", "pub-test.js", "succes-test.js", "agence-test.js", "youtube-learn-test.js", "cours-ultra-test.js", "course-ffmpeg-test.js", "professional-tabs-test.js"];   // ces suites lancent leurs propres serveurs (faux Google)   // video-analyze lance son propre serveur avec un faux Google
-const NAV = ["ui-test.js", "menu-test.js", "v4-prompts-test.js", "long-mock-test.js", "adapt-test.js", "monet-test.js", "stats-test.js", "premont-test.js", "paroles-test.js", "paroles-voix-test.js", "remake-test.js"];
+const NAV = ["ui-test.js", "menu-test.js", "v4-prompts-test.js", "long-mock-test.js", "adapt-test.js", "monet-test.js", "stats-test.js", "premont-test.js", "paroles-test.js", "paroles-voix-test.js", "remake-test.js", "motion-libre-test.js"];
 const only = process.argv.slice(2);
 const up = () => new Promise(r => http.get(BASE + "/api/status", res => { res.resume(); r(res.statusCode === 200); }).on("error", () => r(false)));
 (async () => {
@@ -12,7 +12,7 @@ const up = () => new Promise(r => http.get(BASE + "/api/status", res => { res.re
   let total = 0, bad = 0;
   for(const f of CODE.concat(NAV).filter(f => !only.length || only.some(o => f.includes(o)))){
     if(NAV.includes(f) && !serverUp){ console.log(`--   ${f} : ignoré, serveur absent sur ${BASE} (lance npm start)`); continue; }
-    const r = spawnSync(process.execPath, [path.join(__dirname, f)], {cwd: OUT, encoding: "utf8", timeout: 600000});
+    const r = spawnSync(process.execPath, [path.join(__dirname, f)], {cwd: OUT, encoding: "utf8", timeout: 900000});
     const o = (r.stdout || "") + (r.stderr || "");
     const tap = n => Number((o.match(new RegExp(`^# ${n} (\\d+)`, "m")) || [])[1] || 0);   /* suites écrites avec node:test (« # pass 10 ») */
     const okN = (o.match(/^OK\b/gm) || []).length + tap("pass"), koN = (o.match(/^(ECHEC|ÉCHEC)\b|ERREUR DU TEST/gm) || []).length + tap("fail") + (r.status ? 1 : 0) * (okN ? 0 : 1);

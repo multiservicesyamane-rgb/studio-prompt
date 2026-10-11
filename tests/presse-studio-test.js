@@ -79,11 +79,11 @@ const PORT = 3000 + 200 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     const vid = await pg.evaluate(async () => { const v = document.querySelector("#pr-video-out video"); await new Promise(r => { if(v.readyState >= 1) r(); else v.onloadedmetadata = r; setTimeout(r, 4000); });
       const c = document.createElement("canvas"), hits = {red: 0, green: 0, orange: 0, navy: 0}, dur = isFinite(v.duration) ? v.duration : 20;
       for(let t = 2; t < Math.min(dur, 40); t += 0.75){ v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 2500); }); c.width = v.videoWidth; c.height = v.videoHeight; const x = c.getContext("2d"); x.drawImage(v, 0, 0);
-        const px = (X, Y) => x.getImageData(X, Y, 1, 1).data; const rb = px(700, Math.round(c.height * 0.785) + 20); if(rb[0] > 170 && rb[1] < 80 && rb[2] < 80) hits.red++;
-        const bg = px(30, Math.round(c.height * 0.72)); if(bg[2] > bg[0] && bg[0] < 40) hits.navy++;
+        const px = (X, Y) => x.getImageData(X, Y, 1, 1).data; const rb = px(Math.round(c.width * 700 / 1280), Math.round(c.height * (0.785 + 20 / 720))); if(rb[0] > 170 && rb[1] < 80 && rb[2] < 80) hits.red++;
+        const bg = px(Math.round(c.width * 30 / 1280), Math.round(c.height * 0.72)); if(bg[2] > bg[0] && bg[0] < 40) hits.navy++;
         const d = x.getImageData(Math.round(c.width * 0.15), Math.round(c.height * 0.08), Math.round(c.width * 0.78), Math.round(c.height * 0.58)).data; let g = 0, o = 0; for(let i = 0; i < d.length; i += 32){ if(d[i + 1] > 150 && d[i] < 90 && d[i + 2] < 120) g++; if(d[i] > 200 && d[i + 1] > 110 && d[i + 1] < 170 && d[i + 2] < 60) o++; } if(g > 1500) hits.green++; if(o > 1500) hits.orange++; }
       return {msg: document.getElementById("pr-video-msg").textContent, w: v.videoWidth, h: v.videoHeight, hits}; });
-    check("vidéo « Grand écran » en 16:9 (1280 × 720)", /Vidéo prête/.test(vid.msg) && vid.w === 1280 && vid.h === 720, `${vid.w}×${vid.h} · ${vid.msg}`);
+    check("vidéo « Grand écran » PC 16:9 en Full HD (1920 × 1080)", /Vidéo prête/.test(vid.msg) && /Full HD/.test(vid.msg) && vid.w === 1920 && vid.h === 1080, `${vid.w}×${vid.h} · ${vid.msg}`);
     check("studio télé : décor bleu nuit et bandeau rouge avec le titre du sujet", vid.hits.navy >= 4 && vid.hits.red >= 4, JSON.stringify(vid.hits));
     check("les vraies images des deux articles s'affichent sur le grand écran", vid.hits.green >= 1 && vid.hits.orange >= 1, JSON.stringify(vid.hits));
     for(const [sec, name] of [[6, "studio-test-sujet"], [10, "studio-test-image"]]){ await pg.evaluate(async t => { const v = document.querySelector("#pr-video-out video"); v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 3000); }); }, sec); const el = await pg.$("#pr-video-out video"); if(el) await el.screenshot({path: path.join(OUT, name + ".png")}); }

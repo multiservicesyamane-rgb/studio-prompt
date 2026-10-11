@@ -40,6 +40,12 @@ let statsPromptTxt = "", ideaPromptTxt = "";
   await pg.click("#stats-go"); await new Promise(r => setTimeout(r, 1500));
   r = await pg.evaluate(() => (document.querySelector("#stats-res .facts") || {}).innerText || document.getElementById("stats-msg").textContent);
   check(".csv YouTube Studio (anglais) lu aussi", /Vidéos\s*20/i.test(r), r.replace(/\s+/g, " "));
+  // 5. un PDF déposé ici par erreur : message clair, rangé dans « Apprendre depuis un document PDF », rien n'est lancé
+  const fakePdf = path.join(require("./env").OUT, "guide-test.pdf"); require("fs").writeFileSync(fakePdf, "%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
+  await (await pg.$("#stats-file")).uploadFile(fakePdf);
+  await pg.click("#stats-go"); await new Promise(r => setTimeout(r, 800));
+  r = await pg.evaluate(() => ({msg: document.getElementById("stats-msg").textContent, moved: (document.getElementById("mem-pdf").files[0] || {}).name || "", left: document.getElementById("stats-file").value, pdfMsg: document.getElementById("mem-pdf-msg").textContent}));
+  check("PDF déposé dans les statistiques : message clair, PDF rangé dans « Apprendre depuis un document PDF », rien n'est lancé", /est un PDF, pas un export de statistiques/.test(r.msg) && r.moved === "guide-test.pdf" && !r.left && !/%PDF/.test(r.msg) && !r.pdfMsg, JSON.stringify(r).slice(0, 220));
   check("aucune erreur JavaScript", errs.length === 0, errs.join(" | "));
   await b.close(); console.log(out.join("\n"));
 })().catch(e => { console.log(out.join("\n")); console.log("ERREUR DU TEST :", e.message); });

@@ -76,7 +76,7 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     // 5. vidéo 9:16 avec la voix qui pose les questions (son fabriqué : voix, musique, tic-tac, effets)
     const vopts = await pg.evaluate(() => [...document.querySelectorAll("#jx-voix option")].map(o => o.value));
     check("voix au choix pour poser les questions : sans voix, la meilleure gratuite, Hugging Face, voix de l'ordinateur", vopts.includes("none") && vopts.includes("auto") && vopts.includes("hf:fr_f1") && vopts.includes("local:fr_FR-siwis-medium"), vopts.slice(0, 6).join(" "));
-    await pg.evaluate(() => { document.getElementById("jx-voix").value = "local:fr_FR-siwis-medium"; document.getElementById("jx-vmodel").value = "classique"; document.getElementById("jx-video").click(); });
+    await pg.evaluate(() => { document.getElementById("jx-voix").value = "local:fr_FR-siwis-medium"; document.getElementById("jx-vmodel").value = "classique"; document.getElementById("jx-vfmt").value = "9:16"; document.getElementById("jx-video").click(); });
     await pg.waitForFunction(() => /Vidéo prête|échoué|navigateur/.test(document.getElementById("jx-vmsg").textContent), {timeout: 180000});
     const vid = await pg.evaluate(async () => { const v = document.querySelector("#jx-vids video"); await new Promise(r => { if(v.readyState >= 1) r(); else v.onloadedmetadata = r; setTimeout(r, 6000); });
       if(!(isFinite(v.duration) && v.duration > 0)) await new Promise(r => { v.ondurationchange = () => { if(isFinite(v.duration)) r(); }; v.currentTime = 1e7; setTimeout(r, 5000); });   /* vidéo du navigateur : durée connue après un saut à la fin */
@@ -84,13 +84,13 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
       for(let t = 3; t < Math.min(dur, 30); t += 0.8){ v.currentTime = t; await new Promise(r => { v.onseeked = r; setTimeout(r, 2500); }); c.width = v.videoWidth; c.height = v.videoHeight; const x = c.getContext("2d"); x.drawImage(v, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let g = 0, y = 0;
         for(let i = 0; i < d.length; i += 16){ if(d[i + 1] > 170 && d[i] < 90 && d[i + 2] < 140) g++; if(d[i] > 220 && d[i + 1] > 180 && d[i + 2] < 110) y++; } if(g > 800) hits.green++; if(y > 300) hits.yellow++; }
       return {msg: document.getElementById("jx-vmsg").textContent, w: v.videoWidth, h: v.videoHeight, dur, hits, said: window.__voiceTexts.slice()}; });
-    check("vidéo 9:16 (720 × 1280) : la voix lit l'accroche, chaque question et chaque réponse, et la vidéo prend le temps des phrases", /Vidéo prête/.test(vid.msg) && vid.w === 720 && vid.h === 1280 && vid.dur > 36 && vid.dur < 90 && vid.said.length === 8 && vid.said.some(t => /^Niveau 1\. Quel est le plus long fleuve d'Afrique/.test(t)) && vid.said.some(t => /La bonne réponse : Le Nil/.test(t)), `${vid.w}×${vid.h} · ${Math.round(vid.dur * 10) / 10} s · ${vid.said.length} phrases · ${vid.msg}`);
+    check("vidéo téléphone 9:16 en Full HD (1080 × 1920) : la voix lit l'accroche, chaque question et chaque réponse, et la vidéo prend le temps des phrases", /Vidéo prête/.test(vid.msg) && /Full HD/.test(vid.msg) && vid.w === 1080 && vid.h === 1920 && vid.dur > 36 && vid.dur < 90 && vid.said.length === 8 && vid.said.some(t => /^Niveau 1\. Quel est le plus long fleuve d'Afrique/.test(t)) && vid.said.some(t => /La bonne réponse : Le Nil/.test(t)), `${vid.w}×${vid.h} · ${Math.round(vid.dur * 10) / 10} s · ${vid.said.length} phrases · ${vid.msg}`);
     check("à l'écran : compte à rebours (jaune) puis la bonne réponse en vert", vid.hits.yellow >= 1 && vid.hits.green >= 1, JSON.stringify(vid.hits));
     const poster = await pg.evaluate(() => (document.querySelector("#jx-vids video") || {}).getAttribute("poster") || "");
     check("la vidéo montre son affiche premium avant la lecture", /^blob:/.test(poster), poster.slice(0, 40));
     await pg.evaluate(() => document.querySelector('[data-jx-dl="0"]').click());
-    const vf = await waitFiles(/^5-secondes-episode-2-9x16\.(mp4|webm)$/, 1);
-    check("téléchargement de la vidéo (5-secondes-episode-2-9x16)", vf.length === 1 && vf[0].n > 100000, JSON.stringify(vf));
+    const vf = await waitFiles(/^5-secondes-episode-2-telephone-9x16\.mp4$/, 1);
+    check("téléchargement de la vidéo MP4 (5-secondes-episode-2-telephone-9x16)", vf.length === 1 && vf[0].n > 100000, JSON.stringify(vf));
     for(const f of ["16:9", "9:16"]){ await pg.evaluate(f => document.querySelector(`[data-jx-poster="${f}"]`).click(), f); await pg.waitForFunction(n => document.querySelectorAll("#jx-posters img").length >= n, {timeout: 30000}, f === "16:9" ? 1 : 2); }
     const ps = await pg.evaluate(async () => Promise.all([...document.querySelectorAll("#jx-posters img")].map(async im => { await im.decode().catch(() => {}); return `${im.naturalWidth}×${im.naturalHeight}`; })));
     const pf = await waitFiles(/^5-secondes-episode-2-(affiche-youtube|couverture-tiktok)\.jpg$/, 2);
