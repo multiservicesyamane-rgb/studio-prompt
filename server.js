@@ -9,6 +9,18 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const {spawn} = require("child_process");
+const pdfParse = require("pdf-parse");
+let FFMPEG_PATH = "";
+try { FFMPEG_PATH = require("ffmpeg-static") || ""; } catch (_) {}
+const localTools = () => ({
+  ffmpeg: !!(FFMPEG_PATH && fs.existsSync(FFMPEG_PATH)),
+  photoshop: fs.existsSync("C:\\Program Files\\Adobe\\Adobe Photoshop 2021"),
+  illustrator: fs.existsSync("C:\\Program Files\\Adobe\\Adobe Illustrator 2021"),
+  afterEffects: fs.existsSync("C:\\Program Files\\Adobe\\Adobe After Effects 2021"),
+  premiere: fs.existsSync("C:\\Program Files\\Adobe\\Adobe Premiere Pro 2021"),
+  resolve: fs.existsSync("C:\\Program Files\\Blackmagic Design\\DaVinci Resolve")
+});
 
 /* ---------- .env ---------- */
 (function loadEnv(){
@@ -102,9 +114,105 @@ function readBody(req, limit){
     req.on("error", reject);
   });
 }
+function readBuffer(req, limit){
+  return new Promise((resolve, reject) => {
+    let size = 0; const chunks = [];
+    req.on("data", c => { size += c.length; if(size > limit){ reject(Object.assign(new Error("too_large"), {code:"input_too_large"})); req.destroy(); } else chunks.push(c); });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
+const SUPABASE_SECRET_KEY = String(process.env.SUPABASE_SECRET_KEY || "").trim();
+const SUPABASE_USER = String(process.env.STUDIO_PROMPT_USER_ID || "local").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "local";
+const supabaseHeaders = extra => Object.assign({apikey:SUPABASE_SECRET_KEY, Authorization:`Bearer ${SUPABASE_SECRET_KEY}`, "Content-Type":"application/json", "User-Agent":"StudioPrompt-Server/1.0"}, extra || {});
+async function supabaseCall(pathname, opts={}){
+  if(!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw Object.assign(new Error("Supabase n'est pas configuré dans .env."), {code:"no_key", status:503});
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${pathname}`, Object.assign({}, opts, {headers:supabaseHeaders(opts.headers)}));
+  if(!r.ok){ const raw=await r.text(); const missing=r.status===404||/schema cache|does not exist/i.test(raw); throw Object.assign(new Error(missing?"La table Supabase studio_prompt_documents n'existe pas encore.":`Supabase refuse la demande (${r.status}).`),{code:missing?"table_missing":"supabase_error",status:missing?503:r.status,detail:raw.slice(0,300)}); }
+  return r;
+}
+async function handleSupabaseDb(req,res){
+  const base="studio_prompt_documents", filter=`user_id=eq.${encodeURIComponent(SUPABASE_USER)}`;
+  try{
+    if(req.method==="GET"){
+      const r=await supabaseCall(`${base}?select=id,data,updated_at&${filter}&order=updated_at.desc&limit=2000`), rows=await r.json();
+      return sendJson(res,200,{ready:true,user:SUPABASE_USER,documents:rows.map(x=>({id:x.id,data:x.data}))});
+    }
+    const input=JSON.parse(await readBody(req,20e6));
+    if(req.method==="POST"){
+      const docs=Array.isArray(input.documents)?input.documents:[];
+      const rows=docs.slice(0,2000).filter(x=>x&&x.id&&x.data&&typeof x.data==="object").map(x=>({user_id:SUPABASE_USER,id:String(x.id).slice(0,160),data:x.data,updated_at:Number(x.data.updatedAt)||Date.now()}));
+      if(rows.length) await supabaseCall(base,{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(rows)});
+      return sendJson(res,200,{ready:true,saved:rows.length});
+    }
+    if(req.method==="DELETE"){
+      const id=String(input.id||"").slice(0,160); if(!id) return sendJson(res,400,{code:"bad_request",message:"Identifiant manquant."});
+      await supabaseCall(`${base}?${filter}&id=eq.${encodeURIComponent(id)}`,{method:"DELETE",headers:{Prefer:"return=minimal"}});
+      return sendJson(res,200,{ready:true,deleted:id});
+    }
+    return sendJson(res,405,{code:"bad_request",message:"Méthode non autorisée."});
+  }catch(e){ return sendJson(res,e.status||500,{code:e.code||"supabase_error",message:e.message}); }
+}
+
+/* Extrait localement le texte d'un PDF destiné à la mémoire. Le document n'est
+   jamais écrit sur disque et n'est pas conservé après cette requête. */
+async function handlePdfText(req, res){
+  if(!/application\/pdf/i.test(String(req.headers["content-type"] || ""))) return sendJson(res, 415, {code:"bad_request", message:"Choisis un fichier PDF."});
+  let buf;
+  try{ buf = await readBuffer(req, 100e6); }
+  catch(e){ return sendJson(res, 413, {code:"input_too_large", message:"PDF trop volumineux : maximum 100 Mo."}); }
+  if(buf.length < 5 || buf.subarray(0, 5).toString("ascii") !== "%PDF-") return sendJson(res, 400, {code:"bad_request", message:"Ce fichier n'est pas un PDF valide."});
+  try{
+    const out = await pdfParse(buf), text = String(out.text || "").replace(/\u0000/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{4,}/g, "\n\n\n").trim();
+    if(text.length < 40) return sendJson(res, 422, {code:"bad_request", message:"Aucun texte lisible dans ce PDF. S'il s'agit d'un scan, applique d'abord une reconnaissance OCR."});
+    return sendJson(res, 200, {text:text.slice(0, 120000), pages:Number(out.numpages) || 0, truncated:text.length > 120000});
+  }catch(e){ return sendJson(res, 422, {code:"bad_request", message:"Impossible de lire ce PDF. Il est peut-être protégé, corrompu ou composé uniquement d'images."}); }
+}
 /* Fabrication des vidéos et des voix (generation.js) : tâches suivies, budget du jour, fichiers dans public/generated/ */
 const gen = require("./generation")({dir:GENERATED, env:process.env, sendJson, readBody});
 const safePart = (v, fallback) => String(v || fallback).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || fallback;
+/* ---------- finition locale des cours par FFmpeg ---------- */
+let courseFfmpegBusy = false;
+function generatedInput(value){
+  if(!String(value||"").startsWith("/generated/")) return null;
+  let p=""; try{ p=decodeURIComponent(new URL(String(value||""),"http://local").pathname); }catch(e){ return null; }
+  const m=p.match(/^\/generated\/([a-zA-Z0-9_-]{1,80})\/([a-zA-Z0-9_.-]{1,160})$/); if(!m||!/^.+\.(mp4|webm|mov)$/i.test(m[2])) return null;
+  const root=path.resolve(GENERATED), file=path.resolve(root,m[1],m[2]); if(!file.startsWith(root+path.sep)||!fs.existsSync(file)) return null;
+  const stat=fs.statSync(file); if(!stat.isFile()||stat.size<1000||stat.size>800e6) return null;
+  return {project:m[1],name:m[2],file,dir:path.dirname(file),size:stat.size};
+}
+function runCourseFfmpeg(args,cwd,req){
+  return new Promise((resolve,reject)=>{ let log="",settled=false,timedOut=false,aborted=false; const p=spawn(FFMPEG_PATH,args,{cwd,windowsHide:true,shell:false,stdio:["ignore","ignore","pipe"]}), timer=setTimeout(()=>{ timedOut=true; try{p.kill("SIGKILL");}catch(e){} },20*60*1000);
+    const stop=()=>{ aborted=true; if(!settled)try{p.kill("SIGKILL");}catch(e){} }; req.once("aborted",stop);
+    p.stderr.on("data",b=>{log=(log+b.toString("utf8")).slice(-16000);});
+    p.once("error",e=>{settled=true;clearTimeout(timer);req.off("aborted",stop);reject(Object.assign(e,{detail:log}));});
+    p.once("close",code=>{settled=true;clearTimeout(timer);req.off("aborted",stop);if(code===0&&!aborted)resolve(log);else reject(Object.assign(new Error(timedOut?"FFmpeg a dépassé 20 minutes.":aborted?"La finition a été interrompue.":`FFmpeg a quitté avec le code ${code}.`),{code:timedOut?"timeout":aborted?"aborted":"ffmpeg_error",detail:log}));});
+  });
+}
+async function handleCourseFinalize(req,res){
+  if(!FFMPEG_PATH||!fs.existsSync(FFMPEG_PATH)) return sendJson(res,503,{code:"ffmpeg_missing",message:"FFmpeg n'est pas installé sur ce serveur."});
+  if(courseFfmpegBusy) return sendJson(res,429,{code:"busy",message:"Une finition FFmpeg est déjà en cours. Attends sa fin puis réessaie."});
+  let input; try{input=JSON.parse(await readBody(req,2e6));}catch(e){return sendJson(res,400,{code:"bad_request",message:"Paramètres FFmpeg illisibles."});}
+  const src=generatedInput(input.input); if(!src)return sendJson(res,400,{code:"bad_request",message:"La vidéo source doit être un fichier généré par Studio Prompt."});
+  const mode=["burn","track","none"].includes(input.subtitles)?input.subtitles:"burn", rawSrt=String(input.srt||"");
+  if(rawSrt.includes("\u0000")||Buffer.byteLength(rawSrt,"utf8")>256e3)return sendJson(res,413,{code:"subtitles_too_large",message:"Les sous-titres sont invalides ou dépassent 256 Ko."});
+  const srt=rawSrt.replace(/[{}]/g,""), duration=Math.min(600,Math.max(3,Number(input.duration)||600)), stamp=Date.now().toString(36), base=safePart(input.title,"cours-ultra"), outName=`${base}-final-${stamp}.mp4`,outPath=path.join(src.dir,outName),tmpName=`.course-finalize-${stamp}.part.mp4`,tmpPath=path.join(src.dir,tmpName),srtName=`${base}-${stamp}.srt`,srtPath=path.join(src.dir,srtName);
+  if(mode!=="none"&&srt.trim())fs.writeFileSync(srtPath,"\ufeff"+srt,"utf8");
+  const args=["-hide_banner","-nostdin","-y","-fflags","+genpts","-i",src.name];
+  if(mode==="track"&&srt.trim())args.push("-i",srtName);
+  args.push("-map","0:v:0","-map","0:a:0?"); if(mode==="track"&&srt.trim())args.push("-map","1:0");
+  const filters=["scale=trunc(iw/2)*2:trunc(ih/2)*2","fps=30"];
+  if(mode==="burn"&&srt.trim())filters.push(`subtitles=filename='${srtName}':charenc=UTF-8:force_style='FontName=Arial,FontSize=22,PrimaryColour=&H00FFFFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=2,Shadow=1,MarginV=28,Alignment=2'`);
+  filters.push("format=yuv420p"); args.push("-vf",filters.join(","));
+  args.push("-c:v","libx264","-preset","medium","-crf","18","-pix_fmt","yuv420p","-movflags","+faststart","-af","aresample=async=1:first_pts=0,loudnorm=I=-14:LRA=11:TP=-1.0","-c:a","aac","-b:a","192k","-ar","48000","-ac","2","-max_muxing_queue_size","2048","-t",String(Math.min(605,duration+2)),"-fs","1000000000");
+  if(mode==="track"&&srt.trim())args.push("-c:s","mov_text","-metadata:s:s:0","language=fra","-metadata:s:s:0","title=Sous-titres");
+  args.push("-metadata",`title=${String(input.title||"Cours Ultra").replace(/[\r\n\u0000]+/g," ").slice(0,160)}`,tmpName);
+  courseFfmpegBusy=true;
+  try{await runCourseFfmpeg(args,src.dir,req);const st=fs.statSync(tmpPath);if(st.size<1000)throw new Error("Le fichier MP4 final est vide.");fs.renameSync(tmpPath,outPath);try{if(src.file!==outPath)fs.rmSync(src.file);}catch(e){}return sendJson(res,200,{ok:true,finalized:true,url:`/generated/${src.project}/${outName}`,srt:mode!=="none"&&srt.trim()?`/generated/${src.project}/${srtName}`:"",size:st.size,format:"MP4",video:"H.264 CRF 18 · yuv420p · 30 fps",audio:"AAC 192 kb/s · 48 kHz · EBU R128 -14 LUFS · true peak -1 dBTP",subtitles:mode==="burn"?"incrustés":mode==="track"?"piste activable":"aucun"});}
+  catch(e){try{if(fs.existsSync(tmpPath))fs.rmSync(tmpPath);}catch(_){}try{if(fs.existsSync(outPath))fs.rmSync(outPath);}catch(_){}try{if(fs.existsSync(srtPath))fs.rmSync(srtPath);}catch(_){}try{if(/^capture-navigateur-/.test(src.name)&&fs.existsSync(src.file))fs.rmSync(src.file);}catch(_){}console.error("FFmpeg cours :",e.message,"\n",String(e.detail||"").slice(-3000));return sendJson(res,e.code==="timeout"?504:500,{code:e.code||"ffmpeg_error",message:e.code==="timeout"?"La finition FFmpeg a dépassé le temps maximal.":"La finition FFmpeg a échoué. La vidéo navigateur reste disponible."});}
+  finally{courseFfmpegBusy=false;try{if(fs.existsSync(tmpPath))fs.rmSync(tmpPath);}catch(_){} }
+}
 function findOutputImage(value){
   if(!value || typeof value !== "object") return null;
   if(typeof value.data === "string" && /^image\//.test(String(value.mime_type || value.mimeType || ""))) return {data:value.data, mime:value.mime_type || value.mimeType};
@@ -487,10 +595,24 @@ async function handleVideoAnalyzeUrl(req, res){
    les plus appréciés (ce que le public aime et demande). Sans clé, la page fait chercher l'agent sur Google et le serveur vérifie chaque lien
    (oEmbed public + page de la vidéo). Aucune vidéo n'est téléchargée : titre, chaîne, vues, durée et image d'aperçu publique, avec le lien. */
 const YT_API = (process.env.YOUTUBE_API_BASE || "https://www.googleapis.com/youtube/v3").replace(/\/$/, "");
+const YT_MIN_VIEWS = 1_000_000;
 const ytKey = () => String(process.env.YOUTUBE_API_KEY || "").trim();
 const isoSeconds = d => { const m = String(d || "").match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/); return m ? (+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0) : 0; };
 const ytItem = m => ({id:m.id, url:`https://www.youtube.com/watch?v=${m.id}`, title:String(m.title || "").slice(0, 200), channel:String(m.channel || "").slice(0, 120), views:Number(m.views) || 0, duration:Number(m.duration) || 0, published:String(m.published || "").slice(0, 10),
   short:!!m.short || (Number(m.duration) > 0 && Number(m.duration) <= 180), thumb:`https://i.ytimg.com/vi/${m.id}/mqdefault.jpg`, description:String(m.description || "").slice(0, 400)});
+/* Recherche directement dans la page publique de YouTube quand aucune clé Data API n'est disponible.
+   Les identifiants viennent de YouTube, puis chaque page vidéo est relue pour vérifier titre, chaîne et compteur réel. */
+async function youtubeWebTop(q, opts = {}){
+  const html = await fetchText(`${YT_BASE}/results?${new URLSearchParams({search_query:q, hl:/^[a-z]{2}$/.test(opts.langue||"")?opts.langue:"fr"})}`, 30000);
+  const ids = [...new Set([...String(html).matchAll(/"videoId":"([A-Za-z0-9_-]{11})"/g)].map(m => m[1]))].slice(0, 24);
+  if(!ids.length) return [];
+  const metas = (await Promise.all(ids.map(id => youtubeMeta(id).catch(() => null)))).filter(Boolean).map(ytItem);
+  const days = {semaine:7, mois:31, annee:365}[opts.periode], after = days ? Date.now() - days * 864e5 : 0;
+  return metas.filter(x => x.id && x.title && x.views >= YT_MIN_VIEWS)
+    .filter(x => opts.format === "court" ? x.duration > 0 && x.duration < 240 : opts.format === "moyen" ? x.duration >= 240 && x.duration <= 1200 : true)
+    .filter(x => !after || (Date.parse(x.published) || 0) >= after)
+    .sort((a,b) => b.views - a.views).slice(0, 12);
+}
 async function ytApi(path, params){
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
   try{ const r = await fetch(`${YT_API}/${path}?${new URLSearchParams(Object.assign({}, params, {key:ytKey()}))}`, {signal:ctl.signal}); return {status:r.status, json:await r.json().catch(() => null)}; }
@@ -507,20 +629,24 @@ async function handleYoutubeTop(req, res){
   const u = new URL(req.url, "http://x"), p = k => String(u.searchParams.get(k) || "").trim();
   const ids = [...new Set(p("ids").split(/[\s,]+/).map(x => ytId(x) || (/^[A-Za-z0-9_-]{11}$/.test(x) ? x : "")).filter(Boolean))].slice(0, 12);
   if(ids.length){   /* liens trouvés par l'agent ou collés : chacun vérifié sur YouTube ; un lien qui ne mène à aucune vidéo est écarté */
-    const items = (await Promise.all(ids.map(id => youtubeMeta(id).catch(() => null)))).filter(m => m && m.title).map(ytItem).sort((a, b) => b.views - a.views);
-    return sendJson(res, 200, {items, source:"liens"}); }
+    const items = (await Promise.all(ids.map(id => youtubeMeta(id).catch(() => null)))).filter(m => m && m.title).map(ytItem).filter(x => x.views >= YT_MIN_VIEWS).sort((a, b) => b.views - a.views);
+    return sendJson(res, 200, {items, source:"liens", min_views:YT_MIN_VIEWS}); }
   const q = p("q").replace(/[<>"]/g, " ").slice(0, 120); if(!q) return sendJson(res, 400, {code:"bad_request", message:"Écris un sujet à chercher."});
-  if(!ytKey()) return sendJson(res, 400, {code:"no_key", message:"Pas de clé YouTube (YOUTUBE_API_KEY, gratuite) : l'agent cherche sur Google à la place."});
+  if(!ytKey()){
+    const items = await youtubeWebTop(q, {format:p("format"), periode:p("periode"), langue:p("langue")});
+    if(items.length) return sendJson(res, 200, {items, source:"youtube_web", min_views:YT_MIN_VIEWS});
+    return sendJson(res, 400, {code:"network", message:"La page publique de résultats YouTube n’a rendu aucune vidéo vérifiable : nouvelle tentative par la recherche web."});
+  }
   const days = {semaine:7, mois:31, annee:365}[p("periode")], params = {part:"snippet", type:"video", order:"viewCount", maxResults:"25", q, safeSearch:"strict"};
   if(days) params.publishedAfter = new Date(Date.now() - days * 864e5).toISOString().replace(/\.\d+Z$/, "Z");
   if(p("format") === "court") params.videoDuration = "short"; else if(p("format") === "moyen") params.videoDuration = "medium";
   if(/^[a-z]{2}$/.test(p("langue"))) params.relevanceLanguage = p("langue");
-  const s = await ytApi("search", params); if(s.status !== 200 || !s.json){ const [code, c, message] = ytApiError(s); return sendJson(res, code, {code:c, message}); }
+  const s = await ytApi("search", params); if(s.status !== 200 || !s.json){ const items = await youtubeWebTop(q, {format:p("format"), periode:p("periode"), langue:p("langue")}); if(items.length) return sendJson(res, 200, {items, source:"youtube_web", min_views:YT_MIN_VIEWS}); const [code, c, message] = ytApiError(s); return sendJson(res, code, {code:c, message}); }
   const found = (s.json.items || []).map(x => x && x.id && x.id.videoId).filter(Boolean); if(!found.length) return sendJson(res, 200, {items:[], source:"api"});
   const v = await ytApi("videos", {part:"snippet,statistics,contentDetails", id:found.join(",")}); if(v.status !== 200 || !v.json){ const [code, c, message] = ytApiError(v); return sendJson(res, code, {code:c, message}); }
   const items = (v.json.items || []).map(x => { const sn = x.snippet || {}; return ytItem({id:x.id, title:sn.title, channel:sn.channelTitle, views:(x.statistics || {}).viewCount, duration:isoSeconds((x.contentDetails || {}).duration), published:sn.publishedAt, description:sn.description}); })
-    .filter(x => x.id && x.title).sort((a, b) => b.views - a.views).slice(0, 12);
-  sendJson(res, 200, {items, source:"api"});
+    .filter(x => x.id && x.title && x.views >= YT_MIN_VIEWS).sort((a, b) => b.views - a.views).slice(0, 12);
+  sendJson(res, 200, {items, source:"api", min_views:YT_MIN_VIEWS});
 }
 /* Les commentaires les plus appréciés d'une vidéo : lus pour trouver un nouvel angle (ce que le public aime, demande ou reproche), jamais republiés */
 async function handleYoutubeComments(req, res){
@@ -903,7 +1029,7 @@ async function handleStatus(res){
   else if(PROVIDER === "anthropic") model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
   let quota = {};
   if(PROVIDER === "gemini"){ const m = await geminiModels(), chain = [m.default, m.complex, ...GEMINI_FALLBACKS].filter((x, i, a) => x && a.indexOf(x) === i), blocked = chain.filter(x => geminiBlocked.get(x) > Date.now()); quota = {blocked:blocked.length, total:chain.length, all:!!chain.length && blocked.length === chain.length, reset:geminiResetText()}; }
-  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, quota, best: OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : (ANTHROPIC_KEY ? "Anthropic" : GEMINI_KEY ? "Gemini" : "")});
+  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, quota, tools:localTools(), best: OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : (ANTHROPIC_KEY ? "Anthropic" : GEMINI_KEY ? "Gemini" : "")});
 }
 
 /* En ligne (Render…) : HOST=0.0.0.0 et APP_PASSWORD obligatoire, sinon n'importe qui utiliserait tes clés et tes crédits */
@@ -920,7 +1046,14 @@ function authorized(req){
 http.createServer((req, res) => {
   if(!authorized(req)){ res.writeHead(401, {"WWW-Authenticate":'Basic realm="Studio Prompt", charset="UTF-8"', "Content-Type":"text/plain; charset=utf-8"}); return res.end("Mot de passe requis."); }
   if(req.method === "GET" && req.url.startsWith("/api/status")) return handleStatus(res).catch(() => sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model:""}));
+  if(req.url.startsWith("/api/db/documents") && ["GET","POST","DELETE"].includes(req.method)) return handleSupabaseDb(req,res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res,500,{code:"supabase_error",message:"Stockage Supabase indisponible."}); });
+  if(req.method === "POST" && req.url.startsWith("/api/pdf/text")) return handlePdfText(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture du PDF impossible."}); });
   if(gen.handle(req, res)) return;
+  const finalizePath=req.url.split("?")[0];
+  if(finalizePath === "/api/course/finalize" || finalizePath === "/api/video/finalize"){
+    if(req.method !== "POST") return sendJson(res,405,{code:"method_not_allowed",message:"Utilise POST pour lancer la finition FFmpeg."});
+    return handleCourseFinalize(req,res).catch(e=>{console.error(e);if(!res.headersSent)sendJson(res,500,{code:"ffmpeg_error",message:"La finition FFmpeg a échoué."});});
+  }
   if(req.method === "GET" && req.url.startsWith("/api/news?")) return handleNews(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Actualités indisponibles pour le moment."}); });
   if(req.method === "GET" && req.url.startsWith("/api/photos?")) return handlePhotos(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Recherche de photos indisponible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/photos/import")) return handlePhotoImport(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Import de la photo impossible."}); });

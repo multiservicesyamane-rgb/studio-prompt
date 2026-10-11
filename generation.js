@@ -47,6 +47,9 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   fs.mkdirSync(dir, {recursive:true});
   const JOBS = path.join(dir, "jobs.json"), STATE = path.join(dir, "state.json");
   let jobs = []; try{ jobs = JSON.parse(fs.readFileSync(JOBS, "utf8")); if(!Array.isArray(jobs)) jobs = []; }catch(e){}
+  /* Après un redémarrage, reprendre les tâches interrompues. Une tâche Agnes
+     déjà acceptée reprend son suivi distant sans soumettre une seconde vidéo. */
+  jobs.forEach(j=>{ if(j&&j.status==="running") j.status="queued"; });
   let state = {billing:"unknown", billingKey:"", day:"", spent:0}; try{ Object.assign(state, JSON.parse(fs.readFileSync(STATE, "utf8"))); }catch(e){}
   if(state.billingKey !== KEY_TAG){ state.billing = "unknown"; state.billingKey = KEY_TAG; }   /* nouvelle clé média : facturation à revérifier */
   let saveT = null;
@@ -66,7 +69,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
 
   const safeId = s => String(s || "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "projet";
   const pad = n => String(Math.max(0, Number(n) || 0)).padStart(2, "0");
-  const MIME = {mp4:"video/mp4", webm:"video/webm", mov:"video/quicktime", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", webp:"image/webp", wav:"audio/wav", mp3:"audio/mpeg", json:"application/json"};
+  const MIME = {mp4:"video/mp4", webm:"video/webm", mov:"video/quicktime", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", webp:"image/webp", wav:"audio/wav", mp3:"audio/mpeg", srt:"application/x-subrip", json:"application/json"};
   const EXT = {"video/mp4":"mp4", "video/webm":"webm", "video/quicktime":"mov", "audio/x-wav":"wav", "audio/mp3":"mp3", "image/png":"png", "image/jpeg":"jpg", "image/webp":"webp", "audio/wav":"wav", "audio/mpeg":"mp3"};
   function fileOf(url){
     const m = String(url || "").match(/^\/generated\/([a-zA-Z0-9_-]{1,80})\/([a-zA-Z0-9_.-]{1,140})$/);
@@ -160,9 +163,9 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     }
   }
   async function run(j){
-    update(j, {status:"running", step:"envoi"});
+    update(j, {status:"running", step:"envoi", started:Date.now()});
     try{
-      if(j.kind === "video") await (j.service === "runway" ? runRunway(j) : j.service === "agnes" ? runAgnes(j) : runVeo(j));
+      if(j.kind === "video") await (j.service === "runway" ? runRunway(j) : j.service === "agnes" ? (j.remote&&j.remote.agnes?agnesWait(j):runAgnes(j)) : runVeo(j));
       else await (j.service === "elevenlabs" ? runEleven(j) : j.service === "chatterbox" ? runChatterbox(j) : runGeminiVoice(j));
     }catch(e){ failJob(j, e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`}); }
   }
@@ -170,7 +173,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   async function poll(j, check){
     let errors = 0;
     for(;;){
-      if(Date.now() - j.created > MAX_WAIT) throw {code:"timeout", message:"La fabrication a pris trop de temps : relance ce plan."};
+      if(Date.now() - (j.started||j.created) > MAX_WAIT) throw {code:"timeout", message:"La fabrication a pris trop de temps : relance ce plan."};
       await sleep(POLL);
       let r; try{ r = await check(); errors = 0; }catch(e){ if(++errors > 12) throw e; continue; }
       if(r) return r;
@@ -231,7 +234,13 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   /* Agnes Video 2.5 Flash : avec l'image de départ du Storyboard (mode « keyframe ») pour garder les mêmes visages, sinon depuis le texte seul.
      L'image part par son adresse publique (image faite par Agnes) ou en data URI ; si Agnes la refuse, le clip est fait sans elle. */
   async function agnesCall(j, url, opts, ms){
-    for(let k = 0; ; k++){ const r = await call(url, opts, ms); if(r.status !== 429 || k >= 6) return r; update(j, {step:"Agnes demande d'attendre (offre gratuite)…"}); await sleep(AGNES_WAIT * (k + 1)); }
+    for(let k = 0; ; k++){
+      const r = await call(url, opts, ms), raw=JSON.stringify(r.json||{}), saturated=r.status===429||(r.status===503&&/queue|busy|full|capacity|retry/i.test(raw));
+      if(!saturated || Date.now()-(j.started||j.created)>MAX_WAIT) return r;
+      const delay=Math.min(120000,AGNES_WAIT*Math.max(1,k+1));
+      update(j,{step:`file Agnes saturée · nouvel essai dans ${Math.ceil(delay/60000)} min`});
+      await sleep(delay);
+    }
   }
   async function runAgnes(j){
     const body = {model:AGNES_VIDEO_MODEL, prompt:String(j.prompt).slice(0, 2500), mode:"text", seconds:String(j.duration), size:"720P", aspect_ratio:j.ratio === "9:16" ? "9:16" : "16:9"};
@@ -377,6 +386,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
       if(!v) return [400, {code:"bad_request", message:"Service vidéo inconnu."}];
       if(!keyOk(v)) return [400, {code:"no_key", message:`Pas de clé ${v.key === "gemini" ? "Gemini" : v.key === "runway" ? "Runway" : "Agnes AI (gratuite)"} dans le fichier .env : ouvre la page Connexions pour savoir comment l'ajouter.`}];
       const prompt = String(b.prompt || "").trim(); if(prompt.length < 10 || prompt.length > 12000) return [400, {code:"bad_request", message:"Prompt vidéo manquant ou trop long."}];
+      const existing=jobs.find(j=>j.kind==="video"&&j.service===v.id&&j.project===project&&j.plan===plan&&/queued|running/.test(j.status));
+      if(existing) return [200,{job:pub(existing),existing:true}];
       const want = Math.max(1, Number(b.seconds) || 8), duration = v.durations.find(d => d >= want) || v.durations[v.durations.length - 1];
       const imgIn = b.image ? imageInput(b.image) : null;
       if(b.image && !imgIn) return [400, {code:"bad_request", message:"Image de départ introuvable : régénère-la dans le Storyboard, ou fabrique la vidéo sans image."}];

@@ -33,6 +33,11 @@ const PORT = 3000 + 900 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
   fs.writeFileSync(files.img1, PNG); fs.writeFileSync(files.img2, PNG); fs.writeFileSync(files.clip1, Buffer.alloc(3000, 1)); fs.writeFileSync(files.clip2, Buffer.alloc(3000, 2));
   const b = await p.launch({executablePath: EDGE, headless: true, protocolTimeout: 300000}); const pg = await b.newPage(); await require("./noauto")(pg);
   const errs = []; pg.on("pageerror", e => errs.push(e.message));
+  await pg.evaluateOnNewDocument(() => {
+    window.__localCalls = [];
+    const wav = secs => { const sr=22050,n=Math.round(sr*secs),b=new ArrayBuffer(44+n*2),d=new DataView(b),w=(o,s)=>[...s].forEach((c,i)=>d.setUint8(o+i,c.charCodeAt(0))); w(0,"RIFF");d.setUint32(4,36+n*2,true);w(8,"WAVE");w(12,"fmt ");d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,sr,true);d.setUint32(28,sr*2,true);d.setUint16(32,2,true);d.setUint16(34,16,true);w(36,"data");d.setUint32(40,n*2,true);return b; };
+    window.__localTtsMock={predict:async({text,voiceId})=>{window.__localCalls.push({text,voiceId});return new Blob([wav(1.2)],{type:"audio/x-wav"});}};
+  });
   try{
     await pg.setViewport({width: 1366, height: 900});
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
@@ -43,13 +48,13 @@ const PORT = 3000 + 900 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     // 1. distribution des voix
     await pg.click('[data-ptab="paroles"]'); await pg.waitForSelector(".gen-cast", {timeout: 10000});
     const cast = await pg.evaluate(() => Object.fromEntries([...document.querySelectorAll("[data-cast]")].map(s => [s.dataset.cast, s.value])));
-    check("voix des personnages : voix off + une voix par personnage, choisie selon la fiche (femme / homme)", cast._narr === "gemini|Charon" && cast.awa === "gemini|Kore" && cast.moussa === "gemini|Puck", JSON.stringify(cast));
+    check("voix des personnages : Piper local par défaut, sans Gemini, selon la fiche (femme / homme)", cast._narr === "local|fr_FR-gilles-low" && cast.awa === "local|fr_FR-siwis-medium" && cast.moussa === "local|fr_FR-gilles-low", JSON.stringify(cast));
     await pg.click('[data-cast-try="awa"]'); await pg.waitForSelector("#cast-try-awa audio", {timeout: 15000});
-    check("essai de la voix d'un personnage : une de ses vraies phrases, jouable", tts.some(t => t.voice === "Kore" && t.text === "Qui a laissé ça ici ?"));
+    check("essai local de la voix d'un personnage : une de ses vraies phrases, jouable", await pg.evaluate(() => window.__localCalls.some(t => t.voiceId === "fr_FR-siwis-medium" && t.text === "Qui a laissé ça ici ?")));
     // 2. voix d'un plan (dialogue à deux voix, avec le ton)
     await pg.click('[data-genv="0"]'); await pg.waitForFunction(() => document.querySelectorAll("#genv-0 audio").length === 2, {timeout: 20000});
     const g0 = await pg.evaluate(() => ({audios: document.querySelectorAll("#genv-0 audio").length, chips: [...document.querySelectorAll("#genv-0 .chip")].map(c => c.textContent)}));
-    check("voix du plan 1 : Awa et Moussa, chacun avec sa voix et son ton", g0.audios === 2 && tts.some(t => t.voice === "Kore" && t.style === "worried") && tts.some(t => t.voice === "Puck" && t.text === "Ce n'est pas moi." && t.style === "calm"), JSON.stringify(g0));
+    check("voix locales du plan 1 : Awa et Moussa ont chacun leur voix", g0.audios === 2 && await pg.evaluate(() => window.__localCalls.some(t => t.voiceId === "fr_FR-siwis-medium" && /Qui a laissé/.test(t.text)) && window.__localCalls.some(t => t.voiceId === "fr_FR-gilles-low" && /pas moi/.test(t.text))), JSON.stringify(g0));
     // 3. changer une voix, puis tout fabriquer
     await pg.select('[data-cast="_narr"]', "gemini|Aoede");
     await pg.click("#genv-all"); await pg.waitForFunction(() => /3 voix prêtes/.test((document.getElementById("genv-msg") || {}).textContent || ""), {timeout: 30000});

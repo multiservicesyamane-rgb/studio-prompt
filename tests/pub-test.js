@@ -38,8 +38,10 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){} return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(AGENT)}) + "\n"}); } r.continue(); });
     // 1. onglet
     await pg.click('.side-link[data-go="presse"]'); await pg.waitForFunction(() => !document.getElementById("view-presse").hidden, {timeout: 15000});
+    const initialTabs = await pg.evaluate(() => ({order: [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join(), selected: document.querySelector('[data-mt][aria-selected="true"]')?.dataset.mt, libre: !document.getElementById("mt-libre").hidden}));
+    check("page Motion design : six onglets dans l'ordre, Projet libre ouvert par défaut après effacement du stockage", initialTabs.order === "libre,cours,infos,quiz,pub,succes" && initialTabs.selected === "libre" && initialTabs.libre, JSON.stringify(initialTabs));
     await pg.click('[data-mt="pub"]'); await pg.waitForFunction(() => !document.getElementById("mt-pub").hidden, {timeout: 10000});
-    check("page Motion design : onglet Publicités (avec Infos du jour, Quiz et Succès YouTube)", await pg.evaluate(() => [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join() === "infos,quiz,pub,succes" && document.getElementById("mt-infos").hidden));
+    check("page Motion design : Publicités est le 5e onglet et devient actif au clic", await pg.evaluate(() => [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join() === "libre,cours,infos,quiz,pub,succes" && document.querySelector('[data-mt="pub"]').getAttribute("aria-selected") === "true" && document.getElementById("mt-libre").hidden));
     // 2. infos du commerçant, photos et logo
     const fill = {"#pb-nom": "Boutique Awa", "#pb-act": "Téléphones", "#pb-prod": "Téléphone 128 Go", "#pb-prix": "85 000 FCFA", "#pb-ancien": "100 000 FCFA", "#pb-promo": "-15 % ce week-end", "#pb-wa": "77 000 00 00", "#pb-adr": "Marché central", "#pb-hor": "9 h à 21 h"};
     for(const [sel, v] of Object.entries(fill)) await pg.type(sel, v);

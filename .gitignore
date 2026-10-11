@@ -17,4 +17,16 @@ references/*-echec.png
 
 # Sorties des tests (captures, fichiers générés)
 tests/out/
+tests/.ref-review/
 public/generated/
+
+# Documents et médias de référence : ne JAMAIS publier (droits d'auteur Adobe/Google/DaVinci, et taille)
+*.pdf
+*.zip
+*.rar
+public/*.jpg
+public/*.jpeg
+public/*.jfif
+public/*.png
+references/*.mp4
+.tmp_reference_*/

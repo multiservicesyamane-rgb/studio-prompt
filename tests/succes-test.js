@@ -1,4 +1,4 @@
-// Page Motion design, onglet « Succès YouTube » : les vidéos les plus vues (API officielle de YouTube, relais de l'agent sur Google, liens collés),
+﻿// Page Motion design, onglet « Succès YouTube » : les vidéos les plus vues (API officielle de YouTube, relais de l'agent sur Google, liens collés),
 // recréées autrement et jamais copiées (Sans IA : même jeu calculé par le code ; agent : recette, commentaires, nouvel angle, niveaux contrôlés par le code),
 // puis envoyées dans le Quiz. Trois nouveaux jeux dessinés par le code : Devine l'ombre, Trouve la différence, Combien ?
 // Vrai server.js face à un FAUX YouTube (API, oEmbed, page) et un FAUX Gemini ; agent simulé.
@@ -8,9 +8,10 @@ const out = [], check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${
 const VID = {
   ODDEMOJI001: {title: "Find the Odd Emoji Out 🔎 Only Genius Can Find It", ch: "Chaîne Énigmes", views: 52000000, dur: "PT45S", desc: "Find the odd emoji in 5 seconds!"},
   SHADOWGAME2: {title: "Guess the Shadow Challenge 🐘 | Devine l'ombre", ch: "Chaîne Ombres", views: 128000000, dur: "PT1M", desc: ""},
-  SPOTDIFF003: {title: "Spot the Difference | Trouve la différence en 10 secondes", ch: "Chaîne Différences", views: 9500000, dur: "PT3M10S", desc: ""},
-  COUNTGAME04: {title: "Combien de 🍎 ? Compte vite ! How many apples", ch: "Chaîne Comptage", views: 3200000, dur: "PT50S", desc: ""},
-  AGENTFOUND5: {title: "Quiz culture générale : 20 questions", ch: "Chaîne Quiz", views: 7400000, dur: "PT8M30S", desc: ""}};
+  SPOTDIFF003: {title: "Spot the Difference | Trouve la différence en 10 secondes", ch: "Chaîne Différences", views: 39500000, dur: "PT3M10S", desc: ""},
+  COUNTGAME04: {title: "Combien de 🍎 ? Compte vite ! How many apples", ch: "Chaîne Comptage", views: 32000000, dur: "PT50S", desc: ""},
+  AGENTFOUND5: {title: "Quiz culture générale : 20 questions", ch: "Chaîne Quiz", views: 74000000, dur: "PT8M30S", desc: ""},
+  LOWVIEWS006: {title: "Vidéo sous le seuil", ch: "Petite chaîne", views: 999999, dur: "PT40S", desc: ""}};
 const secs = d => { const m = d.match(/PT(?:(\d+)M)?(?:(\d+)S)?/); return (+m[1] || 0) * 60 + (+m[2] || 0); };
 const REMAKE = {recette: {jeu: "Trouver l'emoji différent dans une grille de plus en plus serrée", accroche: "Un défi chiffré dès la première seconde", rythme: "Un niveau toutes les 8 secondes", difficulte: "La grille grossit et les emoji se ressemblent", fin: "On écrit son score en commentaire", pourquoi: ["Tout le monde peut jouer sans le son", "La difficulté monte à chaque niveau"]},
   twist: "Chaque niveau change de jeu : l'ombre, la différence, puis le comptage, sur un plateau de jeu télé", ne_pas_copier: ["le titre", "les grilles", "la musique", "le nom de la chaîne"], public: ["Des niveaux encore plus durs", "Des jeux en français"],
@@ -26,7 +27,7 @@ const fake = http.createServer((req, res) => { const c = []; req.on("data", x =>
   const u = new URL(req.url, "http://x"), send = (code, o) => { res.writeHead(code, {"Content-Type": "application/json"}); res.end(JSON.stringify(o)); };
   if(u.pathname === "/youtube/v3/search"){ seen.search.push(Object.fromEntries(u.searchParams));
     if(/quota/.test(u.searchParams.get("q"))) return send(403, {error: {code: 403, message: "The request cannot be completed because you have exceeded your quota.", errors: [{reason: "quotaExceeded"}]}});
-    return send(200, {items: ["COUNTGAME04", "ODDEMOJI001", "SPOTDIFF003", "SHADOWGAME2"].map(id => ({id: {kind: "youtube#video", videoId: id}}))}); }
+    return send(200, {items: ["COUNTGAME04", "ODDEMOJI001", "SPOTDIFF003", "SHADOWGAME2", "LOWVIEWS006"].map(id => ({id: {kind: "youtube#video", videoId: id}}))}); }
   if(u.pathname === "/youtube/v3/videos"){ seen.videos++; return send(200, {items: (u.searchParams.get("id") || "").split(",").filter(id => VID[id]).map(id => ({id, snippet: {title: VID[id].title, channelTitle: VID[id].ch, publishedAt: "2025-03-01T10:00:00Z", description: VID[id].desc}, statistics: {viewCount: String(VID[id].views)}, contentDetails: {duration: VID[id].dur}}))}); }
   if(u.pathname === "/youtube/v3/commentThreads"){ seen.comments++; const t = (txt, likes) => ({snippet: {topLevelComment: {snippet: {textOriginal: txt, likeCount: likes}}}});
     return send(200, {items: [t("Trop facile, faites des niveaux plus durs !", 120), t("Faites la même chose en français svp", 940), t("J'ai trouvé en 2 secondes", 15)]}); }
@@ -70,16 +71,18 @@ const PORT = 3000 + 1400 + Math.floor(Math.random() * 90), BASE = `http://127.0.
       return r.respond({status: 500, contentType: "application/json", body: JSON.stringify({code: "server_error", message: "arrêt du test"})}); });
     // 1. l'onglet
     await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForSelector('[data-mt="succes"]', {visible: true, timeout: 15000});
+    const initialTabs = await pg.evaluate(() => ({order: [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join(), selected: document.querySelector('[data-mt][aria-selected="true"]')?.dataset.mt, libre: !document.getElementById("mt-libre").hidden}));
+    check("page Motion design : six onglets dans l'ordre, Projet libre ouvert par défaut après effacement du stockage", initialTabs.order === "libre,cours,infos,quiz,pub,succes" && initialTabs.selected === "libre" && initialTabs.libre, JSON.stringify(initialTabs));
     await pg.click('[data-mt="succes"]'); await pg.waitForFunction(() => !document.getElementById("mt-succes").hidden, {timeout: 10000});
-    const tab = await pg.evaluate(() => ({tabs: [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join(), quiz: !document.getElementById("mt-quiz").hidden, rules: /Rien n’est téléchargé ni repris/.test(document.getElementById("mt-succes").textContent), yt: document.getElementById("yt-open").href}));
-    check("onglet « Succès YouTube » (4e onglet de Motion design), règles de droits d'auteur visibles, lien direct vers YouTube", tab.tabs === "infos,quiz,pub,succes" && !tab.quiz && tab.rules && /youtube\.com\/results\?search_query=/.test(tab.yt), JSON.stringify(tab));
+    const tab = await pg.evaluate(() => ({tabs: [...document.querySelectorAll("[data-mt]")].map(b => b.dataset.mt).join(), selected: document.querySelector('[data-mt="succes"]').getAttribute("aria-selected"), quiz: !document.getElementById("mt-quiz").hidden, rules: /Rien n’est téléchargé ni repris/.test(document.getElementById("mt-succes").textContent), yt: document.getElementById("yt-open").href}));
+    check("onglet « Succès YouTube » (6e onglet de Motion design), règles de droits d'auteur visibles, lien direct vers YouTube", tab.tabs === "libre,cours,infos,quiz,pub,succes" && tab.selected === "true" && !tab.quiz && tab.rules && /youtube\.com\/results\?search_query=/.test(tab.yt), JSON.stringify(tab));
     // 2. recherche : API officielle, triée par vues
     await pg.type("#yt-q", "trouve l'intrus"); await pg.select("#yt-per", "annee"); await pg.select("#yt-lang", "fr");
     await pg.click("#yt-go"); await pg.waitForFunction(() => document.querySelectorAll("#yt-res .yt-item").length === 4, {timeout: 20000});
     const res = await pg.evaluate(() => ({titles: [...document.querySelectorAll("#yt-res .yt-item b")].map(x => x.textContent), txt: document.getElementById("yt-res").innerText, link: document.getElementById("yt-open").href, img: (document.querySelector("#yt-res .yt-thumb img") || {}).src || ""}));
     const q0 = seen.search[0] || {};
     check("recherche par l'API officielle de YouTube : triée par vues, Shorts, cette année, en français, contenu familial", q0.order === "viewCount" && q0.videoDuration === "short" && q0.relevanceLanguage === "fr" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(q0.publishedAfter || "") && q0.safeSearch === "strict" && q0.key === "cle-yt" && q0.q === "trouve l'intrus" && seen.videos === 1, JSON.stringify(q0));
-    check("résultats classés du plus vu au moins vu, avec chaîne, vues, durée, image d'aperçu et rang", /^Guess the Shadow/.test(res.titles[0]) && /^Find the Odd/.test(res.titles[1]) && /^Combien/.test(res.titles[3]) && /Chaîne Ombres · 128 millions de vues · 2025-03-01/.test(res.txt) && /#1/.test(res.txt) && /1:00/.test(res.txt) && /3:10/.test(res.txt) && /Classement officiel de YouTube/.test(res.txt) && /i\.ytimg\.com\/vi\/SHADOWGAME2\/mqdefault\.jpg/.test(res.img) && /search_query=trouve%20l/.test(res.link), res.titles.join(" | "));
+    check("résultats réels classés du plus vu au moins vu, tous à 1 million ou plus", /^Guess the Shadow/.test(res.titles[0]) && /^Find the Odd/.test(res.titles[1]) && /^Combien/.test(res.titles[3]) && res.titles.length === 4 && !/sous le seuil/.test(res.txt) && /Chaîne Ombres · 128 millions de vues · 2025-03-01/.test(res.txt) && /#1/.test(res.txt) && /1:00/.test(res.txt) && /3:10/.test(res.txt) && /minimum 1 million/.test(res.txt) && /i\.ytimg\.com\/vi\/SHADOWGAME2\/mqdefault\.jpg/.test(res.img) && /search_query=trouve%20l/.test(res.link), res.titles.join(" | "));
     // 3. Sans IA : même jeu que la vidéo (reconnu au titre), réponses calculées
     await pg.click('[data-yt-free="0"]'); await pg.waitForFunction(() => /Notre plus/.test(document.getElementById("yt-remake").innerText), {timeout: 10000});
     const free = await pg.evaluate(() => ({lv: [...document.querySelectorAll("#yt-remake .jx-lv")].map(x => x.innerText.replace(/\s+/g, " ")), txt: document.getElementById("yt-remake").innerText}));
@@ -126,18 +129,18 @@ const PORT = 3000 + 1400 + Math.floor(Math.random() * 90), BASE = `http://127.0.
     await pg.click('[data-mt="succes"]'); await pg.evaluate(() => { document.getElementById("yt-q").value = "quota test"; }); await pg.click("#yt-go");
     await pg.waitForFunction(() => /vérifiées une à une/.test(document.getElementById("yt-res").innerText), {timeout: 20000});
     const relay = await pg.evaluate(() => ({n: document.querySelectorAll("#yt-res .yt-item").length, txt: document.getElementById("yt-res").innerText}));
-    check("quota YouTube épuisé : l'agent cherche sur Google, le lien inventé est écarté, la vraie vidéo est vérifiée (vues réelles)", relay.n === 1 && /Quiz culture générale : 20 questions/.test(relay.txt) && /7,4 millions de vues/.test(relay.txt) && seen.prompts.some(x => /veilleur YouTube/.test(x.pr) && x.search), relay.txt.slice(0, 160).replace(/\n/g, " | "));
+    check("quota YouTube épuisé : l'agent cherche sur Google, le lien inventé est écarté, la vraie vidéo de plus de 1 million est vérifiée", relay.n === 1 && /Quiz culture générale : 20 questions/.test(relay.txt) && /74 millions de vues/.test(relay.txt) && seen.prompts.some(x => /AU MOINS 1 000 000/.test(x.pr) && x.search), relay.txt.slice(0, 160).replace(/\n/g, " | "));
     await pg.evaluate(() => { document.querySelector("#mt-succes details.fix").open = true; }); await pg.type("#yt-links", "https://youtu.be/SPOTDIFF003\nhttps://www.youtube.com/shorts/COUNTGAME04\nhttps://youtu.be/FAKEFAKE999");
     await pg.click("#yt-add"); await pg.waitForFunction(() => document.querySelectorAll("#yt-res .yt-item").length === 3, {timeout: 20000});
     const added = await pg.evaluate(() => [...document.querySelectorAll("#yt-res .yt-item b")].map(x => x.textContent));
-    check("liens collés : vérifiés sur YouTube puis ajoutés, classés par vues (le lien mort est ignoré)", /^Spot the Difference/.test(added[0]) && /^Quiz culture/.test(added[1]) && /^Combien/.test(added[2]), added.join(" | "));
+    check("liens collés : vérifiés sur YouTube puis ajoutés, classés par vues (le lien mort est ignoré)", /^Quiz culture/.test(added[0]) && /^Spot the Difference/.test(added[1]) && /^Combien/.test(added[2]), added.join(" | "));
     // 7. étudier en détail : la vidéo part dans « Depuis une vidéo »
-    await pg.click('[data-yt-study="0"]'); await pg.waitForFunction(() => !document.getElementById("view-reel").hidden && /SPOTDIFF003/.test(document.getElementById("rm-yt").value), {timeout: 10000}).catch(() => {});
+    await pg.click('[data-yt-study="1"]'); await pg.waitForFunction(() => !document.getElementById("view-reel").hidden && /SPOTDIFF003/.test(document.getElementById("rm-yt").value), {timeout: 10000}).catch(() => {});
     check("« Étudier en détail » : la vidéo part dans « Depuis une vidéo » (étude complète, leçons pour l'agent)", await pg.evaluate(() => !document.getElementById("view-reel").hidden && /SPOTDIFF003/.test(document.getElementById("rm-yt").value)));
     // 8. reprise après rechargement, téléphone
-    await pg.reload({waitUntil: "networkidle0"}); await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForSelector('[data-mt="succes"]', {visible: true, timeout: 15000}); await pg.click('[data-mt="succes"]');
+    await pg.reload({waitUntil: "networkidle0"}); await pg.evaluate(() => { location.hash = "presse"; }); await pg.waitForFunction(() => !document.getElementById("mt-succes").hidden, {timeout: 15000});
     await pg.waitForFunction(() => document.querySelectorAll("#yt-res .yt-item").length === 3 && /Notre plus/.test(document.getElementById("yt-remake").innerText), {timeout: 10000}).catch(() => {});
-    check("reprise : la liste et la dernière version recréée reviennent après rechargement", await pg.evaluate(() => document.querySelectorAll("#yt-res .yt-item").length === 3 && /Notre plus/.test(document.getElementById("yt-remake").innerText) && document.getElementById("yt-q").value === "quota test"));
+    check("reprise : l'onglet Succès YouTube mémorisé, la liste et la dernière version recréée reviennent après rechargement", await pg.evaluate(() => !document.getElementById("mt-succes").hidden && document.querySelector('[data-mt="succes"]').getAttribute("aria-selected") === "true" && document.querySelectorAll("#yt-res .yt-item").length === 3 && /Notre plus/.test(document.getElementById("yt-remake").innerText) && document.getElementById("yt-q").value === "quota test"));
     await pg.setViewport({width: 390, height: 844}); await new Promise(r => setTimeout(r, 400));
     const ph = await pg.evaluate(() => ({over: document.documentElement.scrollWidth - innerWidth, thumbW: Math.round(document.querySelector("#yt-res .yt-thumb").getBoundingClientRect().width)}));
     check("téléphone (390 px) : pas de défilement horizontal, image d'aperçu sur toute la largeur", ph.over <= 1 && ph.thumbW > 300, JSON.stringify(ph));

@@ -103,6 +103,26 @@
   const KEY = "sp-local-db", listeners = [];
   const load = () => { try{ return JSON.parse(localStorage.getItem(KEY) || "{}"); }catch(e){ return {}; } };
   const save = o => { try{ localStorage.setItem(KEY, JSON.stringify(o)); }catch(e){ throw fail("quota_exceeded", "Mémoire du navigateur pleine : supprime d'anciens projets."); } };
+  const USER_PATH = "data/users/local";
+  async function remote(method, body){
+    const r=await fetch("/api/db/documents",{method:method||"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+    const x=await r.json().catch(()=>({})); if(!r.ok) throw fail(x.code||"supabase_error",x.message||"Supabase indisponible."); return x;
+  }
+  async function startRemoteDb(){
+    try{
+      const x=await remote("GET"), o=load(), local=o[USER_PATH]||{}, cloud={};
+      (x.documents||[]).forEach(d=>{ if(d&&d.id&&d.data) cloud[d.id]=d.data; });
+      /* Migration sans perte : la version la plus récente gagne, puis tout est
+         renvoyé à Supabase. localStorage reste seulement un cache hors ligne. */
+      const merged=Object.assign({},cloud);
+      Object.entries(local).forEach(([id,d])=>{ if(!merged[id]||(Number(d.updatedAt)||0)>=(Number(merged[id].updatedAt)||0)) merged[id]=d; });
+      o[USER_PATH]=merged; try{ save(o); }catch(e){};
+      const documents=Object.entries(merged).map(([id,data])=>({id,data}));
+      if(documents.length) await remote("POST",{documents});
+      window.__spSupabase={ready:true,count:documents.length}; notify();
+    }catch(e){ window.__spSupabase={ready:false,error:e.message,code:e.code}; console.warn("Supabase :",e.message); notify(); }
+  }
+  async function remoteWrite(method,body){ try{ const x=await remote(method,body); window.__spSupabase={ready:true}; return x; }catch(e){ window.__spSupabase={ready:false,error:e.message,code:e.code}; console.warn("Supabase :",e.message); return null; } }
   function notify(){
     const o = load();
     listeners.forEach(l => {
@@ -119,9 +139,9 @@
         id = id || ("d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
         return {
           id,
-          async set(data){ const o = load(); (o[path] = o[path] || {})[id] = JSON.parse(JSON.stringify(data)); save(o); setTimeout(notify, 0); },
-          async update(patch){ const o = load(); const cur = (o[path] || {})[id] || {}; (o[path] = o[path] || {})[id] = Object.assign(cur, patch); save(o); setTimeout(notify, 0); },
-          async delete(){ const o = load(); if(o[path]) delete o[path][id]; save(o); setTimeout(notify, 0); },
+          async set(data){ const o = load(), clean=JSON.parse(JSON.stringify(data)); (o[path] = o[path] || {})[id] = clean; try{ save(o); }catch(e){} if(path===USER_PATH) await remoteWrite("POST",{documents:[{id,data:clean}]}); setTimeout(notify, 0); },
+          async update(patch){ const o = load(); const cur = (o[path] || {})[id] || {}; (o[path] = o[path] || {})[id] = Object.assign(cur, patch); try{ save(o); }catch(e){} if(path===USER_PATH) await remoteWrite("POST",{documents:[{id,data:o[path][id]}]}); setTimeout(notify, 0); },
+          async delete(){ const o = load(); if(o[path]) delete o[path][id]; try{ save(o); }catch(e){} if(path===USER_PATH) await remoteWrite("DELETE",{id}); setTimeout(notify, 0); },
           async get(){ const d = (load()[path] || {})[id]; return {id, exists:!!d, data:() => d ? JSON.parse(JSON.stringify(d)) : undefined}; }
         };
       },
@@ -132,6 +152,7 @@
     return api;
   }
   window.addEventListener("storage", e => { if(e.key === KEY) notify(); });
+  startRemoteDb();
 
   const user = {id: async () => "local", me: async () => ({id:"local", name:""}), isOwner: () => true, canEdit: () => true, can: () => true};
   const downloads = {
