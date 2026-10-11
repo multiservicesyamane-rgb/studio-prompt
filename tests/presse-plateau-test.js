@@ -38,7 +38,7 @@ const waitFiles = async (re, n, ms) => { for(let k = 0; k < (ms || 20000) / 250;
     await pg.setViewport({width: 1366, height: 900});
     const cdp = await pg.target().createCDPSession(); await cdp.send("Browser.setDownloadBehavior", {behavior: "allow", downloadPath: OUT, eventsEnabled: true}).catch(() => cdp.send("Page.setDownloadBehavior", {behavior: "allow", downloadPath: OUT}));
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
-    await pg.evaluate((rv, arts, photos, lesson) => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}, presseVitesse: "1"}));
+    await pg.evaluate((rv, arts, photos, lesson) => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({motion: "infos", veille: {auto: false}, presseVitesse: "1"}));
       localStorage.setItem("sp-presse", JSON.stringify({r: rv, o: {pays: "sn", langue: "fr", duree: 60, ton: "inspirant", sources: []}, id: "presse-plateau", voices: [], arts, photos}));
       localStorage.setItem("sp-last-pays", JSON.stringify({_pays: "sn", contexte: {heures: "Le matin avant 8 h et le soir après 20 h."}, niches: [{nom: "x"}]}));
       localStorage.setItem("sp-local-db", JSON.stringify({"data/users/local": {lec1: lesson}})); }, REVUE, ARTS, PHOTOS, LESSON);

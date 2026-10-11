@@ -514,6 +514,24 @@ Demande de l'utilisateur : « un onglet qui recherche les vidéos les plus vues 
 
 Test : `succes-test.js`.
 
+### 4.3 octies Ajouts de l'autre outil (9 au 11 octobre), relus et réparés le 11 octobre
+L'autre outil (Antigravity) a livré le commit 4849974. La suite complète est passée de 477 contrôles réussis à 388 réussis et 14 échecs ; tout a été réparé sans retirer ses ajouts.
+
+**Ce qu'il a ajouté**
+- **Motion design en 6 onglets** (`MOTION_TABS`) : 🎨 Projet libre, 🎓 Cours du jour, 📰 Infos du jour, 🧠 Quiz, 📣 Publicités, 🔥 Succès YouTube. Le dernier onglet utilisé est retenu (`sp-prefs.motion`) ; sans choix, la page s'ouvre sur « Projet libre ».
+- **Cours du jour** : compositions Canvas, puis finition par FFmpeg sur le serveur (`ffmpeg-static`, `/api/course/finalize` et `/api/video/finalize`) : MP4 H.264 + AAC 48 kHz, sous-titres SRT. Repli dans le navigateur si FFmpeg manque.
+- **Montage de pub** : le moteur de pré-montage est instancié une seconde fois (même code) dans l'onglet Publicités. On y importe images, vidéos et sons, on choisit transitions, effets et sous-titres, puis on exporte au format de la pub.
+- **Quiz premium** : 100 modèles (`JX_PRESETS`), niches, palettes, transitions, animations et qualité de rendu (720p, Full HD, 2K).
+- **Mémoire de documents PDF** : `/api/pdf/text` lit le texte d'un PDF (`pdf-parse`) sans jamais l'enregistrer, depuis le champ « Document PDF » de la page Mémoire. `scripts/build-document-memory.js` tire des règles des PDF rangés dans `public/` vers `public/document-memory.js` : des règles seulement, jamais le texte des livres. Les PDF, ZIP, RAR et images de référence sont ignorés par git.
+- **Sauvegarde en ligne facultative (Supabase)** : `claude-shim.js` copie les projets (`data/users/local`) par `/api/db/documents`. La clé `SUPABASE_SECRET_KEY` reste dans `.env`, côté serveur. Table : `supabase/studio_prompt_documents.sql`.
+- **Agnes** : nouvel essai quand la file est saturée (429, ou 503 « queue / busy »), jusqu'au délai maximum compté depuis `j.started`. Un second envoi pour le même plan rend la tâche déjà en cours.
+
+**Règles fixées en réparant (à ne plus casser)**
+- **Reprise après redémarrage** (`generation.js`) : une vidéo déjà commandée (`j.remote` : `op` pour Veo, `task` pour Runway, `agnes`) est **seulement attendue, jamais commandée une seconde fois**. `run()` vérifie aussi `j.remote` avant tout envoi. Seule une vidéo Agnes (gratuite) coupée pendant l'envoi, donc sans `remote`, est remise dans la file. Pour un service payant coupé pendant l'envoi, l'utilisateur relance à la main, car on ne sait pas si la commande est partie. L'autre outil avait remis toutes les tâches « en cours » dans la file, ce qui faisait payer deux fois Veo et Runway.
+- **Modèle de quiz** (`jxStage`) : un modèle choisi à la main (Classique, Jeu télé, Bulles, Minimal) **l'emporte** sur le modèle premium (`PICK`). « Au hasard », le réglage par défaut, laisse le modèle premium décider (`PRE`) : ses polices, cartes et palettes s'appliquent alors. Avant cette réparation, le modèle premium effaçait le choix de l'utilisateur.
+- **Sauvegarde en ligne absente = état normal** : si Supabase n'est pas configuré, ne répond pas (projet en pause) ou n'a pas sa table, le serveur répond 200 `{ready:false, code, message}` (délai de 15 s). Après un échec, le shim ne fait plus aucun appel pendant la visite, et aucun appel non plus sur `*.github.io` ni en `file:`. Les projets restent dans le navigateur, c'est le relais gratuit. La visite suivante renvoie à Supabase la version la plus récente. Aucune erreur rouge dans la console. La page Connexions affiche « Sauvegarde des projets ».
+- **Tests** : les suites de la revue de presse et de la voix gratuite fixent `sp-prefs.motion = "infos"`, comme un utilisateur qui revient sur cet onglet. Les 3 suites de l'autre outil (`cours-ultra-test.js`, `course-ffmpeg-test.js`, `professional-tabs-test.js`) tournent dans `npm test`, et `run-all.js` compte aussi les suites `node:test` (« # pass N »).
+
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
@@ -714,6 +732,9 @@ Ce que le code corrige :
 | `stats-test.js` | Lecture des exports de YouTube Studio |
 | `premont-test.js` | Pré-montage |
 | `paroles-test.js`, `paroles-voix-test.js` | Onglet Paroles |
+| `cours-ultra-test.js` | Cours du jour (sans navigateur) : compositions, normaliseur face à de mauvais JSON, format carré 1080 × 1080, liens des sources validés |
+| `course-ffmpeg-test.js` | Finition FFmpeg réelle : MP4 H.264 yuv420p, AAC 48 kHz, SRT servi, capture temporaire supprimée, repli navigateur |
+| `professional-tabs-test.js` | Structure accessible des 6 onglets de Motion design (`node:test`) |
 
 **Règles**
 - Toute nouvelle règle du moteur ajoute un cas positif et un cas négatif dans `gates-test.js`.
@@ -750,9 +771,12 @@ Les commits sont en français. Étapes majeures :
 14. suivi des étapes en direct ;
 15. **Director Engine V4** ;
 16. images du Storyboard, analyse des paroles, mode secours, **analyse complète des vidéos** (commencées par un autre assistant, terminées et testées) ;
-17. page **Motion design** : revue de presse en plateau 3D, quiz « 5 secondes », publicités, agence, puis **Succès YouTube**, voix de premier niveau et couche cinéma (6 au 8 octobre).
+17. page **Motion design** : revue de presse en plateau 3D, quiz « 5 secondes », publicités, agence, puis **Succès YouTube**, voix de premier niveau et couche cinéma (6 au 8 octobre) ;
+18. ajouts de l'autre outil (Cours du jour, montage de pub, quiz premium, mémoire PDF, sauvegarde Supabase), puis réparation des 14 régressions (11 octobre, §4.3 octies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
+
+**Prochain chantier, demandé le 8 octobre** : formats vidéo de tous les onglets de Motion design en Full HD. Téléphone 1080 × 1920 (TikTok, Shorts, Reels, WhatsApp) et ordinateur 1920 × 1080 (YouTube, Facebook), fabriqués image par image en MP4 H.264 + AAC (WebCodecs avec `public/vendor/mp4-muxer.min.js`, déjà copié), son au niveau des plateformes. Le Cours du jour a déjà sa finition FFmpeg : la réutiliser plutôt que la doubler. Ensuite, un « mode simple » en 3 étapes (type de vidéo, 3 questions, puis l'onglet rempli avec le vrai agent), idée tirée d'une maquette faite dans une autre conversation.
 
 Par ordre de valeur pour l'utilisateur :
 1. **Cost Optimizer** : estimer les crédits par plan et par modèle avant génération, et proposer de compresser ou de passer en mode image → vidéo moins cher.

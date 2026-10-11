@@ -43,7 +43,7 @@ const seen = {vision: 0, search: 0, prompt: ""};
   try{
     await pg.setViewport({width: 1366, height: 900});
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
-    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}, presseVitesse: "1"})); }); await pg.reload({waitUntil: "networkidle0"});
+    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({motion: "infos", veille: {auto: false}, presseVitesse: "1"})); }); await pg.reload({waitUntil: "networkidle0"});
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(!(r.url().includes("/api/sample") && r.method() === "POST")) return r.continue();
       let body = {}; try{ body = JSON.parse(r.postData() || "{}"); }catch(e){}

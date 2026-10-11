@@ -46,7 +46,7 @@ const PORT = 3000 + 200 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
   try{
     await pg.setViewport({width: 1366, height: 900});
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
-    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}, presseVitesse: "1"})); }); await pg.reload({waitUntil: "networkidle0"});
+    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({motion: "infos", veille: {auto: false}, presseVitesse: "1"})); }); await pg.reload({waitUntil: "networkidle0"});
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ seen.prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){} return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(REVUE)}) + "\n"}); } r.continue(); });
     // 1. infos du jour (liens Google Actualités) puis revue

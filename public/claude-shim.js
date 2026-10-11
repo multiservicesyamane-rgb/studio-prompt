@@ -104,11 +104,16 @@
   const load = () => { try{ return JSON.parse(localStorage.getItem(KEY) || "{}"); }catch(e){ return {}; } };
   const save = o => { try{ localStorage.setItem(KEY, JSON.stringify(o)); }catch(e){ throw fail("quota_exceeded", "Mémoire du navigateur pleine : supprime d'anciens projets."); } };
   const USER_PATH = "data/users/local";
+  /* Sauvegarde en ligne facultative (Supabase, par le serveur local). Rien à appeler sur le site public (pas de serveur) ;
+     après un échec, plus aucun appel pendant cette visite : les projets restent dans le navigateur (relais gratuit),
+     et la visite suivante renvoie à Supabase la version la plus récente. */
+  let remoteOff = location.protocol === "file:" || /\.github\.io$/i.test(location.hostname);
   async function remote(method, body){
     const r=await fetch("/api/db/documents",{method:method||"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
-    const x=await r.json().catch(()=>({})); if(!r.ok) throw fail(x.code||"supabase_error",x.message||"Supabase indisponible."); return x;
+    const x=await r.json().catch(()=>({})); if(!r.ok||x.ready===false) throw fail(x.code||"supabase_error",x.message||"Supabase indisponible."); return x;
   }
   async function startRemoteDb(){
+    if(remoteOff){ window.__spSupabase={ready:false,code:"static",error:"pas de serveur local sur cette page"}; return; }
     try{
       const x=await remote("GET"), o=load(), local=o[USER_PATH]||{}, cloud={};
       (x.documents||[]).forEach(d=>{ if(d&&d.id&&d.data) cloud[d.id]=d.data; });
@@ -120,9 +125,9 @@
       const documents=Object.entries(merged).map(([id,data])=>({id,data}));
       if(documents.length) await remote("POST",{documents});
       window.__spSupabase={ready:true,count:documents.length}; notify();
-    }catch(e){ window.__spSupabase={ready:false,error:e.message,code:e.code}; console.warn("Supabase :",e.message); notify(); }
+    }catch(e){ remoteOff=true; window.__spSupabase={ready:false,error:e.message,code:e.code}; console.info("Sauvegarde en ligne indisponible, projets gardés sur cet ordinateur :",e.message); notify(); }
   }
-  async function remoteWrite(method,body){ try{ const x=await remote(method,body); window.__spSupabase={ready:true}; return x; }catch(e){ window.__spSupabase={ready:false,error:e.message,code:e.code}; console.warn("Supabase :",e.message); return null; } }
+  async function remoteWrite(method,body){ if(remoteOff) return null; try{ const x=await remote(method,body); window.__spSupabase={ready:true}; return x; }catch(e){ remoteOff=true; window.__spSupabase={ready:false,error:e.message,code:e.code}; console.info("Sauvegarde en ligne indisponible, projets gardés sur cet ordinateur :",e.message); return null; } }
   function notify(){
     const o = load();
     listeners.forEach(l => {

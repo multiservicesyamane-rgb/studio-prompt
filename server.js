@@ -128,7 +128,8 @@ const SUPABASE_USER = String(process.env.STUDIO_PROMPT_USER_ID || "local").repla
 const supabaseHeaders = extra => Object.assign({apikey:SUPABASE_SECRET_KEY, Authorization:`Bearer ${SUPABASE_SECRET_KEY}`, "Content-Type":"application/json", "User-Agent":"StudioPrompt-Server/1.0"}, extra || {});
 async function supabaseCall(pathname, opts={}){
   if(!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw Object.assign(new Error("Supabase n'est pas configuré dans .env."), {code:"no_key", status:503});
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/${pathname}`, Object.assign({}, opts, {headers:supabaseHeaders(opts.headers)}));
+  let r; try{ r=await fetch(`${SUPABASE_URL}/rest/v1/${pathname}`, Object.assign({}, opts, {headers:supabaseHeaders(opts.headers), signal:AbortSignal.timeout(15000)})); }
+  catch(e){ throw Object.assign(new Error("Supabase ne répond pas (projet en pause, adresse fausse ou pas d'Internet)."), {code:"supabase_unreachable", status:503}); }
   if(!r.ok){ const raw=await r.text(); const missing=r.status===404||/schema cache|does not exist/i.test(raw); throw Object.assign(new Error(missing?"La table Supabase studio_prompt_documents n'existe pas encore.":`Supabase refuse la demande (${r.status}).`),{code:missing?"table_missing":"supabase_error",status:missing?503:r.status,detail:raw.slice(0,300)}); }
   return r;
 }
@@ -152,7 +153,8 @@ async function handleSupabaseDb(req,res){
       return sendJson(res,200,{ready:true,deleted:id});
     }
     return sendJson(res,405,{code:"bad_request",message:"Méthode non autorisée."});
-  }catch(e){ return sendJson(res,e.status||500,{code:e.code||"supabase_error",message:e.message}); }
+  }catch(e){ /* service facultatif : son absence est un état normal (réponse 200), les projets restent sur l'ordinateur */
+    return sendJson(res,200,{ready:false,code:e.code||"supabase_error",message:e.message}); }
 }
 
 /* Extrait localement le texte d'un PDF destiné à la mémoire. Le document n'est

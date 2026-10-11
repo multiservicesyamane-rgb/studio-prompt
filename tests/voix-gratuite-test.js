@@ -44,7 +44,7 @@ const PORT = 3000 + 600 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
   try{
     await pg.setViewport({width: 1366, height: 900});
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
-    await pg.evaluate(pr => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}})); localStorage.setItem("sp-local-db", JSON.stringify({"data/users/local": {vg1: pr}})); }, PROJ);
+    await pg.evaluate(pr => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({motion: "infos", veille: {auto: false}})); localStorage.setItem("sp-local-db", JSON.stringify({"data/users/local": {vg1: pr}})); }, PROJ);
     await pg.reload({waitUntil: "networkidle0"});
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST") return r.respond({status: 200, contentType: "application/x-ndjson", body: JSON.stringify({delta: JSON.stringify(REVUE)}) + "\n" + JSON.stringify({model: "simulation"}) + "\n"}); r.continue(); });

@@ -53,7 +53,7 @@ const PORT = 3000 + 800 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     const cdp = await pg.target().createCDPSession(); await cdp.send("Browser.setDownloadBehavior", {behavior: "allow", downloadPath: OUT, eventsEnabled: true}).catch(() => cdp.send("Page.setDownloadBehavior", {behavior: "allow", downloadPath: OUT}));
     await pg.setViewport({width: 1366, height: 900});
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
-    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}, presseUneRecreee: true})); }); await pg.reload({waitUntil: "networkidle0"});   /* une recréée demandée : ce test la vérifie (par défaut, seulement les vraies images) */
+    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({motion: "infos", veille: {auto: false}, presseUneRecreee: true})); }); await pg.reload({waitUntil: "networkidle0"});   /* une recréée demandée : ce test la vérifie (par défaut, seulement les vraies images) */
     await pg.setRequestInterception(true);
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ try{ seen.prompt = JSON.parse(r.postData()).prompt || ""; }catch(e){}
       const rv = /directeur de l'information/.test(seen.prompt) ? REVUE2 : REVUE;

@@ -83,6 +83,7 @@ const PORT = 3000 + 900 + Math.floor(Math.random() * 90), BASE = `http://127.0.0
     await pg.evaluate(() => { location.hash = "connexions"; }); await pg.waitForFunction(() => /Voix Gemini/.test((document.getElementById("cx-body") || {}).innerText || ""), {timeout: 15000});
     const cx = await pg.evaluate(() => document.getElementById("cx-body").innerText.replace(/\s+/g, " "));
     check("Connexions : voix gratuites prêtes, Veo et images payants non activés, budget, guides", /Voix Gemini.*Prêt · gratuit/.test(cx) && /Veo 3\.1.*Payant · non activé/.test(cx) && /0,00 \$ dépensés aujourd’hui sur un maximum de 5,00 \$/.test(cx) && /Ajouter une clé ElevenLabs/.test(cx) && /Dernières fabrications/.test(cx), cx.slice(0, 260));
+    check("Connexions : sauvegarde des projets visible ; sans Supabase, projets gardés sur l'ordinateur (relais gratuit, aucune erreur)", /Sauvegarde des projets\s*Tes projets sont enregistrés dans ce navigateur.*Copie en ligne Supabase.*Sur cet ordinateur/.test(cx), (cx.match(/Sauvegarde des projets.{0,200}/) || [""])[0]);
     await pg.setViewport({width: 390, height: 844}); await new Promise(r => setTimeout(r, 300));
     const over = await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     check("page Connexions sur téléphone : pas de défilement horizontal", over <= 1, `${over}px`);

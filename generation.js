@@ -47,9 +47,10 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   fs.mkdirSync(dir, {recursive:true});
   const JOBS = path.join(dir, "jobs.json"), STATE = path.join(dir, "state.json");
   let jobs = []; try{ jobs = JSON.parse(fs.readFileSync(JOBS, "utf8")); if(!Array.isArray(jobs)) jobs = []; }catch(e){}
-  /* Après un redémarrage, reprendre les tâches interrompues. Une tâche Agnes
-     déjà acceptée reprend son suivi distant sans soumettre une seconde vidéo. */
-  jobs.forEach(j=>{ if(j&&j.status==="running") j.status="queued"; });
+  /* Après un redémarrage : une vidéo déjà commandée (j.remote) est seulement attendue, plus bas (« Reprise après redémarrage »),
+     jamais commandée une seconde fois. Une vidéo Agnes (gratuite) coupée pendant l'envoi est remise dans la file ;
+     pour les services payants, une coupure pendant l'envoi demande une relance à la main (on ne sait pas si la commande est partie). */
+  jobs.forEach(j=>{ if(j&&j.status==="running"&&!j.remote&&j.service==="agnes") j.status="queued"; });
   let state = {billing:"unknown", billingKey:"", day:"", spent:0}; try{ Object.assign(state, JSON.parse(fs.readFileSync(STATE, "utf8"))); }catch(e){}
   if(state.billingKey !== KEY_TAG){ state.billing = "unknown"; state.billingKey = KEY_TAG; }   /* nouvelle clé média : facturation à revérifier */
   let saveT = null;
@@ -165,7 +166,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   async function run(j){
     update(j, {status:"running", step:"envoi", started:Date.now()});
     try{
-      if(j.kind === "video") await (j.service === "runway" ? runRunway(j) : j.service === "agnes" ? (j.remote&&j.remote.agnes?agnesWait(j):runAgnes(j)) : runVeo(j));
+      const rm = j.remote || {};   /* déjà commandée : on attend, on ne recommande jamais */
+      if(j.kind === "video") await (rm.op ? veoWait(j) : rm.task ? runwayWait(j) : rm.agnes ? agnesWait(j) : j.service === "runway" ? runRunway(j) : j.service === "agnes" ? runAgnes(j) : runVeo(j));
       else await (j.service === "elevenlabs" ? runEleven(j) : j.service === "chatterbox" ? runChatterbox(j) : runGeminiVoice(j));
     }catch(e){ failJob(j, e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`}); }
   }
