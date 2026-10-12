@@ -640,6 +640,13 @@ Demande de l'utilisateur : les pages faisaient toujours les mêmes vidéos (quiz
   - `cbCaptions` prépare les mots par scène (aperçu : sans voix ; vidéo : avec la vraie voix). `drawCaps` les dessine par-dessus l'image, après les transitions.
   - Styles (`CB_SUBS`) : karaoké (mot dit en jaune), pop (un gros mot à la fois), boîte (mot dit encadré), classique (phrase sur bandeau), sans. Les chiffres, prix et mots forts (`CB_KEYWORD`) sont en jaune. Menu « 💬 Sous-titres » sur le résultat, gardé pour les vidéos suivantes (`sp-prefs.cbSubs`).
   - Seulement sur les scènes d'image (`CB_CAP_LAYS`) ; les scènes faites de texte (question, liste, conversation…) n'en ont pas besoin. Avec sous-titres, le titre du plein écran passe en haut et le petit texte de produit, marque et illustration laisse la place.
+- **Bibliothèque d'effets (`public/studio-fx.js`, 12-13 octobre)** : demande de l'utilisateur, « au moins 50 modèles pour chaque chose, comme Photoshop, After Effects, Premiere, Illustrator, Blender… mais utilisés simplement ». Fichier à part, chargé avant le programme ; fonctions pures qui dessinent sur le contexte reçu ; tout marche hors ligne et sans quota (`window.SP_FX`).
+  - 421 modèles : 64 sous-titres (`subs`, `drawCaps`), 76 transitions (`trans`, `transition`), 63 effets d'image (`looks`, `look` : filtres + calques grain, vignette, fuites de lumière, VHS, bichromie, trame, halo…), 61 palettes (`palettes`), 52 styles de titres (`tstyles`, `styledText` : contours, ombres, lueur, relief 3D, dégradés, pastille, surligneur…), 54 animations de titres (`anims`, `drawTitle` : par bloc, mot ou lettre), 51 mouvements de caméra (`moves`, `move`).
+  - Les anciens noms restent compris (`alias` : zoom_avant, glisse, karaoke…). `kits` = familles de transitions qui vont ensemble.
+  - Moteur (`cbStage`) : une scène se dessine sur un contexte de travail (`paint`) ; pendant une transition, la fin de la scène précédente (A) et le début de la nouvelle (B) sont mélangés ; l'effet d'image est appliqué à l'image finale ; les sous-titres viennent ensuite. Photo qui n'a pas la forme de l'écran : entière au centre, sur un fond flou fait d'elle-même.
+  - L'agent choisit dans la bibliothèque (listes tirées de `SP_FX.list` par `cbFxIds`, donc toujours à jour) : `style.look`, `style.palette`, `style.titre`, `style.sous_titres`, et par scène `transition`, `anim`, `mouvement`. `cbFxId` valide chaque nom. Sans IA, `cbFxAuto` tire un ensemble cohérent du texte.
+  - Résultat : panneau « 🎛 Studio d'effets » (7 onglets, un aperçu par modèle, animé sous la souris ou le doigt, un clic applique à toute la vidéo), « 🤖 Les choix de l'agent » (retour au plan de l'agent, `_fx0`), « 🎲 Surprends-moi » (combinaison au hasard, cohérente). Chaque scène affiche sa transition et son animation.
+  - Test : `effets-test.js` (chaque modèle se dessine sans erreur, au moins 50 images différentes par catégorie, planches-contact dans `tests/out/effets-*.png`).
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -879,6 +886,7 @@ Ce que le code corrige :
 | `assistant-test.js` | Créer en 3 questions : raccourci de l'accueil, 6 types, quiz au hasard sans IA (4 niveaux, format « les deux »), retour à l'assistant, réponse manquante, cours rempli et lancé, film depuis un lien YouTube, choix gardés, téléphone, console ; Mes projets : quiz et cours listés avec les films, rouverts dans leur onglet, sans doublon |
 | `sample-garde-test.js` | Délais de sécurité des agents face à un faux Google : modèle muet ou qui ne commence jamais (timeout clair), réponse qui tourne en rond (coupée, code loop), serveur toujours disponible ensuite |
 | `cours-relais-test.js` | Cours Ultra sans impasse : temps affiché, « Passer cette étape » pour le documentaliste, commission en boucle reprise par le modèle rapide, cours livré avec un avertissement |
+| `effets-test.js` | Bibliothèque d'effets : 7 catégories de 50 modèles au moins, chacun dessiné sans erreur, images différentes, anciens noms compris, console |
 | `constructeur-test.js` | Constructeur : arrivée façon Gemini (bonjour, une barre, idées, pas de débordement, barre du bas visible), idée en pastille, accueil, page, fichiers joints (2 photos, 1 clip FFmpeg), demande + marque + images vues par l'agent, plan libre de 6 scènes, vidéo Full HD 15 s dessinée avec les fichiers, modèle à imiter jamais monté, Sans IA, sous-titres (karaoké par défaut, retirés par « Sans sous-titres »), genre choisi d'abord, « Autre proposition » sans toucher au texte, quiz (compte à rebours, question, habillage arcade, produit sans photo devenu illustration), changement d'habillage, Mes projets, « Récentes », « Nouvelle vidéo » qui repart de zéro, réouverture depuis Récentes, console |
 | `motion-libre-test.js` | Projet libre : IA simulée, vraie vidéo fabriquée image par image en 1080 × 1920, finition FFmpeg (H.264, −14 LUFS), scènes visibles, console sans erreur |
 
@@ -925,6 +933,7 @@ Les commits sont en français. Étapes majeures :
 22. le Constructeur : une demande + des fichiers → n'importe quelle vidéo, priorité à la vente (12 octobre, §4.3 duodecies).
 23. design façon Gemini / ChatGPT : menu clair, « Nouvelle vidéo », « Récentes », Constructeur en une seule barre centrée (12 octobre, §7) ;
 24. Constructeur : le genre d'abord, 10 habillages, 18 mises en page (quiz, liste, dialogue…), photos libres, jamais de case vide (12 octobre, §4.3 duodecies).
+25. sous-titres mot par mot synchronisés avec la voix, puis bibliothèque de 421 effets (`studio-fx.js`) et Studio d'effets (13 octobre, §4.3 duodecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 
