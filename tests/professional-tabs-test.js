@@ -15,7 +15,7 @@ const styles = [...html.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/gi)].ma
 const VIEWS = [
   "accueil", "tendances", "idees", "studio", "images", "audio",
   "agence", "presse", "reel", "niches", "pays", "persos", "qualite",
-  "son", "chaine", "connexions", "memoire", "projets", "assistant"
+  "son", "chaine", "connexions", "memoire", "projets", "assistant", "constructeur"
 ];
 const MOTION = ["libre", "cours", "infos", "quiz", "pub", "succes"];
 const FREE_LAYOUTS = ["hero", "split", "data", "timeline", "quote", "process", "cta"];
@@ -103,7 +103,7 @@ function escapeRe(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-test("les 19 vues DOM (dont « Créer en 3 questions ») possèdent exactement 19 VIEW_PROFILES complets", () => {
+test("les 20 vues DOM (dont le Constructeur et « Créer en 3 questions ») possèdent exactement 20 VIEW_PROFILES complets", () => {
   const tags = [...html.matchAll(/<section\b[^>]*\bdata-view="([^"]+)"[^>]*>/gi)];
   const domViews = tags.map(match => {
     const id = /\bid="view-([^"]+)"/i.exec(match[0]);
@@ -111,7 +111,7 @@ test("les 19 vues DOM (dont « Créer en 3 questions ») possèdent exactement 1
     assert.equal(id[1], match[1], `id et data-view doivent correspondre pour ${match[1]}`);
     return match[1];
   });
-  assert.equal(domViews.length, 19);
+  assert.equal(domViews.length, 20);
   assert.deepEqual(sorted(domViews), sorted(VIEWS));
 
   const profiles = frozenObject("VIEW_PROFILES");

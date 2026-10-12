@@ -606,6 +606,26 @@ Remarque de l'utilisateur : le cours restait sur « 1/4 · Le documentaliste vé
 - **Finition FFmpeg** : si elle est occupée, le serveur répond 200 `{busy:true}`, et la page attend son tour (5 min au plus) au lieu d'échouer.
 - Tests : `sample-garde-test.js` (faux Google muet, lent, en boucle) et `cours-relais-test.js` (documentaliste passé, commission relancée avec le modèle rapide).
 
+### 4.3 duodecies Le Constructeur : une demande + tes fichiers → n'importe quelle vidéo (12 octobre)
+Demande de l'utilisateur : les pages faisaient toujours les mêmes vidéos (quiz, pubs figés). Il voulait un constructeur comme les sites de génération : une zone de texte, des fichiers joints, un bouton, et n'importe quelle vidéo. Priorité : la vente.
+- **Page** `view-constructeur` : premier onglet de « Créer » et premier raccourci de l'accueil (« Décris ta vidéo »).
+  - On y trouve : la demande, les fichiers (photos, vidéos, audio, PDF ou texte), la marque (`pbBrands`), le format, la durée, la voix off et un lien facultatif.
+  - Une vidéo jointe est « à monter » ou « modèle à imiter » ; un audio est « musique » ou « voix ».
+- **Cerveau** (`cbPrompt`) :
+  - l'agent VOIT les photos et 2 images de chaque vidéo à monter (4 pour un modèle), 8 images au plus (`cbImages`) ;
+  - il écrit librement un plan de montage JSON : type, accroche, style (ambiance, couleurs, police), scènes (durée, mise en page, titre, texte, points, médias avec début et mouvement, voix, transition), appel à l'action, texte de publication ;
+  - `cbNorm` nettoie le plan. Un « modèle à imiter » n'est jamais monté (`cbFind` le refuse) ; seule sa construction est reprise.
+- **11 mises en page** (`cbStage`) : plein écran, produit, prix (étiquette, ancien prix barré, badge promo), avantages, avant/après, étapes, chiffre, galerie, mots animés, marque, appel à l'action (bouton WhatsApp, site).
+  - Transitions : coupe, fondu, glisse, zoom, flash. Ken Burns sur les photos ; les vidéos sont rejointes image par image (`cbSeek`, `spEncode` attend un dessin asynchrone).
+  - Dessin en mesures 720p, mis à l'échelle K pour la Full HD.
+- **Son** (`cbAudio`) : musique de l'utilisateur ou nappe d'ambiance (`PR_MOODS`), voix off gratuite par scène (`spSayAll`, voix d'annonceur), whoosh aux transitions, impact sur le prix, et voix enregistrée de l'utilisateur si elle est jointe. `cbTimeline` respecte la durée demandée et le temps des voix.
+- **Résultat** : aperçu de 3 images, scènes modifiables (titre, texte, voix), « Fabriquer la vidéo » (téléphone, PC, les deux ou carré), « Autre proposition », texte de publication à copier. Le plan va dans Mes projets (`creationSave` type `video`) ; les fichiers restent sur l'ordinateur.
+- **Sans quota** : « ⚡ Sans IA » (`cbPlanFree`) compose un plan sûr à partir de la demande, des fichiers et de la marque : logo, photos, prix trouvé dans la demande, avantages de la marque, appel à l'action. Si l'agent échoue, ce plan prend le relais.
+- **Règles** : rien d'inventé, aucun faux témoignage, aucune personne réelle, textes courts, appel à l'action seulement avec des coordonnées connues.
+- Test : `constructeur-test.js`. Vraies images et vrai clip faits par FFmpeg : l'agent voit 4 images, plan de 6 scènes, vidéo 1080 × 1920 de 15 s dessinée, modèle jamais monté, « Sans IA » sans appel, rangement dans Mes projets.
+- **Thème clair** : les en-têtes sombres des pages de fabrication (`data-prof` production, audio, broadcast, post, sound, infrastructure) étaient écrasés par la règle générale, plus forte, d'où un texte blanc sur fond clair. Leurs sélecteurs ont maintenant la même force. Le cadre de focus des titres ouverts par le code est retiré.
+- **Suite prévue**, souhait de l'utilisateur : deux pages principales, « Créer une vidéo » (le Constructeur, avec les anciens outils dans « Plus d'outils ») et « Prompts ». Ensuite, des références de pubs envoyées par l'utilisateur, à étudier, et de vraies images libres pour les cours.
+
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
@@ -764,7 +784,7 @@ Ce que le code corrige :
 
 **Menu simplifié (11 octobre)** : beaucoup de pages se ressemblaient, et l'utilisateur a demandé une version plus simple.
 - Le menu compte 5 entrées (`GROUPS`) et Réglages. La barre du bas du téléphone montre les 5 entrées ; Réglages s'ouvre par ☰.
-  - **Créer** : `assistant` (en 3 questions, ouvert par défaut), `studio`, `audio`, `reel`, `presse:motion` (Motion design, avec le dernier type de vidéo choisi, `motionCreer`).
+  - **Créer** : `constructeur` (✨ Constructeur, ouvert par défaut), `assistant` (en 3 questions), `studio`, `audio`, `reel`, `presse:motion` (Motion design, avec le dernier type de vidéo choisi, `motionCreer`).
   - **Idées** : `idees`, `tendances`, `presse:succes` (Succès YouTube).
   - **Mes projets** : `projets`, `persos`, `images`, `agence`.
   - **Ma chaîne** : `niches`, `pays`, `chaine`, `memoire`.
@@ -779,7 +799,21 @@ Ce que le code corrige :
   - L'assistant ouvre l'outil existant (`setView("presse:quiz")`…), remplit ses champs et clique sur son bouton de lancement : aucun moteur en double.
   - Les fichiers passent par `DataTransfer`, et un PDF de cours par `/api/pdf/text`.
   - Ensuite, « Créer » revient à l'assistant. Les réponses sont gardées dans `sp-prefs.assistant`. Il y a toujours un chemin sans quota : quiz au hasard, pub sans IA.
-- Prochaine étape du plan : un seul fil d'idées, et des Projets qui montrent aussi les quiz, pubs, infos et cours.
+- **Mes projets montre tout** (étape 3) :
+  - Les quiz, infos, pubs, cours et animations s'enregistrent automatiquement à côté des films (`kind:"creation"`, `type`, `state`, par `creationSave`). Ils sont exclus de `savedProjects`.
+  - Chaque onglet garde son propre état (`sp-jeux`, `sp-presse`, `sp-pub`, `MD_RESULT`) : la copie enregistrée est ce même état. Une clé stable par création (`sp-prefs.crea`) évite les doublons, et l'écriture est regroupée (1,2 s).
+  - « Mes vidéos » mélange films et créations, de la plus récente à la plus ancienne, avec leur type (🎬 Film IA, 🧠 Quiz, 📰 Infos du jour, 📣 Publicité, 🎓 Cours, 🎨 Animation). « Ouvrir » (`creationOpen`) rouvre la création dans son onglet ; un cours retrouve son habillage. Les images préparées pour la vidéo ne sont pas gardées : il faut les refaire.
+  - Les idées : Idées originales, Tendances du jour et Vidéos à succès sont réunies dans l'entrée « Idées » (étape 1).
+- **Design façon Gemini / ChatGPT (12 octobre)** : demande de l'utilisateur, capture de Gemini à l'appui (« faire les design comme ce genre d'abord »).
+  - **Première visite** : on arrive sur le Constructeur (`prefs0.view||"constructeur"`), puis sur la dernière page ouverte. Les adresses avec `#` ne changent pas.
+  - **Menu** : clair en thème clair (variables `--side*`, dont `--side-line`, `--side-strong`, `--side-chip`, `--side-well`), sombre inchangé en thème sombre. Entrées en pastilles arrondies.
+    - En haut, **« Nouvelle vidéo »** (`#side-new`, `.side-new`, pas une `.side-link`) : ouvre le Constructeur ; si on y est déjà, repart de zéro (texte, fichiers, plan), sauf pendant que l'agent écrit.
+    - En bas, **« Récentes »** (`#side-recent`, `renderRecent`, appelée par `renderLists`) : les 8 dernières vidéos (films et créations), rouvertes d'un clic par les mêmes boutons `data-open` / `data-opencr` que Mes projets. Elle défile seule : le menu reste visible sans défiler sur un écran de 650 px.
+  - **Constructeur** : un bonjour centré (« Salut, on crée quelle vidéo ? »), une seule barre arrondie `#cb-pill` (texte qui grandit, « + » pour joindre, réglages repliés `#cb-opt` / `#cb-tools` avec leur résumé, micro, bouton envoyer `#cb-go`), 5 idées en pastilles (`CB_SUGG`, textes génériques avec des [cases à compléter]), une lueur douce. Les identifiants des champs n'ont pas changé.
+    - Entrée envoie sur ordinateur (Maj + Entrée : nouvelle ligne) ; sur téléphone, Entrée va à la ligne.
+    - Glisser des fichiers sur la barre les joint (`cbAdd`). Le champ fichier n'est pas transformé en zone de dépôt (`data-fdrop="0"`).
+    - Micro : dictée du navigateur (`SpeechRecognition`), bouton caché si le navigateur ne la connaît pas ; en cas d'échec, un message invite à écrire.
+    - Sur téléphone, les onglets de « Créer » tiennent sur une ligne qui défile. La lueur reste dans la largeur de la page (sinon la page s'élargit et la barre du bas sort de l'écran).
 
 ## 8. Tests
 
@@ -827,9 +861,10 @@ Ce que le code corrige :
 | `professional-tabs-test.js` | Structure accessible des 6 onglets de Motion design (`node:test`) |
 | `cours-habillage-test.js` | Cours du jour : 9 habillages lisibles et distincts, choix (main, mise en scène, agent, matière, niveau), 13 mises en page dessinées en 9:16 et 16:9 sur un faux canvas, normalisation des items, consignes, aperçu, aucun mot technique à l'écran |
 | `cours-video-test.js` | Cours du jour de bout en bout (IA simulée) : consigne avec les habillages, mise en scène « tableau » → tableau à craie, aperçu de trois diapos, changement d'habillage à la main, vraie vidéo 1080 × 1920 de 30 s avec FFmpeg qui suit ce choix, téléphone sans défilement |
-| `assistant-test.js` | Créer en 3 questions : raccourci de l'accueil, 6 types, quiz au hasard sans IA (4 niveaux, format « les deux »), retour à l'assistant, réponse manquante, cours rempli et lancé, film depuis un lien YouTube, choix gardés, téléphone, console |
+| `assistant-test.js` | Créer en 3 questions : raccourci de l'accueil, 6 types, quiz au hasard sans IA (4 niveaux, format « les deux »), retour à l'assistant, réponse manquante, cours rempli et lancé, film depuis un lien YouTube, choix gardés, téléphone, console ; Mes projets : quiz et cours listés avec les films, rouverts dans leur onglet, sans doublon |
 | `sample-garde-test.js` | Délais de sécurité des agents face à un faux Google : modèle muet ou qui ne commence jamais (timeout clair), réponse qui tourne en rond (coupée, code loop), serveur toujours disponible ensuite |
 | `cours-relais-test.js` | Cours Ultra sans impasse : temps affiché, « Passer cette étape » pour le documentaliste, commission en boucle reprise par le modèle rapide, cours livré avec un avertissement |
+| `constructeur-test.js` | Constructeur : arrivée façon Gemini (bonjour, une barre, idées, pas de débordement, barre du bas visible), idée en pastille, accueil, page, fichiers joints (2 photos, 1 clip FFmpeg), demande + marque + images vues par l'agent, plan libre de 6 scènes, vidéo Full HD 15 s dessinée avec les fichiers, modèle à imiter jamais monté, Sans IA, Mes projets, « Récentes », « Nouvelle vidéo » qui repart de zéro, réouverture depuis Récentes, console |
 | `motion-libre-test.js` | Projet libre : IA simulée, vraie vidéo fabriquée image par image en 1080 × 1920, finition FFmpeg (H.264, −14 LUFS), scènes visibles, console sans erreur |
 
 **Règles**
@@ -871,7 +906,9 @@ Les commits sont en français. Étapes majeures :
 18. ajouts de l'autre outil (Cours du jour, montage de pub, quiz premium, mémoire PDF, sauvegarde Supabase), puis réparation des 14 régressions (11 octobre, §4.3 octies) ;
 19. export professionnel Full HD de toutes les vidéos de Motion design, téléphone d'abord (11 octobre, §4.3 nonies) ;
 20. Cours du jour : un habillage propre à chaque cours et une mise en page adaptée à chaque diapo (11 octobre, §4.3 decies) ;
-21. menu simplifié : 5 entrées, les pages proches en onglets (11 octobre, §7) ; puis « Créer en 3 questions » (§7).
+21. menu simplifié : 5 entrées, les pages proches en onglets (11 octobre, §7) ; puis « Créer en 3 questions » et « Mes projets » qui montre tout (§7) ;
+22. le Constructeur : une demande + des fichiers → n'importe quelle vidéo, priorité à la vente (12 octobre, §4.3 duodecies).
+23. design façon Gemini / ChatGPT : menu clair, « Nouvelle vidéo », « Récentes », Constructeur en une seule barre centrée (12 octobre, §7).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

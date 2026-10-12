@@ -21,10 +21,11 @@ const COURS = {titre: "Les fractions", concept: "Lire une fraction.", promesse: 
     await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("sp-prefs", JSON.stringify({veille: {auto: false}})); });
     await pg.reload({waitUntil: "networkidle0"});
     const home = await pg.evaluate(() => (document.querySelector('.welcome-action[data-go-inline="assistant"]') || {}).textContent || "");
-    check("accueil : le premier raccourci est « Créer en 3 questions »", /Créer en 3 questions/.test(home), home.slice(0, 60));
-    await pg.evaluate(() => document.querySelector(".tabbar .tab[data-go='creer']").click()); await new Promise(r => setTimeout(r, 400));
+    check("accueil : un raccourci « Créer en 3 questions »", /Créer en 3 questions/.test(home), home.slice(0, 60));
+    await pg.evaluate(() => document.querySelector(".tabbar .tab[data-go='creer']").click()); await new Promise(r => setTimeout(r, 300));
+    await pg.evaluate(() => document.querySelector('.grp-tabs [data-go-tab="assistant"]').click()); await new Promise(r => setTimeout(r, 400));
     const a0 = await pg.evaluate(() => ({vis: !document.getElementById("view-assistant").hidden, tab: (document.querySelector(".grp-tabs [aria-current='page']") || {}).textContent, types: document.querySelectorAll("#as-type input").length, q2: document.getElementById("as-q2").hidden, over: document.documentElement.scrollWidth - innerWidth}));
-    check("« Créer » ouvre l'assistant en premier : 6 types de vidéo, la suite apparaît après le choix", a0.vis && a0.tab === "✨ En 3 questions" && a0.types === 6 && a0.q2, JSON.stringify(a0));
+    check("onglet « En 3 questions » : 6 types de vidéo, la suite apparaît après le choix", a0.vis && a0.tab === "En 3 questions" && a0.types === 6 && a0.q2, JSON.stringify(a0));
     check("téléphone (390 px) : pas de défilement horizontal", a0.over <= 0, `${a0.over}px`);
     // 1. quiz au hasard, sans IA : les deux formats, durée moyenne → 4 niveaux
     await pick("as-type", "quiz");
@@ -53,6 +54,21 @@ const COURS = {titre: "Les fractions", concept: "Lire une fraction.", promesse: 
     await pg.click("#as-go"); await new Promise(r => setTimeout(r, 500));
     const f = await pg.evaluate(() => ({reel: !document.getElementById("view-reel").hidden, lien: document.getElementById("rm-yt").value, fmt: document.getElementById("rm-format").value, dur: document.getElementById("as-duree").hidden}));
     check("film depuis une vidéo : « Depuis une vidéo » s'ouvre avec le lien et le format PC", f.reel && f.lien === "https://www.youtube.com/watch?v=abc123" && f.fmt === "16:9", JSON.stringify(f));
+    // 4. Mes projets montre tout : le quiz et le cours créés y sont, à côté des films, et se rouvrent dans leur onglet
+    await pg.evaluate(() => { location.hash = "projets"; });
+    await pg.waitForFunction(() => { const t = document.getElementById("list-projects").innerText; return /🧠 Quiz/.test(t) && /🎓 Cours/.test(t); }, {timeout: 15000});
+    const pl = await pg.evaluate(() => ({rows: [...document.querySelectorAll("#list-projects .row")].map(r => r.innerText.replace(/\s+/g, " ").slice(0, 70)), count: (document.getElementById("side-count") || {}).textContent}));
+    check("Mes projets : le quiz et le cours créés apparaissent dans « Mes vidéos », le plus récent en premier", pl.rows.length === 2 && /Cours/.test(pl.rows[0]) && /Quiz/.test(pl.rows[1]) && pl.count === "2", JSON.stringify(pl));
+    await pg.evaluate(() => [...document.querySelectorAll("#list-projects .row")].find(r => /🧠 Quiz/.test(r.innerText)).querySelector("[data-opencr]").click());
+    await pg.waitForFunction(() => !document.getElementById("view-presse").hidden && !document.getElementById("mt-quiz").hidden && document.querySelectorAll("#jx-res .jx-lv").length === 4, {timeout: 10000});
+    check("rouvrir le quiz depuis Mes projets : l'onglet Quiz revient avec ses 4 niveaux", true);
+    await pg.evaluate(() => { location.hash = "projets"; }); await new Promise(r => setTimeout(r, 300));
+    await pg.evaluate(() => [...document.querySelectorAll("#list-projects .row")].find(r => /🎓 Cours/.test(r.innerText)).querySelector("[data-opencr]").click());
+    await pg.waitForFunction(() => !document.getElementById("mt-cours").hidden && !!document.getElementById("cr-theme"), {timeout: 10000});
+    const rc = await pg.evaluate(() => ({nom: document.getElementById("cr-theme-nom").textContent, prev: document.querySelectorAll("#cr-theme-prev canvas").length, n: document.querySelectorAll("#list-projects .row").length}));
+    check("rouvrir le cours : son habillage et son aperçu reviennent, sans créer de doublon", /Tableau à craie/.test(rc.nom) && rc.prev > 0, JSON.stringify(rc));
+    await new Promise(r => setTimeout(r, 1600));
+    check("pas de doublon après réouverture (toujours 2 vidéos)", await pg.evaluate(() => JSON.parse(localStorage.getItem("sp-local-db") || "{}")["data/users/local"] ? Object.values(JSON.parse(localStorage.getItem("sp-local-db"))["data/users/local"]).filter(d => d.kind === "creation").length === 2 : false));
     check("réponses gardées : l'assistant se souvient des derniers choix après rechargement", await pg.evaluate(() => { const a = JSON.parse(localStorage.getItem("sp-prefs")).assistant || {}; return a.type === "film" && a.depart === "video"; }));
     check("aucune erreur dans la console", errs.length === 0, errs.slice(0, 3).join(" | "));
   }catch(e){ out.push("ERREUR DU TEST : " + e.message); }
