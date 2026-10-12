@@ -202,6 +202,8 @@ async function handlePdfText(req, res){
 }
 /* Fabrication des vidéos et des voix (generation.js) : tâches suivies, budget du jour, fichiers dans public/generated/ */
 const gen = require("./generation")({dir:GENERATED, env:process.env, sendJson, readBody});
+/* « Garder la voix, refaire l'image » : longues récitations, conférences, lectures (analyse FFmpeg, texte du Coran, vidéo reçue par morceaux) */
+const recit = require("./recitation")({GENERATED, FFMPEG_PATH, sendJson, readBody, DATA:path.join(GENERATED, "_textes")});
 const safePart = (v, fallback) => String(v || fallback).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || fallback;
 /* ---------- finition locale des cours par FFmpeg ---------- */
 let courseFfmpegBusy = false;
@@ -1109,6 +1111,7 @@ http.createServer((req, res) => {
   if(req.url.startsWith("/api/db/documents") && ["GET","POST","DELETE"].includes(req.method)) return handleSupabaseDb(req,res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res,500,{code:"supabase_error",message:"Stockage Supabase indisponible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/pdf/text")) return handlePdfText(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture du PDF impossible."}); });
   if(gen.handle(req, res)) return;
+  if(recit.handle(req, res)) return;
   const finalizePath=req.url.split("?")[0];
   if(finalizePath === "/api/course/finalize" || finalizePath === "/api/video/finalize"){
     if(req.method !== "POST") return sendJson(res,405,{code:"method_not_allowed",message:"Utilise POST pour lancer la finition FFmpeg."});

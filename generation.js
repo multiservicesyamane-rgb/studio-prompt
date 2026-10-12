@@ -70,7 +70,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
 
   const safeId = s => String(s || "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "projet";
   const pad = n => String(Math.max(0, Number(n) || 0)).padStart(2, "0");
-  const MIME = {mp4:"video/mp4", webm:"video/webm", mov:"video/quicktime", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", webp:"image/webp", wav:"audio/wav", mp3:"audio/mpeg", srt:"application/x-subrip", json:"application/json"};
+  const MIME = {mp4:"video/mp4", webm:"video/webm", mov:"video/quicktime", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", webp:"image/webp", wav:"audio/wav", mp3:"audio/mpeg", m4a:"audio/mp4", aac:"audio/aac", srt:"application/x-subrip", json:"application/json"};
   const EXT = {"video/mp4":"mp4", "video/webm":"webm", "video/quicktime":"mov", "audio/x-wav":"wav", "audio/mp3":"mp3", "image/png":"png", "image/jpeg":"jpg", "image/webp":"webp", "audio/wav":"wav", "audio/mpeg":"mp3"};
   function fileOf(url){
     const m = String(url || "").match(/^\/generated\/([a-zA-Z0-9_-]{1,80})\/([a-zA-Z0-9_.-]{1,140})$/);
