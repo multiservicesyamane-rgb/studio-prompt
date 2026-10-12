@@ -2,7 +2,7 @@
 // Faux Gemini, faux Groq, faux OpenRouter : aucune vraie clé, aucun quota. Le serveur de test est lancé ici.
 const http = require("http"), path = require("path"), {spawn} = require("child_process");
 const out = [], check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — " + x : ""}`);
-const seen = {gemini: 0, groq: [], openrouter: []}, mode = {groq: "ok", openrouter: "ok"};
+const seen = {gemini: 0, groq: [], openrouter: []}, mode = {groq: "ok", openrouter: "ok", busyModel: ""};
 const sse = o => `data: ${JSON.stringify(o)}\n\n`;
 const fake = http.createServer((req, res) => { const c = []; req.on("data", d => c.push(d)); req.on("end", () => {
   const u = new URL(req.url, "http://x"), body = (() => { try{ return JSON.parse(Buffer.concat(c).toString("utf8")); }catch(e){ return {}; } })();
@@ -15,7 +15,7 @@ const fake = http.createServer((req, res) => { const c = []; req.on("data", d =>
     ? [{id: "whisper-large-v3"}, {id: "llama-3.3-70b-versatile", context_window: 131072}, {id: "meta-llama/llama-4-scout-17b-16e-instruct", context_window: 131072}]
     : [{id: "openai/gpt-x", pricing: {prompt: "0.000002", completion: "0.000008"}}, {id: "deepseek/deepseek-chat-v3:free", pricing: {prompt: "0", completion: "0"}, context_length: 64000, architecture: {input_modalities: ["text"]}}, {id: "google/gemini-flash:free", pricing: {prompt: "0", completion: "0"}, context_length: 1000000, architecture: {input_modalities: ["text", "image"]}}]})); }
   if(kind && u.pathname.endsWith("/chat/completions")){ seen[kind].push({model: body.model, auth: req.headers.authorization, images: JSON.stringify(body.messages || "").split('"type":"image_url"').length - 1, json: !!body.response_format, stream: body.stream});
-    if(mode[kind] === "quota"){ res.writeHead(429, {"Content-Type": "application/json"}); return res.end(JSON.stringify({error: {message: "Rate limit reached"}})); }
+    if(mode[kind] === "quota" || body.model === mode.busyModel){ res.writeHead(429, {"Content-Type": "application/json"}); return res.end(JSON.stringify({error: {message: "Rate limit reached"}})); }
     res.writeHead(200, {"Content-Type": "text/event-stream"}); res.write(sse({choices: [{delta: {content: `{"de":"${kind}",`}}]})); res.write(sse({choices: [{delta: {content: '"ok":true}'}}]})); res.write("data: [DONE]\n\n"); return res.end(); }
   res.writeHead(404); res.end("{}");
 }); });
@@ -45,6 +45,10 @@ const start = async (env) => { const PORT = 3000 + 600 + Math.floor(Math.random(
     const c = await ask(s1.BASE, "Écris un plan en JSON.");
     const or = seen.openrouter[seen.openrouter.length - 1] || {};
     check("Groq épuisé lui aussi : OpenRouter prend le relais avec un modèle gratuit (« :free »), jamais un payant", c.text === '{"de":"openrouter","ok":true}' && /OpenRouter · deepseek\/deepseek-chat-v3:free/.test(c.model) && or.auth === "Bearer cle-or", `${c.model}`);
+    mode.busyModel = "deepseek/deepseek-chat-v3:free";
+    const e = await ask(s1.BASE, "Écris un plan en JSON.");
+    check("modèle gratuit saturé : un autre modèle gratuit du même service (openrouter/free) répond aussitôt", e.text === '{"de":"openrouter","ok":true}' && /OpenRouter · openrouter\/free/.test(e.model) && seen.openrouter.some(x => x.model === "openrouter/free"), e.model);
+    mode.busyModel = "";
     s1.srv.kill(); s1 = null;
     mode.groq = "ok";
     s2 = await start(Object.assign({GROQ_API_KEY: "cle-groq"}, urls));

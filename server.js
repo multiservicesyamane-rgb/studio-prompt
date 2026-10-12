@@ -41,7 +41,7 @@ const GROQ_KEY = String(process.env.GROQ_API_KEY || "").trim(), GROQ_BASE = (pro
 const OPENROUTER_KEY = String(process.env.OPENROUTER_API_KEY || "").trim(), OPENROUTER_BASE = (process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, "");
 const PROVIDER = (process.env.PROVIDER || (GEMINI_KEY ? "gemini" : OPENAI_KEY ? "openai" : ANTHROPIC_KEY ? "anthropic" : GROQ_KEY ? "groq" : OPENROUTER_KEY ? "openrouter" : "")).toLowerCase();
 /* le meilleur modèle gratuit du service, choisi dans sa liste (gardée une heure) ; un modèle qui sait regarder les images quand il y en a */
-const relayLists = {};
+const relayLists = {}, relaySees = {};
 async function relayModel(kind, vision){
   const fixed = kind === "groq" ? (vision ? process.env.GROQ_VISION_MODEL : process.env.GROQ_MODEL) : (vision ? process.env.OPENROUTER_VISION_MODEL : process.env.OPENROUTER_MODEL);
   if(fixed) return fixed;
@@ -53,12 +53,14 @@ async function relayModel(kind, vision){
         free:kind === "groq" || /:free$/.test(String(m.id)) || !!(m.pricing && Number(m.pricing.prompt) === 0 && Number(m.pricing.completion) === 0)})); }catch(e){ list = []; }
     relayLists[kind] = {until:Date.now() + (list.length ? 3600e3 : 60e3), list};
   }
-  const ok = relayLists[kind].list.filter(m => m.id && m.free && m.active && !/whisper|tts|guard|embed|distil|playai|orpheus|compound|audio/i.test(m.id));
-  const pref = kind === "groq" ? (vision ? [/llama-4-maverick/, /llama-4-scout/, /vision/] : [/llama-3\.3-70b/, /gpt-oss-120b/, /llama-4-maverick/, /qwen.*32b/, /deepseek/, /70b/])
-    : (vision ? [/gemini.*flash/i, /llama-4-maverick/, /qwen.*vl/, /gemma-3/, /mistral-small/] : [/deepseek-(chat|v3)/, /llama-3\.3-70b/, /gemini.*flash/i, /qwen.*(72|235)b/, /mistral/]);
+  /* modèles qui n'écrivent pas de texte libre (voix, transcription, sécurité, code, musique, petits modèles) écartés */
+  const ok = relayLists[kind].list.filter(m => m.id && m.free && m.active && !/whisper|tts|guard|safety|embed|distil|playai|orpheus|compound|lyria|music|code|allam|lfm-2\.5-2|nano(?!-omni)|mini-code/i.test(m.id));
+  ok.forEach(m => { relaySees[m.id] = m.img; });
+  const pref = kind === "groq" ? (vision ? [/llama-4-maverick/, /llama-4-scout/, /vision|vl\b/] : [/gpt-oss-120b/, /llama-3\.3-70b/, /qwen.*(32|27)b/, /llama-4-maverick/, /gpt-oss-20b/, /70b/])
+    : (vision ? [/gemma-4-31b/, /inkling:free/, /gemma-4/, /gemini.*flash/i, /qwen.*vl/, /llama-4-maverick/, /mistral-small/] : [/nemotron-3-ultra/, /nemotron-3-super/, /gemma-4-31b/, /inkling:free/, /deepseek-(chat|v3)/, /llama-3\.3-70b/, /qwen.*(72|235)b/, /gemini.*flash/i, /mistral/]);
   for(const re of pref){ const m = ok.find(x => re.test(x.id) && (!vision || x.img)); if(m) return m.id; }
   const any = ok.filter(x => !vision || x.img).sort((a, b) => b.ctx - a.ctx)[0];
-  return any ? any.id : vision ? relayModel(kind, false) : (kind === "groq" ? "llama-3.3-70b-versatile" : "meta-llama/llama-3.3-70b-instruct:free");
+  return any ? any.id : vision ? relayModel(kind, false) : (kind === "groq" ? "openai/gpt-oss-120b" : "openrouter/free");
 }
 const GEMINI_BASE = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
 const ANTHROPIC_BASE = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com/v1";
@@ -954,13 +956,18 @@ async function handleSample(req, res){
   };
   const relayUsed = {};
   const callRelay = async kind => {
-    const pics = images.filter(i => /^image\//.test(String(i && i.mime))), model = await relayModel(kind, pics.length > 0), seesImages = pics.length && /vision|llama-4|scout|maverick|gemma-3|qwen.*vl|pixtral|gemini|mistral-small/i.test(model);
-    relayUsed[kind] = model; const text = prompt + (json ? "\n\nRéponds uniquement avec le JSON, sans texte autour." : "");
-    return fetch(`${kind === "groq" ? GROQ_BASE : OPENROUTER_BASE}/chat/completions`, {method:"POST", signal:ctl.signal,
+    const pics = images.filter(i => /^image\//.test(String(i && i.mime))), text = prompt + (json ? "\n\nRéponds uniquement avec le JSON, sans texte autour." : "");
+    const sees = mdl => pics.length && (relaySees[mdl] != null ? relaySees[mdl] : /vision|llama-4|scout|maverick|gemma|qwen.*vl|pixtral|gemini|inkling|mistral-small|openrouter\/free/i.test(mdl));
+    const send = mdl => { relayUsed[kind] = mdl; return fetch(`${kind === "groq" ? GROQ_BASE : OPENROUTER_BASE}/chat/completions`, {method:"POST", signal:ctl.signal,
       headers:Object.assign({"Content-Type":"application/json", "Authorization":`Bearer ${kind === "groq" ? GROQ_KEY : OPENROUTER_KEY}`}, kind === "openrouter" ? {"X-Title":"Studio Prompt"} : {}),
-      body:JSON.stringify({model, stream:true, temperature:0.8, max_tokens:Math.min(MAX_OUT, 8192),
-        messages:[{role:"user", content:seesImages ? [...pics.slice(0, 5).map(i => ({type:"image_url", image_url:{url:`data:${i.mime};base64,${i.data}`}})), {type:"text", text}] : text}],
-        ...(json && kind === "groq" ? {response_format:{type:"json_object"}} : {})})});
+      body:JSON.stringify({model:mdl, stream:true, temperature:0.8, max_tokens:Math.min(MAX_OUT, 8192),
+        messages:[{role:"user", content:sees(mdl) ? [...pics.slice(0, 5).map(i => ({type:"image_url", image_url:{url:`data:${i.mime};base64,${i.data}`}})), {type:"text", text}] : text}],
+        ...(json && kind === "groq" ? {response_format:{type:"json_object"}} : {})})}); };
+    const model = await relayModel(kind, pics.length > 0); let up = await send(model);
+    /* modèle gratuit saturé : un autre modèle gratuit du même service essaie aussitôt, avant de passer au service suivant */
+    if([429, 500, 502, 503].includes(up.status)){ const alt = kind === "openrouter" ? "openrouter/free" : ((relayLists.groq && relayLists.groq.list) || []).map(m => m.id).find(id => id !== model && /gpt-oss|qwen|llama|deepseek/i.test(id) && !/guard/i.test(id));
+      if(alt && alt !== model){ console.log(`${kind} : « ${model} » saturé (${up.status}), essai avec « ${alt} ».`); up = await send(alt); } }
+    return up;
   };
   /* Coupure réseau passagère : on réessaie une fois le même moteur, puis on passe au suivant */
   const netErrs = [];
