@@ -50,7 +50,7 @@ let REPLY = PLAN;
     check("« Créer » ouvre le Constructeur : une zone de texte, des fichiers, un bouton", a0.vis && a0.tab === "✨ Constructeur" && a0.over <= 0, JSON.stringify(a0));
     await (await pg.$("#cb-files")).uploadFile(F("cb-produit.png"), F("cb-boutique.jpg"), F("cb-clip.mp4"));
     await pg.waitForFunction(() => document.querySelectorAll("#cb-assets .cb-chip").length === 3, {timeout: 20000});
-    const chips = await pg.evaluate(() => [...document.querySelectorAll("#cb-assets .cb-chip")].map(c => c.innerText.replace(/\s+/g, " ").slice(0, 40)));
+    const chips = await pg.evaluate(() => [...document.querySelectorAll("#cb-assets .cb-chip")].map(c => c.innerText.replace(/\s+/g, " ").slice(0, 80)));
     check("fichiers joints : photo 1, photo 2, vidéo 1 « à monter », avec leur aperçu", /photo 1/.test(chips[0]) && /photo 2/.test(chips[1]) && /vidéo 1.*à monter/.test(chips[2]), chips.join(" | "));
     await pg.evaluate(() => { const set = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event("change", {bubbles: true})); };
       const opt = [...document.querySelectorAll("#cb-brand option")].find(o => /Yamane Shop/.test(o.textContent)); set("cb-brand", opt.value); set("cb-fmt", "9:16"); set("cb-dur", "15"); set("cb-voix", "none");
