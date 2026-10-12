@@ -659,6 +659,12 @@ Demande de l'utilisateur : les pages faisaient toujours les mêmes vidéos (quiz
   - L'agent reçoit les plans repérés (début, fin, étiquette) et 4 images (milieu des meilleurs plans, complétées par des moments bien répartis) ; il choisit `debut`, `fin`, `vitesse` (0,5× à 2×) par média. `cbVidTime` : le plan s'arrête sur sa dernière image.
   - Éditeur : pour chaque vidéo d'une scène, plan (liste des plans repérés), début, fin, vitesse ; choisir un plan règle aussi la durée de la scène. La vignette du fichier dit « analyse… » puis « N plans ». Sans IA : les meilleurs plans deviennent des scènes, dans un ordre qui dépend de la demande.
   - Test : `montage-test.js` (vidéo FFmpeg de 3 plans de couleurs de même lumière, carré blanc qui traverse, son sur le 3e plan : 3 plans, coupes à 2,0 et 4,0 s, étiquettes, éditeur, recadrage qui garde le carré au centre, montage sans IA).
+- **Agents gratuits de secours : Groq et OpenRouter (13 octobre)** : question de l'utilisateur (« où sont les autres IA ? »). Avant, seul Gemini écrivait (pas de clé OpenAI ni Anthropic), et rien ne prenait le relais quand son quota était épuisé.
+  - `server.js` : `GROQ_API_KEY`, `OPENROUTER_API_KEY` (API compatibles OpenAI, `/chat/completions` en continu). Ordre des moteurs : Gemini → Groq → OpenRouter → payants. Une seule clé Groq suffit pour que l'agent marche.
+  - `relayModel` choisit le meilleur modèle gratuit dans la liste du service (gardée une heure), un modèle qui regarde les images quand il y en a ; sur OpenRouter, seulement les modèles gratuits (« :free » ou prix nul). `GROQ_MODEL`, `OPENROUTER_MODEL` pour imposer un modèle.
+  - `/api/status` et `/api/gen/status` disent quels relais sont prêts (jamais les clés). Page Connexions : deux lignes avec le guide pour créer les clés. `.env.example` mis à jour.
+  - Agnes (images et clips gratuits) marche (essai réel du 13 octobre) mais n'est branché que sur « Depuis une idée », pas encore sur le Constructeur.
+  - Test : `relais-gratuits-test.js` (faux Gemini épuisé, faux Groq, faux OpenRouter).
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -898,6 +904,7 @@ Ce que le code corrige :
 | `assistant-test.js` | Créer en 3 questions : raccourci de l'accueil, 6 types, quiz au hasard sans IA (4 niveaux, format « les deux »), retour à l'assistant, réponse manquante, cours rempli et lancé, film depuis un lien YouTube, choix gardés, téléphone, console ; Mes projets : quiz et cours listés avec les films, rouverts dans leur onglet, sans doublon |
 | `sample-garde-test.js` | Délais de sécurité des agents face à un faux Google : modèle muet ou qui ne commence jamais (timeout clair), réponse qui tourne en rond (coupée, code loop), serveur toujours disponible ensuite |
 | `cours-relais-test.js` | Cours Ultra sans impasse : temps affiché, « Passer cette étape » pour le documentaliste, commission en boucle reprise par le modèle rapide, cours livré avec un avertissement |
+| `relais-gratuits-test.js` | Quota Gemini épuisé : Groq répond (modèle gratuit, JSON, images vers un modèle qui voit), puis OpenRouter (« :free » seulement), une clé Groq seule suffit, état sans les clés |
 | `montage-test.js` | Moteur de montage : 3 plans repérés (couleurs de même lumière), coupes exactes, étiquettes (mouvement, son), plans envoyés à l'agent, éditeur plan, début, fin, vitesse, recadrage vertical qui suit l'action, montage sans IA, console |
 | `effets-test.js` | Bibliothèque d'effets : 9 catégories (dont éléments animés et ambiances) de 50 modèles au moins, chacun dessiné sans erreur, images différentes, anciens noms compris, console |
 | `constructeur-test.js` | Constructeur : arrivée façon Gemini (bonjour, une barre, idées, pas de débordement, barre du bas visible), idée en pastille, accueil, page, fichiers joints (2 photos, 1 clip FFmpeg), demande + marque + images vues par l'agent, plan libre de 6 scènes, vidéo Full HD 15 s dessinée avec les fichiers, modèle à imiter jamais monté, Sans IA, sous-titres (karaoké par défaut, retirés par « Sans sous-titres »), genre choisi d'abord, « Autre proposition » sans toucher au texte, quiz (compte à rebours, question, habillage arcade, produit sans photo devenu illustration), changement d'habillage, Mes projets, éditeur de scènes (image ajoutée → diaporama, collage, durée, ajout, ordre, suppression, aperçu animé), « Récentes », « Nouvelle vidéo » qui repart de zéro, réouverture depuis Récentes, console |
@@ -949,6 +956,7 @@ Les commits sont en français. Étapes majeures :
 25. sous-titres mot par mot synchronisés avec la voix, puis bibliothèque de 421 effets (`studio-fx.js`) et Studio d'effets (13 octobre, §4.3 duodecies).
 26. éléments animés, ambiances et éditeur de scènes : mise en page, images et leur nombre, cadrage, durée, ordre, aperçu animé (13 octobre, §4.3 duodecies).
 27. moteur de montage des vidéos jointes : plans repérés, meilleurs moments, début, fin, vitesse, recadrage qui suit l'action (13 octobre, §4.3 duodecies).
+28. agents gratuits de secours Groq et OpenRouter quand Gemini est épuisé (13 octobre, §4.3 duodecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 
