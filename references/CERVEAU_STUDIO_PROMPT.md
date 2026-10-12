@@ -625,6 +625,16 @@ Demande de l'utilisateur : les pages faisaient toujours les mêmes vidéos (quiz
 - Test : `constructeur-test.js`. Vraies images et vrai clip faits par FFmpeg : l'agent voit 4 images, plan de 6 scènes, vidéo 1080 × 1920 de 15 s dessinée, modèle jamais monté, « Sans IA » sans appel, rangement dans Mes projets.
 - **Thème clair** : les en-têtes sombres des pages de fabrication (`data-prof` production, audio, broadcast, post, sound, infrastructure) étaient écrasés par la règle générale, plus forte, d'où un texte blanc sur fond clair. Leurs sélecteurs ont maintenant la même force. Le cadre de focus des titres ouverts par le code est retiré.
 - **Suite prévue**, souhait de l'utilisateur : deux pages principales, « Créer une vidéo » (le Constructeur, avec les anciens outils dans « Plus d'outils ») et « Prompts ». Ensuite, des références de pubs envoyées par l'utilisateur, à étudier, et de vraies images libres pour les cours.
+- **Genres et habillages (12 octobre, suite)** : retour de l'utilisateur, capture à l'appui. « Crée un jeu animé » donnait encore une pub sur fond dégradé en 3 scènes, avec une case vide : « toujours la même chose, quel que soit le sujet ».
+  - Causes : la consigne disait « agence qui fait VENDRE » (tout devenait une pub) ; un seul habillage ; la scène « produit » sans photo laissait une case vide.
+  - **Le genre d'abord** (`cbPrompt`, étape 1) : pub, jeu, explication, histoire, top, conseils, motivation, annonce (`CB_GENRES`), chacun avec sa construction. Ce n'est une pub que si la demande parle de vendre. Durée automatique selon le genre.
+  - **10 habillages** (`CB_THEMES`, étape 2) : dégradé, néon, arcade, pop, papier, pastel, luxe, tech, journal, nature. Chacun a son fond animé (`DECO`), ses couleurs, sa police. `look(kind)` peint le fond et rend les couleurs du texte. L'agent choisit selon le sujet ; sans choix, `cbPickTheme` tire l'habillage du texte. Menu « 🎨 Habillage » sur le résultat : on change d'un clic, l'aperçu se redessine.
+  - **18 mises en page** : les 11 d'avant, plus question (2 à 4 choix, compte à rebours, bonne réponse en vert avec ✓, explication ; minutage commun image et son `cbQTime`), compte (`cbCTime`), liste (top révélé du dernier au premier), citation (jamais une personne réelle), dialogue (bulles de messagerie, points de saisie), illustration (grand émoji), versus. Un émoji peut flotter dans un coin.
+  - **Jamais de case vide** : une scène peut demander une photo libre (`image_libre`, mots-clés en anglais) ; `cbFreeImages` la cherche par `/api/photos` (Openverse, Wikimedia), l'importe (`/api/photos/import`) et crédite l'auteur dans le texte de publication. Sans serveur, ou sans résultat, `cbFixLayouts` change la scène en illustration ou en mots animés.
+  - **Son** : tic-tac du compte à rebours (`cbTick`), « ding » de la bonne réponse (`cbDing`).
+  - **« Autre proposition »** : l'agent reçoit l'habillage et les mises en page à ne pas refaire (`CB.again`). Le texte de l'utilisateur n'est plus modifié.
+  - Ponctuation française : « ? », « ! », « : » restent collés au mot (espace insécable dans `write`).
+  - Scènes modifiables : on peut aussi changer les choix ou les points (séparés par « | »).
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -864,7 +874,7 @@ Ce que le code corrige :
 | `assistant-test.js` | Créer en 3 questions : raccourci de l'accueil, 6 types, quiz au hasard sans IA (4 niveaux, format « les deux »), retour à l'assistant, réponse manquante, cours rempli et lancé, film depuis un lien YouTube, choix gardés, téléphone, console ; Mes projets : quiz et cours listés avec les films, rouverts dans leur onglet, sans doublon |
 | `sample-garde-test.js` | Délais de sécurité des agents face à un faux Google : modèle muet ou qui ne commence jamais (timeout clair), réponse qui tourne en rond (coupée, code loop), serveur toujours disponible ensuite |
 | `cours-relais-test.js` | Cours Ultra sans impasse : temps affiché, « Passer cette étape » pour le documentaliste, commission en boucle reprise par le modèle rapide, cours livré avec un avertissement |
-| `constructeur-test.js` | Constructeur : arrivée façon Gemini (bonjour, une barre, idées, pas de débordement, barre du bas visible), idée en pastille, accueil, page, fichiers joints (2 photos, 1 clip FFmpeg), demande + marque + images vues par l'agent, plan libre de 6 scènes, vidéo Full HD 15 s dessinée avec les fichiers, modèle à imiter jamais monté, Sans IA, Mes projets, « Récentes », « Nouvelle vidéo » qui repart de zéro, réouverture depuis Récentes, console |
+| `constructeur-test.js` | Constructeur : arrivée façon Gemini (bonjour, une barre, idées, pas de débordement, barre du bas visible), idée en pastille, accueil, page, fichiers joints (2 photos, 1 clip FFmpeg), demande + marque + images vues par l'agent, plan libre de 6 scènes, vidéo Full HD 15 s dessinée avec les fichiers, modèle à imiter jamais monté, Sans IA, genre choisi d'abord, « Autre proposition » sans toucher au texte, quiz (compte à rebours, question, habillage arcade, produit sans photo devenu illustration), changement d'habillage, Mes projets, « Récentes », « Nouvelle vidéo » qui repart de zéro, réouverture depuis Récentes, console |
 | `motion-libre-test.js` | Projet libre : IA simulée, vraie vidéo fabriquée image par image en 1080 × 1920, finition FFmpeg (H.264, −14 LUFS), scènes visibles, console sans erreur |
 
 **Règles**
@@ -908,7 +918,8 @@ Les commits sont en français. Étapes majeures :
 20. Cours du jour : un habillage propre à chaque cours et une mise en page adaptée à chaque diapo (11 octobre, §4.3 decies) ;
 21. menu simplifié : 5 entrées, les pages proches en onglets (11 octobre, §7) ; puis « Créer en 3 questions » et « Mes projets » qui montre tout (§7) ;
 22. le Constructeur : une demande + des fichiers → n'importe quelle vidéo, priorité à la vente (12 octobre, §4.3 duodecies).
-23. design façon Gemini / ChatGPT : menu clair, « Nouvelle vidéo », « Récentes », Constructeur en une seule barre centrée (12 octobre, §7).
+23. design façon Gemini / ChatGPT : menu clair, « Nouvelle vidéo », « Récentes », Constructeur en une seule barre centrée (12 octobre, §7) ;
+24. Constructeur : le genre d'abord, 10 habillages, 18 mises en page (quiz, liste, dialogue…), photos libres, jamais de case vide (12 octobre, §4.3 duodecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

@@ -16,6 +16,13 @@ const PLAN = {titre: "Robes wax Yamane", type: "pub produit", accroche: "Ta nouv
     {duree: 3, mise_en_page: "avantages", titre: "Pourquoi Yamane", points: ["Livraison 24 h", "Paiement à la livraison"], media: [{fichier: "photo 2"}], voix: "Livraison en vingt-quatre heures et paiement à la livraison.", transition: "fondu"},
     {duree: 3, mise_en_page: "cta", titre: "Commande sur WhatsApp", texte: "Dakar et banlieue", voix: "Commande vite sur WhatsApp.", transition: "zoom"}],
   appel: {texte: "Commande sur WhatsApp", whatsapp: "+221 77 000 00 00", site: ""}, publication: {titre: "Robes en wax", legende: "Nouvelle collection.", hashtags: ["wax", "dakar"]}};
+const QUIZ = {titre: "Quiz des capitales", genre: "jeu", habillage: "arcade", accroche: "3 secondes par question",
+  scenes: [{duree: 3, mise_en_page: "compte", titre: "3", texte: "C'est parti !", voix: "Prêt ?", transition: "zoom"},
+    {duree: 7, mise_en_page: "question", titre: "Quelle est la capitale du Japon ?", points: ["Pékin", "Tokyo", "Séoul"], bonne: 1, compte: 3, texte: "Tokyo.", voix: "Quelle est la capitale du Japon ?", transition: "glisse"},
+    {duree: 3, mise_en_page: "produit", titre: "Sans photo", emoji: "🗾", voix: "", transition: "fondu"},
+    {duree: 3, mise_en_page: "cta", titre: "Écris ton score en commentaire", voix: "Écris ton score.", transition: "zoom"}],
+  appel: {texte: "", whatsapp: "", site: ""}, publication: {titre: "Quiz", legende: "", hashtags: []}};
+let REPLY = PLAN;
 (async () => {
   const b = await p.launch({executablePath: EDGE, headless: true, protocolTimeout: 300000});
   const pg = await b.newPage(); await require("./noauto")(pg);
@@ -23,7 +30,7 @@ const PLAN = {titre: "Robes wax Yamane", type: "pub produit", accroche: "Ta nouv
   const asked = [];
   await pg.setRequestInterception(true);
   pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST"){ let o = {}; try{ o = JSON.parse(r.postData()); }catch(e){} asked.push({prompt: o.prompt || "", images: (o.images || []).length});
-    r.respond({status: 200, contentType: "application/x-ndjson; charset=utf-8", body: JSON.stringify({delta: JSON.stringify(PLAN)}) + "\n" + JSON.stringify({model: "simulation"}) + "\n"}); } else r.continue(); });
+    r.respond({status: 200, contentType: "application/x-ndjson; charset=utf-8", body: JSON.stringify({delta: JSON.stringify(REPLY)}) + "\n" + JSON.stringify({model: "simulation"}) + "\n"}); } else r.continue(); });
   try{
     await pg.setViewport({width: 390, height: 844, isMobile: true, hasTouch: true});
     await pg.goto(BASE + "/#accueil", {waitUntil: "networkidle0"});
@@ -67,6 +74,17 @@ const PLAN = {titre: "Robes wax Yamane", type: "pub produit", accroche: "Ta nouv
     await pg.click("#cb-go"); await pg.waitForFunction(n => window.__cbN !== n, {timeout: 1000}, 0).catch(() => {}); await new Promise(r => setTimeout(r, 1500));
     const q2 = asked[1] || {prompt: ""}, imgs3 = await pg.evaluate(() => document.querySelectorAll("#cb-res .cb-scene")[2].querySelector("img") ? "image" : "aucune");
     check("vidéo « modèle à imiter » : l'agent reprend sa construction, et elle n'apparaît jamais dans le montage", /MODÈLE À IMITER/.test(q2.prompt) && q2.images === 6 && imgs3 === "aucune", `${q2.images} images · scène 3 : ${imgs3}`);
+    // un autre genre : l'agent choisit d'abord le genre ; « Autre proposition » lui dit quoi ne pas refaire ; habillage changeable d'un clic
+    check("l'agent choisit d'abord le genre (pas tout en pub) puis un habillage adapté au sujet", /ÉTAPE 1, LE GENRE/.test(q.prompt) && /ÉTAPE 2, L'HABILLAGE/.test(q.prompt) && !/qui fait VENDRE/.test(q.prompt));
+    REPLY = QUIZ; await pg.evaluate(() => document.getElementById("cb-again").click());
+    await pg.waitForFunction(() => /Question/.test(document.getElementById("cb-res").innerText) && document.querySelectorAll("#cb-prev canvas").length > 0, {timeout: 30000});
+    const qz = await pg.evaluate(() => ({label: document.querySelector("#cb-res .label").textContent, theme: document.getElementById("cb-theme").value, lays: [...document.querySelectorAll("#cb-res .cb-scene small")].map(x => x.textContent.replace(/^\d+ · /, "")).join(","), brief: document.getElementById("cb-brief").value}));
+    const q3 = asked[2] || {prompt: ""};
+    check("« Autre proposition » : l'agent sait quoi ne pas refaire, le texte de l'utilisateur n'est pas modifié", /PROPOSITION PRÉCÉDENTE/.test(q3.prompt) && !/autre proposition/i.test(qz.brief), qz.brief.slice(0, 60));
+    check("jeu : compte à rebours, question à choix, habillage « arcade » ; une scène « produit » sans photo devient une illustration (jamais de case vide)", /Jeu \/ quiz/.test(qz.label) && qz.theme === "arcade" && qz.lays === "Compte à rebours,Question,Illustration,Appel à l’action", JSON.stringify(qz));
+    await pg.evaluate(() => { const s = document.getElementById("cb-theme"); s.value = "papier"; s.dispatchEvent(new Event("change", {bubbles: true})); }); await new Promise(r => setTimeout(r, 800));
+    const look = await pg.evaluate(() => { const c = document.querySelector("#cb-prev canvas"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let s = 0, n = 0; for(let i = 0; i < d.length; i += 400){ s += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; } return Math.round(s / n); });
+    check("changer l'habillage (Papier) redessine l'aperçu tout de suite (fond clair)", look > 150, `luminosité ${look}`);
     // sans IA, toujours possible
     const n0 = asked.length; await pg.click("#cb-free"); await new Promise(r => setTimeout(r, 1200));
     const fr = await pg.evaluate(() => ({type: (document.querySelector("#cb-res .label") || {}).textContent, n: document.querySelectorAll("#cb-res .cb-scene").length, last: (document.querySelector("#cb-res .cb-scene:last-child small") || {}).textContent}));
@@ -74,7 +92,7 @@ const PLAN = {titre: "Robes wax Yamane", type: "pub produit", accroche: "Ta nouv
     await pg.evaluate(() => { location.hash = "projets"; }); await pg.waitForFunction(() => /✨ Constructeur/.test(document.getElementById("list-projects").innerText), {timeout: 10000});
     check("le plan est rangé dans Mes projets (✨ Constructeur)", true);
     const rec = await pg.evaluate(() => ({vis: !document.getElementById("side-recent").hidden, items: [...document.querySelectorAll("#side-recent .side-rec")].map(b => b.textContent)}));
-    check("menu « Récentes » (comme Gemini) : les 3 essais du Constructeur y figurent, le plus récent (sans IA) en premier", rec.vis && rec.items.length === 3 && rec.items.every(x => /^✨/.test(x)) && /Yamane Shop · Une pub/.test(rec.items[0]), JSON.stringify(rec));
+    check("menu « Récentes » (comme Gemini) : les 4 essais du Constructeur y figurent, le plus récent (sans IA) en premier", rec.vis && rec.items.length === 4 && rec.items.every(x => /^✨/.test(x)) && /Yamane Shop · Une pub/.test(rec.items[0]), JSON.stringify(rec));
     await pg.evaluate(() => { location.hash = "constructeur"; }); await new Promise(r => setTimeout(r, 300));
     await pg.evaluate(() => document.getElementById("side-new").click()); await new Promise(r => setTimeout(r, 300));
     const nv = await pg.evaluate(() => ({brief: document.getElementById("cb-brief").value, files: document.querySelectorAll("#cb-assets .cb-chip").length, res: document.getElementById("cb-res").children.length}));
