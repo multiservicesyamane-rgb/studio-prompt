@@ -39,10 +39,14 @@ const OPENAI_KEY = process.env.OPENAI_API_KEY || "";
 /* Agents gratuits de secours (API compatibles OpenAI) : Groq et OpenRouter écrivent à la place de Gemini quand son quota du jour est épuisé */
 const GROQ_KEY = String(process.env.GROQ_API_KEY || "").trim(), GROQ_BASE = (process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, "");
 const OPENROUTER_KEY = String(process.env.OPENROUTER_API_KEY || "").trim(), OPENROUTER_BASE = (process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, "");
-const PROVIDER = (process.env.PROVIDER || (GEMINI_KEY ? "gemini" : OPENAI_KEY ? "openai" : ANTHROPIC_KEY ? "anthropic" : GROQ_KEY ? "groq" : OPENROUTER_KEY ? "openrouter" : "")).toLowerCase();
+/* Agnes AI écrit aussi (agnes-3.0-flash : gratuit, rapide, regarde les images, répond en JSON ; vérifié le 13 octobre 2026) : même clé que ses images et ses clips */
+const AGNES_TXT_KEY = String(process.env.AGNES_API_KEY || "").trim(), AGNES_TXT_BASE = (process.env.AGNES_BASE_URL || "https://apihub.agnes-ai.com").replace(/\/$/, "") + "/v1";
+const RELAY = {agnes:{nom:"Agnes", base:AGNES_TXT_BASE, key:AGNES_TXT_KEY}, groq:{nom:"Groq", base:GROQ_BASE, key:GROQ_KEY}, openrouter:{nom:"OpenRouter", base:OPENROUTER_BASE, key:OPENROUTER_KEY}}, isRelay = p => !!RELAY[p];
+const PROVIDER = (process.env.PROVIDER || (GEMINI_KEY ? "gemini" : OPENAI_KEY ? "openai" : ANTHROPIC_KEY ? "anthropic" : AGNES_TXT_KEY ? "agnes" : GROQ_KEY ? "groq" : OPENROUTER_KEY ? "openrouter" : "")).toLowerCase();
 /* le meilleur modèle gratuit du service, choisi dans sa liste (gardée une heure) ; un modèle qui sait regarder les images quand il y en a */
 const relayLists = {}, relaySees = {};
 async function relayModel(kind, vision){
+  if(kind === "agnes"){ const m = process.env.AGNES_TEXT_MODEL || "agnes-3.0-flash"; relaySees[m] = true; return m; }   /* les modèles « flash » sont ceux de l'offre gratuite */
   const fixed = kind === "groq" ? (vision ? process.env.GROQ_VISION_MODEL : process.env.GROQ_MODEL) : (vision ? process.env.OPENROUTER_VISION_MODEL : process.env.OPENROUTER_MODEL);
   if(fixed) return fixed;
   if(!relayLists[kind] || relayLists[kind].until < Date.now()){
@@ -888,7 +892,7 @@ async function handleSample(req, res){
   let geminiGood = !!GEMINI_KEY;
   if(GEMINI_KEY && lunaAvail){ const gm = await geminiModels(); geminiGood = [gm.default, gm.complex, ...GEMINI_FALLBACKS].filter((x, i, a) => x && a.indexOf(x) === i && !/lite/i.test(x)).some(x => !(geminiBlocked.get(x) > now) && !(geminiBusy.get(x) > now)); }
   const oaOk = solAvail || lunaAvail, lunaFirst = lunaAvail && !geminiGood;
-  const engines = hasAudio ? ["gemini"] : [(best && solAvail) || lunaFirst ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", GROQ_KEY ? "groq" : "", OPENROUTER_KEY ? "openrouter" : "", ANTHROPIC_KEY ? "anthropic" : "", oaOk ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i && !(x === "openai" && !oaOk));
+  const engines = hasAudio ? ["gemini"] : [(best && solAvail) || lunaFirst ? "openai" : PROVIDER, PROVIDER, GEMINI_KEY ? "gemini" : "", AGNES_TXT_KEY ? "agnes" : "", GROQ_KEY ? "groq" : "", OPENROUTER_KEY ? "openrouter" : "", ANTHROPIC_KEY ? "anthropic" : "", oaOk ? "openai" : ""].filter((x, i, a) => x && a.indexOf(x) === i && !(x === "openai" && !oaOk));
   if(lunaFirst) console.log(`Bons modèles Gemini épuisés : ${OPENAI_FALLBACK} répond à leur place (plutôt que Flash-Lite).`);
   let upstream = null, prov = engines[0], geminiUsed = "";
   const callGemini = async () => {
@@ -958,14 +962,14 @@ async function handleSample(req, res){
   const callRelay = async kind => {
     const pics = images.filter(i => /^image\//.test(String(i && i.mime))), text = prompt + (json ? "\n\nRéponds uniquement avec le JSON, sans texte autour." : "");
     const sees = mdl => pics.length && (relaySees[mdl] != null ? relaySees[mdl] : /vision|llama-4|scout|maverick|gemma|qwen.*vl|pixtral|gemini|inkling|mistral-small|openrouter\/free/i.test(mdl));
-    const send = mdl => { relayUsed[kind] = mdl; return fetch(`${kind === "groq" ? GROQ_BASE : OPENROUTER_BASE}/chat/completions`, {method:"POST", signal:ctl.signal,
-      headers:Object.assign({"Content-Type":"application/json", "Authorization":`Bearer ${kind === "groq" ? GROQ_KEY : OPENROUTER_KEY}`}, kind === "openrouter" ? {"X-Title":"Studio Prompt"} : {}),
+    const send = mdl => { relayUsed[kind] = mdl; return fetch(`${RELAY[kind].base}/chat/completions`, {method:"POST", signal:ctl.signal,
+      headers:Object.assign({"Content-Type":"application/json", "Authorization":`Bearer ${RELAY[kind].key}`}, kind === "openrouter" ? {"X-Title":"Studio Prompt"} : {}),
       body:JSON.stringify({model:mdl, stream:true, temperature:0.8, max_tokens:Math.min(MAX_OUT, 8192),
         messages:[{role:"user", content:sees(mdl) ? [...pics.slice(0, 5).map(i => ({type:"image_url", image_url:{url:`data:${i.mime};base64,${i.data}`}})), {type:"text", text}] : text}],
-        ...(json && kind === "groq" ? {response_format:{type:"json_object"}} : {})})}); };
+        ...(json && (kind === "groq" || kind === "agnes") ? {response_format:{type:"json_object"}} : {})})}); };
     const model = await relayModel(kind, pics.length > 0); let up = await send(model);
     /* modèle gratuit saturé : un autre modèle gratuit du même service essaie aussitôt, avant de passer au service suivant */
-    if([429, 500, 502, 503].includes(up.status)){ const alt = kind === "openrouter" ? "openrouter/free" : ((relayLists.groq && relayLists.groq.list) || []).map(m => m.id).find(id => id !== model && /gpt-oss|qwen|llama|deepseek/i.test(id) && !/guard/i.test(id));
+    if([403, 429, 500, 502, 503].includes(up.status)){ const alt = kind === "agnes" ? "agnes-2.5-flash" : kind === "openrouter" ? "openrouter/free" : ((relayLists.groq && relayLists.groq.list) || []).map(m => m.id).find(id => id !== model && /gpt-oss|qwen|llama|deepseek/i.test(id) && !/guard/i.test(id));
       if(alt && alt !== model){ console.log(`${kind} : « ${model} » saturé (${up.status}), essai avec « ${alt} ».`); up = await send(alt); } }
     return up;
   };
@@ -975,7 +979,7 @@ async function handleSample(req, res){
     for(let k = 0, retried = false; k < engines.length; k++){
       prov = engines[k]; searchUsed = search;
       try{
-        upstream = prov === "gemini" ? await callGemini() : prov === "openai" ? await callOpenAI() : prov === "groq" || prov === "openrouter" ? await callRelay(prov) : await callAnthropic();
+        upstream = prov === "gemini" ? await callGemini() : prov === "openai" ? await callOpenAI() : isRelay(prov) ? await callRelay(prov) : await callAnthropic();
       }catch(e){
         if(ctl.signal.aborted){ if(timedOut && !res.headersSent) return sendJson(res, 504, TIMEOUT()); return; }
         const why = (e && e.cause && (e.cause.code || e.cause.message)) || (e && e.message) || "erreur réseau";
@@ -987,7 +991,7 @@ async function handleSample(req, res){
       }
       retried = false;
       if(upstream && upstream.ok) break;
-      if(k < engines.length - 1 && (!upstream || [401, 402, 403, 404, 413, 429, 500, 502, 503, 529].includes(upstream.status) || ((prov === "groq" || prov === "openrouter") && upstream.status === 400))){
+      if(k < engines.length - 1 && (!upstream || [401, 402, 403, 404, 413, 429, 500, 502, 503, 529].includes(upstream.status) || (isRelay(prov) && upstream.status === 400))){
         let msg = ""; try{ const j = upstream ? await upstream.clone().json() : {}; msg = (j.error && j.error.message) || ""; }catch(e){}
         console.log(`${prov} indisponible (${upstream ? upstream.status : "aucun modèle"}${msg ? " : " + String(msg).slice(0, 90) : ""}), passage à ${engines[k + 1]}.`);
         continue;
@@ -1038,7 +1042,7 @@ async function handleSample(req, res){
           console.log("OpenAI : compte API sans crédits, Gemini ou Anthropic prend le relais pendant 30 minutes.");
         }
         if(fail){ res.write(JSON.stringify({error:true, code:NO_CREDIT.test(fail) ? "no_credit" : "server_error", message:frMessage(fail, prov)}) + "\n"); break; }
-      } else if(prov === "groq" || prov === "openrouter"){
+      } else if(isRelay(prov)){
         const ch = (ev.choices || [])[0] || {}; delta = (ch.delta && ch.delta.content) || "";
         if(ev.error){ res.write(JSON.stringify({error:true, code:"server_error", message:String((ev.error && ev.error.message) || "Erreur du modèle.")}) + "\n"); break; }
       } else {
@@ -1050,7 +1054,7 @@ async function handleSample(req, res){
         console.log(`${prov === "gemini" ? geminiUsed : prov} : réponse qui tourne en rond, arrêtée (le prochain essai passera par un autre modèle).`);
         res.write(JSON.stringify({error:true, code:"loop", message:"Le modèle s'est mis à répéter la même chose : réponse arrêtée. Réessaie, un autre modèle prendra le relais."}) + "\n"); ctl.abort(); break; } } }
     }
-    res.write(JSON.stringify({model: prov === "gemini" ? geminiUsed : prov === "openai" ? oaModel : prov === "groq" || prov === "openrouter" ? `${prov === "groq" ? "Groq" : "OpenRouter"} · ${relayUsed[prov]}` : "claude"}) + "\n");
+    res.write(JSON.stringify({model: prov === "gemini" ? geminiUsed : prov === "openai" ? oaModel : isRelay(prov) ? `${RELAY[prov].nom} · ${relayUsed[prov]}` : "claude"}) + "\n");
     if(search){ web.sources.forEach(x => addSource(x.title, x.uri)); if(!searchUsed && !web.text) meta.nosearch = true; if(web.text) meta.web = "Google Tendances et Actualités"; meta.engine = (prov === "openai" ? `OpenAI ${oaModel}` : prov) + (web.text ? " + flux Google" : ""); res.write(JSON.stringify({meta}) + "\n"); }
   }catch(e){
     if(timedOut) res.write(JSON.stringify(Object.assign({error:true}, TIMEOUT())) + "\n");
@@ -1085,7 +1089,7 @@ async function handleStatus(res){
   else if(PROVIDER === "anthropic") model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
   let quota = {};
   if(PROVIDER === "gemini"){ const m = await geminiModels(), chain = [m.default, m.complex, ...GEMINI_FALLBACKS].filter((x, i, a) => x && a.indexOf(x) === i), blocked = chain.filter(x => geminiBlocked.get(x) > Date.now()); quota = {blocked:blocked.length, total:chain.length, all:!!chain.length && blocked.length === chain.length, reset:geminiResetText()}; }
-  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, quota, relais:{groq:!!GROQ_KEY, openrouter:!!OPENROUTER_KEY}, tools:localTools(), best: OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : (ANTHROPIC_KEY ? "Anthropic" : GEMINI_KEY ? "Gemini" : "")});
+  sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model, quota, relais:{agnes:!!AGNES_TXT_KEY, groq:!!GROQ_KEY, openrouter:!!OPENROUTER_KEY}, tools:localTools(), best: OPENAI_KEY && !(openaiAllBlockedUntil > Date.now()) ? (openaiSolBlockedUntil > Date.now() ? `${OPENAI_FALLBACK} (en attendant des crédits pour ${openaiModel(true)})` : `${openaiModel(true)} (${openaiEffort(true)})`) : (ANTHROPIC_KEY ? "Anthropic" : GEMINI_KEY ? "Gemini" : "")});
 }
 
 /* En ligne (Render…) : HOST=0.0.0.0 et APP_PASSWORD obligatoire, sinon n'importe qui utiliserait tes clés et tes crédits */

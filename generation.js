@@ -369,7 +369,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     return {
       prices_date:PRICES_DATE, budget:{limit:BUDGET, spent:Math.round(spentToday() * 100) / 100}, billing:state.billing,
       video:VIDEO.map(v => ({id:v.id, label:v.label, note:v.note, price_s:v.price_s, durations:v.durations, audio:v.audio, ready:keyOk(v), needs:v.key === "gemini" ? mediaNeeds() : (keyOk(v) ? "" : "key")})),
-      relais:{groq:!!String(env.GROQ_API_KEY || "").trim(), openrouter:!!String(env.OPENROUTER_API_KEY || "").trim()},
+      relais:{agnes:!!String(env.AGNES_API_KEY || "").trim(), groq:!!String(env.GROQ_API_KEY || "").trim(), openrouter:!!String(env.OPENROUTER_API_KEY || "").trim()},
       agnes:{ready:!!AGNES_KEY, video:AGNES_VIDEO_MODEL, image:env.AGNES_IMAGE_MODEL || "agnes-image-2.5-flash"},
       image:{label:"Nano Banana (Gemini)", price:IMAGE_PRICE, ready:!!MEDIA_KEY, needs:mediaNeeds()}, media_key:MEDIA_OWN,
       voice:[{id:"gemini", label:"Voix Gemini", note:`offre gratuite, 30 voix, français inclus ; ${TTS_MODELS.length} modèles de voix en relais (chacun son quota du jour)`, ready:!!GEMINI_KEY, free:true, models:TTS_MODELS.length, blocked:TTS_MODELS.filter(m => ttsBlocked.get(m) > Date.now()).length}, {id:"elevenlabs", label:"ElevenLabs", note:"voix très naturelles, petite offre gratuite chaque mois", ready:!!ELEVEN_KEY}, {id:"chatterbox", label:"Voix naturelle Chatterbox (Hugging Face)", note:`gratuite, très naturelle, en français ; file d'attente GPU de Hugging Face${HF_TOKEN ? " (compte relié)" : " (sans compte : peu de minutes par jour)"}`, ready:true, free:true, token:!!HF_TOKEN}],
