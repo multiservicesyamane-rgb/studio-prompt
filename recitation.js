@@ -80,8 +80,19 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     fs.mkdirSync(CACHE, {recursive:true}); fs.writeFileSync(f, JSON.stringify(out)); return out;
   }
 
-  /* ---------- 4. projet (pour l'écran de direct) ---------- */
+  /* ---------- 4. projet (pour l'écran de direct), liste des projets, place libre sur le disque ---------- */
   function saveProject(id, body){ fs.writeFileSync(path.join(dirOf(id), "projet.json"), JSON.stringify(body)); }
+  function list(){
+    if(!fs.existsSync(ROOT)) return [];
+    return fs.readdirSync(ROOT).filter(d => /^recit-[a-f0-9]{12}$/.test(d)).map(d => {
+      const dir = path.join(ROOT, d), id = d.slice(6); let an = null, pj = null;
+      try{ an = JSON.parse(fs.readFileSync(path.join(dir, "analyse.json"), "utf8")); }catch(e){ return null; }
+      try{ pj = JSON.parse(fs.readFileSync(path.join(dir, "projet.json"), "utf8")); }catch(e){}
+      const videos = fs.readdirSync(dir).filter(f => /\.mp4$/i.test(f) && !/^(image-|source\.)/.test(f)).map(f => ({url:urlOf(id, f), name:f, size:fs.statSync(path.join(dir, f)).size}));
+      return {id, nom:(pj && pj.nom) || "", duration:an.duration, at:fs.statSync(dir).mtimeMs, projet:!!pj, videos};
+    }).filter(Boolean).sort((a, b) => b.at - a.at).slice(0, 60);
+  }
+  const freeBytes = () => { try{ fs.mkdirSync(ROOT, {recursive:true}); const st = fs.statfsSync(ROOT); return st.bavail * st.bsize; }catch(e){ return null; } };
 
   /* ---------- 5. vidéo refaite : morceaux écrits à leur place, puis la voix d'origine (+ ambiance) ---------- */
   function chunk(req, res, u){
@@ -111,7 +122,7 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
 
   function handle(req, res){
     const u = new URL(req.url, "http://x"), p = u.pathname; if(!p.startsWith("/api/recit/")) return false;
-    const r = p.slice("/api/recit/".length), body = async () => { try{ return JSON.parse(await readBody(req, 4e6) || "{}"); }catch(e){ return null; } };
+    const r = p.slice("/api/recit/".length), body = async lim => { try{ return JSON.parse(await readBody(req, lim || 4e6) || "{}"); }catch(e){ return null; } };
     (async () => {
       if(req.method === "POST" && r === "upload") return upload(req, res, u);
       if(req.method === "POST" && r === "analyze"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."});
@@ -121,9 +132,12 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
         const J = jobs[id]; if(J) return json(res, 200, J); const f = path.join(dirOf(id), "analyse.json"); return fs.existsSync(f) ? json(res, 200, {state:"done", progress:1, result:JSON.parse(fs.readFileSync(f, "utf8"))}) : json(res, 404, {code:"not_found", message:"Rien en cours."}); }
       if(req.method === "GET" && r === "quran/list") return json(res, 200, {sourates:await quranList()});
       if(req.method === "GET" && r === "quran/surah"){ const n = Math.round(Number(u.searchParams.get("n"))); if(!(n >= 1 && n <= 114)) return json(res, 400, {code:"bad_request", message:"Numéro de sourate : de 1 à 114."}); return json(res, 200, await quranSurah(n, u.searchParams.get("tr"))); }
-      if(req.method === "POST" && r === "project"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); saveProject(b.id, b); return json(res, 200, {ok:true}); }
+      if(req.method === "POST" && r === "project"){ const b = await body(40e6); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); saveProject(b.id, b); return json(res, 200, {ok:true}); }
       if(req.method === "GET" && r === "project"){ const id = u.searchParams.get("id"), f = okId(id) && path.join(dirOf(id), "projet.json"); if(!f || !fs.existsSync(f)) return json(res, 404, {code:"not_found", message:"Projet introuvable."}); return json(res, 200, JSON.parse(fs.readFileSync(f, "utf8"))); }
-      if(req.method === "POST" && r === "render/start"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); return json(res, 200, {rid:crypto.randomBytes(5).toString("hex")}); }
+      if(req.method === "POST" && r === "render/start"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); return json(res, 200, {rid:crypto.randomBytes(5).toString("hex"), libre:freeBytes()}); }
+      if(req.method === "GET" && r === "list") return json(res, 200, {projets:list(), libre:freeBytes()});
+      /* suppression d'un projet (voix, vidéos) pour libérer de la place */
+      if(req.method === "POST" && r === "delete"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); fs.rmSync(dirOf(b.id), {recursive:true, force:true}); return json(res, 200, {ok:true, libre:freeBytes()}); }
       if(req.method === "PUT" && r === "render/chunk") return chunk(req, res, u);
       if(req.method === "PUT" && r === "ambiance") return ambient(req, res, u);
       if(req.method === "POST" && r === "render/finish"){ const b = await body(); if(!b || !okId(b.id) || !okId(b.rid)) return json(res, 400, {code:"bad_request", message:"Paramètres invalides."});

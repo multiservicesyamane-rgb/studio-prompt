@@ -358,6 +358,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
   /* Reprise après redémarrage : on continue d'attendre les vidéos déjà commandées (jamais payées deux fois) */
   for(const j of jobs){
     if(j.status === "running" && j.remote){ (j.remote.op ? veoWait(j) : j.remote.agnes ? agnesWait(j) : runwayWait(j)).catch(e => failJob(j, e && e.code ? e : {code:"network", message:"Connexion perdue pendant l'attente : relance ce plan."})); }
+    /* Agnes (gratuit) sans commande passée : rien n'a été commandé, la tâche reprend sa place dans la file */
+    else if(j.status === "running" && j.service === "agnes") update(j, {status:"queued", step:"reprise après le redémarrage de Studio Prompt", wait:0});
     else if(j.status === "running") failJob(j, {code:"interrupted", message:"Studio Prompt a été fermé pendant l'envoi : relance ce plan."});
   }
   setTimeout(pump, 0);
