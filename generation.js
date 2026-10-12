@@ -157,7 +157,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     let free = PARALLEL - jobs.filter(j => j.kind === "video" && j.status === "running").length, freeV = VOICE_PARALLEL - jobs.filter(j => j.kind === "voice" && j.status === "running").length;
     let freeA = 1 - jobs.filter(j => j.service === "agnes" && j.status === "running").length;   /* Agnes gratuit : une vidéo à la fois */
     for(const j of jobs){
-      if(j.status !== "queued") continue;
+      if(j.status !== "queued" || (j.wait && j.wait > Date.now())) continue;
       if(j.kind === "video"){ if(free <= 0 || (j.service === "agnes" && freeA <= 0)) continue; free--; if(j.service === "agnes") freeA--; }
       else{ if(freeV <= 0) continue; freeV--; }
       run(j);
@@ -169,7 +169,12 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
       const rm = j.remote || {};   /* déjà commandée : on attend, on ne recommande jamais */
       if(j.kind === "video") await (rm.op ? veoWait(j) : rm.task ? runwayWait(j) : rm.agnes ? agnesWait(j) : j.service === "runway" ? runRunway(j) : j.service === "agnes" ? runAgnes(j) : runVeo(j));
       else await (j.service === "elevenlabs" ? runEleven(j) : j.service === "chatterbox" ? runChatterbox(j) : runGeminiVoice(j));
-    }catch(e){ failJob(j, e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`}); }
+    }catch(e){ const err = e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`};
+      /* Agnes est gratuit : une coupure ou une saturation AVANT la commande se réessaie toute seule (jamais deux commandes : seulement sans commande en cours) */
+      if(j.service === "agnes" && !(j.remote && j.remote.agnes) && ["network", "overloaded", "rate_limited", "timeout"].includes(err.code) && (j.tries || 0) < 6){
+        const d = Math.min(15 * 60e3, 60e3 * Math.pow(2, j.tries || 0)), why = err.code === "network" ? "connexion perdue" : "Agnes saturé";
+        update(j, {status:"queued", step:`${why} · nouvel essai dans ${Math.ceil(d / 60000)} min`, tries:(j.tries || 0) + 1, wait:Date.now() + d}); setTimeout(pump, d + 500); pump(); return; }
+      failJob(j, err); }
   }
   /* Attente d'une tâche distante : coupures réseau tolérées, durée maximale bornée */
   async function poll(j, check){

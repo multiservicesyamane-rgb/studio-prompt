@@ -665,6 +665,7 @@ Demande de l'utilisateur : les pages faisaient toujours les mêmes vidéos (quiz
   - `relayModel` choisit le meilleur modèle gratuit dans la liste du service (gardée une heure), un modèle qui regarde les images quand il y en a ; sur OpenRouter, seulement les modèles gratuits (« :free » ou prix nul). `GROQ_MODEL`, `OPENROUTER_MODEL` pour imposer un modèle.
   - `/api/status` et `/api/gen/status` disent quels relais sont prêts (jamais les clés). Page Connexions : deux lignes avec le guide pour créer les clés. `.env.example` mis à jour.
   - Agnes (images et clips gratuits) marche (essai réel du 13 octobre) mais n'est branché que sur « Depuis une idée », pas encore sur le Constructeur.
+  - **Pourquoi « Agnes ne marche pas » (13 octobre)** : les images marchent ; ce sont les clips vidéo. Sur 85 demandes de clips : 3 réussies, 48 « file vidéo pleine » (503 chez Agnes, offre gratuite saturée, 9 octobre), 19 « trop de demandes par minute » (429), 13 coupures de connexion (11 octobre). Essai réel du 13 octobre : « file Agnes saturée », le site attend et réessaie. `generation.js` : une coupure ou une saturation AVANT la commande d'un clip Agnes se réessaie toute seule (1, 2, 4, 8 puis 15 min, 6 essais ; `wait`, `tries`), jamais d'échec immédiat ; jamais de seconde commande (seulement sans commande en cours). Les services payants gardent la relance à la main.
   - Test : `relais-gratuits-test.js` (faux Gemini épuisé, faux Groq, faux OpenRouter).
 
 ### 4.4 Autres ajouts du 5 octobre
