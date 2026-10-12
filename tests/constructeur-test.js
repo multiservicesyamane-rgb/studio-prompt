@@ -76,16 +76,35 @@ let REPLY = PLAN;
       return {msg, w: v.videoWidth, h: v.videoHeight, dur: v.duration, seen}; });
     check("vidéo montée en Full HD téléphone (1080 × 1920), à la durée demandée (15 s)", v.w === 1080 && v.h === 1920 && Math.abs(v.dur - 15) < 1.2 && /Full HD/.test(v.msg), `${v.w}×${v.h} · ${Math.round((v.dur || 0) * 10) / 10} s · ${v.msg}`);
     check("chaque scène est réellement dessinée (images riches, pas d'écran vide)", (v.seen || []).length === 5 && v.seen.every(x => x > 18), JSON.stringify(v.seen));
+    // éditeur de scènes : l'utilisateur choisit les images (et leur nombre), la mise en page, la durée, l'ordre ; il ajoute et supprime des scènes
+    const ed = async () => pg.evaluate(() => ({n: document.querySelectorAll("#cb-res .cb-scene").length, lay: [...document.querySelectorAll('#cb-res select[data-cb-s$=":layout"]')].map(s => s.value), pics: [...document.querySelectorAll("#cb-res .cb-scene")].map(c => c.querySelectorAll('.cb-pic[aria-pressed="true"]').length), t1: (document.querySelector('[data-cb-f="0:titre"]') || {}).value}));
+    const e0 = await ed();
+    await pg.evaluate(() => document.querySelector('.cb-scene[data-scene="1"] .cb-pic[aria-pressed="false"]').click()); await new Promise(r => setTimeout(r, 700));
+    const e1 = await ed();
+    check("éditeur : toucher une image l'ajoute à la scène (2 images → la scène devient un diaporama)", e1.pics[1] === e0.pics[1] + 1 && e1.lay[1] === "diaporama", `${e0.pics[1]} → ${e1.pics[1]} images · ${e1.lay[1]}`);
+    await pg.evaluate(() => { const s = document.querySelector('select[data-cb-s="1:layout"]'); s.value = "collage"; s.dispatchEvent(new Event("change", {bubbles: true})); }); await new Promise(r => setTimeout(r, 700));
+    await pg.evaluate(() => { const s = document.querySelector('input[data-cb-s="1:duree"]'); s.value = "5"; s.dispatchEvent(new Event("change", {bubbles: true})); }); await new Promise(r => setTimeout(r, 700));
+    await pg.evaluate(() => document.querySelector('[data-cb-op="add:1"]').click()); await new Promise(r => setTimeout(r, 700));
+    const e2 = await ed();
+    await pg.evaluate(() => document.querySelector('[data-cb-op="up:1"]').click()); await new Promise(r => setTimeout(r, 700));
+    const e3 = await ed();
+    check("éditeur : mise en page « collage », durée 5 s, une scène ajoutée, puis la scène 2 remonte en premier", e2.n === e0.n + 1 && e2.lay[1] === "collage" && e3.lay[0] === "collage" && e3.lay[1] === e0.lay[0], `${e2.n} scènes · ${e3.lay.slice(0, 3).join(", ")}`);
+    await pg.evaluate(() => document.querySelector('[data-cb-op="del:2"]').click()); await new Promise(r => setTimeout(r, 700));
+    const e4 = await ed();
+    await pg.evaluate(() => document.querySelector('[data-cb-op="play:0"]').click()); await pg.waitForFunction(() => { const c = document.querySelector("#cb-player canvas"); if(!c || document.getElementById("cb-player").hidden) return false; const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let s = 0; for(let i = 0; i < d.length; i += 4000) s += d[i] + d[i + 1] + d[i + 2]; return s > 0 && /Scène \d+/.test(document.getElementById("cb-ptime").textContent); }, {timeout: 15000});
+    await pg.keyboard.press("Escape"); await new Promise(r => setTimeout(r, 300));
+    const pl = await pg.evaluate(() => document.getElementById("cb-player").hidden);
+    check("éditeur : suppression d'une scène, aperçu animé qui joue puis se ferme (Échap)", e4.n === e0.n && pl, `${e4.n} scènes · lecteur fermé : ${pl}`);
     // vidéo « modèle à imiter » : jamais montrée ; l'agent le sait
     await pg.evaluate(() => document.querySelector('#cb-assets [data-cb-role="2"]').click());
     await pg.click("#cb-go"); await pg.waitForFunction(n => window.__cbN !== n, {timeout: 1000}, 0).catch(() => {}); await new Promise(r => setTimeout(r, 1500));
-    const q2 = asked[1] || {prompt: ""}, imgs3 = await pg.evaluate(() => document.querySelectorAll("#cb-res .cb-scene")[2].querySelector("img") ? "image" : "aucune");
+    const q2 = asked[1] || {prompt: ""}, imgs3 = await pg.evaluate(() => document.querySelectorAll("#cb-res .cb-scene")[2].querySelector('.cb-pic[aria-pressed="true"]') ? "image" : "aucune");
     check("vidéo « modèle à imiter » : l'agent reprend sa construction, et elle n'apparaît jamais dans le montage", /MODÈLE À IMITER/.test(q2.prompt) && q2.images === 6 && imgs3 === "aucune", `${q2.images} images · scène 3 : ${imgs3}`);
     // un autre genre : l'agent choisit d'abord le genre ; « Autre proposition » lui dit quoi ne pas refaire ; habillage changeable d'un clic
     check("l'agent choisit d'abord le genre (pas tout en pub) puis un habillage adapté au sujet", /ÉTAPE 1, LE GENRE/.test(q.prompt) && /ÉTAPE 2, L'HABILLAGE/.test(q.prompt) && !/qui fait VENDRE/.test(q.prompt));
     REPLY = QUIZ; await pg.evaluate(() => document.getElementById("cb-again").click());
     await pg.waitForFunction(() => /Question/.test(document.getElementById("cb-res").innerText) && document.querySelectorAll("#cb-prev canvas").length > 0, {timeout: 30000});
-    const qz = await pg.evaluate(() => ({label: document.querySelector("#cb-res .label").textContent, theme: document.getElementById("cb-theme").value, lays: [...document.querySelectorAll("#cb-res .cb-scene small:not(.cb-fxl)")].map(x => x.textContent.replace(/^\d+ · /, "")).join(","), brief: document.getElementById("cb-brief").value}));
+    const qz = await pg.evaluate(() => ({label: document.querySelector("#cb-res .label").textContent, theme: document.getElementById("cb-theme").value, lays: [...document.querySelectorAll('#cb-res select[data-cb-s$=":layout"]')].map(x => x.selectedOptions[0].textContent).join(","), brief: document.getElementById("cb-brief").value}));
     const q3 = asked[2] || {prompt: ""};
     check("« Autre proposition » : l'agent sait quoi ne pas refaire, le texte de l'utilisateur n'est pas modifié", /PROPOSITION PRÉCÉDENTE/.test(q3.prompt) && !/autre proposition/i.test(qz.brief), qz.brief.slice(0, 60));
     check("jeu : compte à rebours, question à choix, habillage « arcade » ; une scène « produit » sans photo devient une illustration (jamais de case vide)", /Jeu \/ quiz/.test(qz.label) && qz.theme === "arcade" && qz.lays === "Compte à rebours,Question,Illustration,Appel à l’action", JSON.stringify(qz));
