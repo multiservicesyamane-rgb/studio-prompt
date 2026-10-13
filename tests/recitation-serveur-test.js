@@ -35,6 +35,10 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
     check("seule la voix est gardée : voix.m4a créée, la vidéo d'origine supprimée (place sur le disque)", files.includes("voix.m4a") && !files.some(f => /^source\./.test(f)) && Math.abs(r.duration - 26.5) < .3, files.join(", ") + ` · ${r.duration} s`);
     const voice = await new Promise(res => http.get(BASE + r.audio, {headers: {Range: "bytes=1000-1999"}}, x => { x.resume(); res(x.statusCode); }));
     check("la voix se lit à partir de n'importe quel moment (indispensable pour 5 h)", voice === 206, String(voice));
+    /* le fichier vidéo a été supprimé, mais un nouveau réglage des pauses doit pouvoir réanalyser la voix gardée */
+    await req(BASE, "POST", "/api/recit/analyze", {id, noise: -34, minPause: .3});
+    const an2 = await waitJob(BASE, id, 60000), r2 = an2.result || {};
+    check("nouvelle analyse possible après suppression de la vidéo source : la voix gardée suffit", an2.state === "done" && (r2.speech || []).length === 7 && !fs.readdirSync(dir).some(f => /^source\./.test(f)), an2.error || JSON.stringify((r2.speech || []).map(s => `${s.a}-${s.b}`)));
     /* texte du Coran */
     const s1 = await req(BASE, "GET", "/api/recit/quran/surah?n=1");
     if(s1.status === 200){ check("Coran : Al-Fatiha, 7 versets en écriture uthmani + traduction, source citée", s1.j.versets.length === 7 && /^بِسْمِ/.test(s1.j.versets[0].ar) && /Allah/.test(s1.j.versets[0].tr) && /Tanzil|alquran/.test(s1.j.source), `${s1.j.nom} · ${s1.j.versets.length} versets`);

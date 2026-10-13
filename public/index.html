@@ -12,7 +12,7 @@
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Amiri+Quran&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Amiri+Quran&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Baloo+2:wght@600;700&display=swap">
 <style>
 [hidden]{display:none !important}
 /* Layout: app shell. Desktop = left sidebar (232px) + one centred content column (max 760px).
@@ -893,6 +893,21 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 .rc-th[aria-checked="true"]{border-color:var(--view-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--view-accent) 22%,transparent)}
 .rc-th canvas{width:100%;height:auto;border-radius:9px;display:block;background:#000}
 .rc-th b{font-size:14px}.rc-th small{font-size:12px;color:var(--muted);line-height:1.35}
+.rc-fx{border:1px solid var(--line);border-radius:16px;background:var(--sunken);overflow:hidden}
+.rc-fx>summary{display:flex;align-items:center;gap:8px;min-height:48px;padding:10px 14px;cursor:pointer;font-weight:750;color:var(--ink)}
+.rc-fx>summary small{margin-left:auto;color:var(--muted);font-weight:500}
+.rc-fx-body{display:grid;gap:12px;padding:0 12px 14px}
+.rc-fx-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:thin}
+.rc-fx-tabs button{flex:0 0 auto;min-height:38px;padding:7px 12px;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--muted);font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+.rc-fx-tabs button[aria-pressed="true"]{border-color:var(--view-accent);background:color-mix(in srgb,var(--view-accent) 14%,var(--surface));color:var(--ink)}
+.rc-fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:9px}
+.rc-fxc{display:flex;flex-direction:column;gap:6px;min-width:0;padding:5px;border:2px solid var(--line);border-radius:13px;background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.rc-fxc[aria-pressed="true"]{border-color:var(--view-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--view-accent) 18%,transparent)}
+.rc-fxc canvas{display:block;width:100%;height:82px;object-fit:cover;border-radius:8px;background:#05060a}
+.rc-fxc span{padding:0 3px 3px;font-size:12px;font-weight:650;line-height:1.25}
+.rc-sync{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.rc-sync input{grid-column:1/-1;width:100%;accent-color:var(--view-accent)}
+.rc-sync output{font-family:var(--mono);font-weight:700;color:var(--view-accent)}
 .rc-prev{display:flex;justify-content:center;background:#05060a;border-radius:16px;overflow:hidden;min-height:120px}
 .rc-prev canvas{max-width:100%;max-height:70vh;width:auto;height:auto;display:block}
 .rc-ctl{align-items:center}.rc-ctl input[type=range]{flex:1 1 160px;min-width:0;accent-color:var(--view-accent)}
@@ -1472,16 +1487,27 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
           <div class="panel rc-step" id="rc-s4" hidden>
             <h2 class="sub-h">4 · L’habillage</h2>
             <div class="rc-themes" id="rc-themes" role="radiogroup" aria-label="Habillage"></div>
+            <details class="rc-fx" id="rc-fx" open>
+              <summary>🎛 Studio d’effets islamiques <small>aperçu réel · export identique</small></summary>
+              <div class="rc-fx-body">
+                <div class="rc-fx-tabs" id="rc-fx-tabs" role="tablist" aria-label="Catégories d’effets"></div>
+                <p class="hint" id="rc-fx-hint"></p>
+                <div class="rc-fx-grid" id="rc-fx-grid" role="radiogroup"></div>
+              </div>
+            </details>
             <div class="rc-row">
               <div class="field"><label for="rc-fmt">Format</label><div class="sel"><select id="rc-fmt"><option value="16:9">💻 PC · 16:9 · YouTube</option><option value="9:16">📱 Téléphone · 9:16 · TikTok, Shorts, Reels</option><option value="1:1">◻️ Carré · 1:1</option></select></div></div>
               <div class="field"><label for="rc-reci">Nom du récitant <span class="hint">(facultatif)</span></label><input type="text" id="rc-reci" class="plain-in" maxlength="60"></div>
             </div>
             <label class="check"><input type="checkbox" id="rc-showtr" checked><span>Afficher la traduction</span></label>
+            <div class="field rc-sync"><label for="rc-sync">Synchronisation fine du texte <span class="hint">(si tout le texte semble légèrement en retard ou en avance)</span></label><output id="rc-sync-v" for="rc-sync">0,00 s</output><input type="range" id="rc-sync" min="-1" max="1" step="0.05" value="0"><p class="hint">0,00 s est recommandé. Une valeur positive affiche le texte plus tôt ; une valeur négative l’affiche plus tard. Le même réglage est appliqué à l’aperçu, au MP4 et au direct.</p></div>
             <div class="rc-prev" id="rc-prev"></div>
             <div class="rc-row rc-ctl"><button type="button" class="btn" id="rc-play">▶ Aperçu avec la voix</button><input type="range" id="rc-seek" min="0" max="1" step="0.1" value="0" aria-label="Moment de l’aperçu"><span class="hint" id="rc-time">0:00</span></div>
           </div>
           <div class="panel rc-step" id="rc-s5" hidden>
             <h2 class="sub-h">5 · Ambiance et vidéo</h2>
+            <div class="field"><label for="rc-voice">Finition de la voix</label><div class="sel"><select id="rc-voice"><option value="original">Originale (aucune modification)</option><option value="studio">Studio claire (nettoyage + présence)</option><option value="warm">Chaleureuse et douce</option><option value="deep">Profonde et ample</option><option value="airy">Aérienne et lumineuse</option></select></div></div>
+            <p class="hint">Ces finitions améliorent le timbre et le confort d’écoute sans changer les paroles. Elles ne garantissent ni la monétisation ni le contournement des contrôles YouTube : publie uniquement une voix et des contenus que tu as le droit d’utiliser.</p>
             <div class="rc-row">
               <div class="field"><label for="rc-amb">Ambiance très douce sous la voix</label><div class="sel"><select id="rc-amb"><option value="aucune">Aucune (la voix seule)</option><option value="pluie">Pluie douce</option><option value="vent">Vent léger</option><option value="nuit">Nuit calme (grillons)</option><option value="ruisseau">Ruisseau</option><option value="vagues">Vagues lointaines</option></select></div></div>
               <div class="field"><label for="rc-vol">Volume de l’ambiance</label><input type="range" id="rc-vol" min="0.02" max="0.3" step="0.01" value="0.08"></div>
@@ -3580,10 +3606,11 @@ window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VI
    4. Habillage premium dessiné image par image (public/recitation-fx.js), même moteur pour l'aperçu, la vidéo et le direct.
    5. Vidéo encodée ici (H.264) et envoyée par morceaux au serveur, qui remet la voix d'origine (+ ambiance de la nature, très douce).
    6. Écran de direct (direct.html) pour OBS Studio et TikTok LIVE Studio. Tout est gratuit. */
-const RC = {ready:false, server:null, id:"", an:null, mode:"coran", pass:[{n:1, from:1, to:7}], items:[], theme:"nuit", fmt:"16:9", showTr:true, recitant:"", amb:"aucune", vol:.08, ambUp:"", sur:null, cache:{}, projs:[], st:null, raf:0, tap:-1, busy:false, stop:false, fileName:"", ambBufs:{}};
+const RC = {ready:false, server:null, id:"", an:null, mode:"coran", pass:[{n:1, from:1, to:7}], items:[], theme:"nuit", fmt:"16:9", showTr:true, recitant:"", voice:"original", subtitle:"mushaf", transition:"precise", palette:"theme", animation:"rise", effect:"poussiere_doree", syncOffset:0, fxTab:"subtitles", amb:"aucune", vol:.08, ambUp:"", sur:null, cache:{}, projs:[], st:null, raf:0, tap:-1, busy:false, stop:false, fileName:"", ambBufs:{}};
 const RC_ISTI = {ar:"أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ", tr:{"fr.hamidullah":"Je cherche refuge auprès d’Allah contre le Diable banni.", "en.sahih":"I seek refuge in Allah from Satan, the expelled."}};
 const RC_QUAL = {fhd30:{nom:"Full HD · 30 images/s (le plus beau)", K:1.5, fps:30, br:4.5e6}, fhd24:{nom:"Full HD · 24 images/s (plus rapide, plus léger)", K:1.5, fps:24, br:3e6}, hd24:{nom:"HD 720p · 24 images/s (très longues vidéos : le plus rapide et le plus léger)", K:1, fps:24, br:1.4e6}};
 const rcT = s => { s=Math.max(0,Math.round(s||0)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return h?`${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}`:`${m}:${String(x).padStart(2,"0")}`; };
+const rcTCue = s => { s=Math.max(0,Number(s)||0); const m=Math.floor(s/60), x=(s%60).toFixed(1).padStart(4,"0"); return `${m}:${x}`; };
 const rcDur = s => { s=Math.max(0,Math.round(s||0)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60); return h?`${h} h ${String(m).padStart(2,"0")}`:m?`${m} min ${String(s%60).padStart(2,"0")} s`:`${s} s`; };
 const rcSize = b => b>=1e9?`${(b/1e9).toFixed(1).replace(".",",")} Go`:`${Math.max(1,Math.round(b/1e6))} Mo`;
 async function rcApi(url, o){ o=o||{}; const r=await fetch(url,{method:o.method||"GET", headers:o.body!=null?{"Content-Type":"application/json"}:{}, body:o.body!=null?JSON.stringify(o.body):undefined}); const j=await r.json().catch(()=>({}));
@@ -3611,9 +3638,9 @@ function rcLoaded(an, pj){
   $("rc-info").textContent=`✅ Voix gardée : ${rcDur(an.duration)}, ${(an.speech||[]).length} moments de parole repérés entre les pauses.${few?" Très peu de pauses : ouvre « Réglage des pauses » si la voix est sur un fond bruyant.":""}`;
   const au=$("rc-audio"); if(au.getAttribute("src")!==an.audio){ au.src=an.audio; } $("rc-seek").max=String(an.duration||1);
   if(pj){ $("rc-isti").checked=!!pj.isti; $("rc-basm").checked=pj.basm!==false; $("rc-tr").value=pj.tr==null?"fr.hamidullah":pj.tr; $("rc-txt").value=pj.txt||""; $("rc-titre").value=pj.titre||""; }
-  $("rc-fmt").value=RC.fmt; $("rc-reci").value=RC.recitant; $("rc-showtr").checked=RC.showTr; $("rc-amb").value=RC.amb; $("rc-vol").value=String(RC.vol);
+  $("rc-fmt").value=RC.fmt; $("rc-reci").value=RC.recitant; $("rc-showtr").checked=RC.showTr; $("rc-voice").value=RC.voice; $("rc-sync").value=String(RC.syncOffset); rcSyncLabel(); $("rc-amb").value=RC.amb; $("rc-vol").value=String(RC.vol);
   rcMode(RC.mode); rcPassRender(); $("rc-out").innerHTML=rcVideosHtml();
-  if(RC.items.length){ rcSteps(6); rcListRender(); rcThemes(); rcPreview(); rcQual(true); rcLive(); } else rcSteps(2);
+  if(RC.items.length){ rcSteps(6); rcListRender(); rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); } else rcSteps(2);
 }
 function rcVideosHtml(){ const p=RC.projs.find(x=>x.id===RC.id); if(!p||!p.videos.length) return "";
   return `<p class="hint">Vidéos déjà fabriquées pour ce projet :</p>`+p.videos.map(v=>`<div class="rc-row"><a class="btn" href="${esc(v.url)}" download="${esc(v.name)}">⬇ ${esc(v.name)} (${rcSize(v.size)})</a></div>`).join(""); }
@@ -3644,42 +3671,57 @@ async function rcBuild(){
   return out; }
 async function rcAlignRun(){
   if(!RC.an) return; const b=$("rc-align"); b.disabled=true; $("rc-src").textContent="Préparation des paroles…";
-  try{ const items=await rcBuild(), sp=RC.an.speech||[];
-    if(items.length){ const tm=SP_RECIT.align(sp, items.map(x=>x.ar)); items.forEach((x,i)=>{ x.a=tm[i].a; x.b=tm[i].b; }); }
+  try{ const items=await rcBuild(), sp=RC.an.speech||[]; let timing=null;
+    if(items.length){ timing=SP_RECIT.align(sp, items.map(x=>x.ar)); items.forEach((x,i)=>{ x.a=timing[i].a; x.b=timing[i].b; x.speech=timing[i].speech||[]; x.sync=timing.syntheticCuts?"estime":"pause"; }); }
     RC.items=items; const head=rcHead(), first=items.length?items[0].a:(sp[0]?sp[0].a:0);
     if(head&&first>=2) RC.items.unshift({kind:"titre", ar:head.ar, a:0, b:first, sourate:items[0]&&items[0].sourate});
     const nv=items.filter(x=>x.kind==="verset").length, few=items.length&&sp.length<items.length*.6;
-    $("rc-src").textContent=items.length?`✅ ${nv} passage${nv>1?"s":""} calé${nv>1?"s":""} sur ${sp.length} moments de parole.${RC.mode==="coran"&&RC.srcNote?` ${RC.srcNote}.`:""} Vérifie à l’étape 3.${few?" Peu de pauses repérées : choisis « Pause la plus courte : 0,3 s » puis refais l’analyse, ou corrige en écoutant.":""}`:"✅ Sans texte : seul l’habillage et le titre seront affichés.";
-    rcSteps(6); rcListRender(); rcThemes(); rcPreview(); rcQual(true); rcLive(); rcSave();
+    const estimated=timing&&timing.syntheticCuts>0;
+    $("rc-src").textContent=items.length?(estimated?`⚠️ Calage estimé : seulement ${sp.length} pauses pour ${items.length} passages ; ${timing.syntheticCuts} limites ont été estimées. Utilise « Corriger en écoutant » pour un résultat exact. Les effets visuels, eux, ne retardent jamais le texte après son timecode.`:`✅ ${nv} passage${nv>1?"s":""} calé${nv>1?"s":""} sur ${sp.length} moments de parole.${RC.mode==="coran"&&RC.srcNote?` ${RC.srcNote}.`:""} Vérifie à l’étape 3.${few?" Peu de pauses repérées : choisis « Pause la plus courte : 0,3 s » puis refais l’analyse, ou corrige en écoutant.":""}`):"✅ Sans texte : seul l’habillage et le titre seront affichés.";
+    rcSteps(6); rcListRender(); rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); rcSave();
   }catch(e){ $("rc-src").textContent=e.message||"Échec. Réessaie."; }
   finally{ b.disabled=false; } }
 function rcIdx(t){ const it=RC.items; let lo=0, hi=it.length-1, k=-1; while(lo<=hi){ const m=(lo+hi)>>1; if(it[m].a<=t){ k=m; lo=m+1; } else hi=m-1; } return k; }
+function rcSpeechFor(x){ return ((RC.an&&RC.an.speech)||[]).filter(s=>s&&s.b>x.a&&s.a<x.b).map(s=>({a:+Math.max(x.a,+s.a).toFixed(2),b:+Math.min(x.b,+s.b).toFixed(2)})); }
+function rcSpeechUpdate(){ RC.items.forEach(x=>{ if(x.kind!=="titre") x.speech=rcSpeechFor(x); }); }
 function rcListRender(){
   const nv=RC.items.filter(x=>x.kind==="verset").length; $("rc-count").textContent=RC.items.length?`· ${nv} passage${nv>1?"s":""}`:"";
   $("rc-list").innerHTML=RC.items.map((x,i)=>{ const rtl=SP_RECIT.isRtl(x.ar), label=x.kind==="titre"?`Titre : ${x.ar}`:`${x.n?x.n+". ":""}${String(x.ar).slice(0,120)}`;
-    return `<li data-i="${i}" class="${x.kind}"><button type="button" class="rc-at" data-rc-go="${i}" title="Écouter à partir d’ici">▶ ${rcT(x.a)}</button><span class="rc-tx${rtl?" rc-ar":""}" dir="${rtl?"rtl":"ltr"}">${esc(label)}</span>`
-      +(i?`<span class="rc-nudge"><button type="button" data-rc-nd="${i}:-0.5" aria-label="Commence plus tôt">−½ s</button><button type="button" data-rc-nd="${i}:0.5" aria-label="Commence plus tard">+½ s</button><button type="button" data-rc-here="${i}" title="Commence au moment écouté">⏱ ici</button></span>`:"<span></span>")+`</li>`; }).join("");
+    return `<li data-i="${i}" class="${x.kind}"><button type="button" class="rc-at" data-rc-go="${i}" title="Écouter à partir d’ici">▶ ${rcTCue(x.a)}</button><span class="rc-tx${rtl?" rc-ar":""}" dir="${rtl?"rtl":"ltr"}">${esc(label)}</span>`
+      +`<span class="rc-nudge"><button type="button" data-rc-nd="${i}:-0.1" aria-label="Commence un dixième de seconde plus tôt">−0,1</button><button type="button" data-rc-nd="${i}:0.1" aria-label="Commence un dixième de seconde plus tard">+0,1</button><button type="button" data-rc-here="${i}" title="Commence au moment écouté">⏱ ici</button></span></li>`; }).join("");
   RC.hiK=-1; rcHi(); }
-function rcRowT(i){ const li=$("rc-list").children[i]; if(li) li.querySelector(".rc-at").textContent=`▶ ${rcT(RC.items[i].a)}`; }
-function rcSet(i, t){ const it=RC.items; if(!it[i]||i<1) return; const lo=it[i-1].a+.2, hi=i<it.length-1?it[i+1].a-.2:(RC.an?RC.an.duration:t);
-  it[i].a=+Math.max(lo,Math.min(hi,t)).toFixed(2); it[i-1].b=it[i].a; rcRowT(i); rcDraw(); rcSave(); }
-function rcHi(){ const k=rcIdx($("rc-audio").currentTime||0), L=$("rc-list"); if(k===RC.hiK) return; const a=L.children[RC.hiK], b=L.children[k]; if(a) a.classList.remove("on"); if(b){ b.classList.add("on"); if(RC.tap>=0) b.scrollIntoView({block:"nearest"}); } RC.hiK=k; }
-function rcTapStart(){ if(RC.items.length<2) return; const au=$("rc-audio"); RC.tap=Math.max(1,rcIdx(au.currentTime||0)+1); $("rc-tapbox").hidden=false; rcTapLabel(); au.play().catch(()=>{}); $("rc-next").focus(); }
+function rcRowT(i){ const li=$("rc-list").children[i]; if(li) li.querySelector(".rc-at").textContent=`▶ ${rcTCue(RC.items[i].a)}`; }
+function rcSet(i, t){ const it=RC.items; if(!it[i]) return; const lo=i?it[i-1].a+.05:0, hi=i<it.length-1?it[i+1].a-.05:(RC.an?RC.an.duration:t);
+  it[i].a=+Math.max(lo,Math.min(hi,t)).toFixed(2); if(i) it[i-1].b=it[i].a; rcSpeechUpdate(); rcRowT(i); rcDraw(); rcSave(); }
+function rcHi(){ const k=rcIdx(Math.max(0,($("rc-audio").currentTime||0)+(Number(RC.syncOffset)||0))), L=$("rc-list"); if(k===RC.hiK) return; const a=L.children[RC.hiK], b=L.children[k]; if(a) a.classList.remove("on"); if(b){ b.classList.add("on"); if(RC.tap>=0) b.scrollIntoView({block:"nearest"}); } RC.hiK=k; }
+function rcTapStart(){ if(!RC.items.length) return; const au=$("rc-audio"), here=rcIdx(au.currentTime||0); RC.tap=Math.max(0,here+1); $("rc-tapbox").hidden=false; rcTapLabel(); au.play().catch(()=>{}); $("rc-next").focus(); }
 function rcTapLabel(){ $("rc-next").textContent=RC.tap<RC.items.length?`Le suivant commence ▶ (${RC.tap+1} sur ${RC.items.length})`:"Terminé ✓"; }
-function rcTapNext(){ const it=RC.items, k=RC.tap; if(k<1||k>=it.length){ rcTapEnd(); return; } const t=+($("rc-audio").currentTime||0).toFixed(2);
-  if(t<=it[k-1].a+.2) return; it[k].a=t; it[k-1].b=t; rcRowT(k);
+function rcTapNext(){ const it=RC.items, k=RC.tap; if(k<0||k>=it.length){ rcTapEnd(); return; } const t=+($("rc-audio").currentTime||0).toFixed(2);
+  if(k&&t<=it[k-1].a+.05) return; it[k].a=t; if(k) it[k-1].b=t; rcRowT(k);
   for(let j=k+1;j<it.length&&it[j].a<=it[j-1].a+.2;j++){ it[j].a=+(it[j-1].a+.3).toFixed(2); it[j-1].b=it[j].a; rcRowT(j); }
-  RC.tap++; rcTapLabel(); rcSave(); }
+  rcSpeechUpdate(); RC.tap++; rcTapLabel(); rcSave(); }
 function rcTapEnd(){ RC.tap=-1; $("rc-tapbox").hidden=true; $("rc-audio").pause(); }
 /* habillage : le même moteur dessine les vignettes, l'aperçu, la vidéo et le direct */
-function rcStageMk(K){ return SP_RECIT.stage({fmt:RC.fmt, K, theme:RC.theme, items:RC.items, sourate:rcHead(), fixe:!!$("rc-titre").value.trim(), recitant:RC.recitant, showTr:RC.showTr, total:RC.an?RC.an.duration:0}); }
+const RC_FX_TABS=[["subtitles","Sous-titres"],["transitions","Transitions"],["palettes","Couleurs"],["animations","Animations"],["effects","Effets"]], RC_FX_KEY={subtitles:"subtitle",transitions:"transition",palettes:"palette",animations:"animation",effects:"effect"};
+const RC_FX_HINT={subtitles:"Styles conçus pour l’arabe et l’écriture uthmani : ligatures et signes restent intacts. La lumière suit le passage sans masquer les mots.",transitions:"La transition se termine avant le début du passage suivant : le nouveau texte est entièrement lisible dès que la voix commence.",palettes:"Couleurs du texte, des ornements et des effets. Le contraste reste renforcé pour YouTube et les téléphones.",animations:"Animations calmes qui ne séparent jamais les lettres arabes et ne retardent jamais la lecture.",effects:"Ambiances visuelles rendues à partir du même temps audio dans l’aperçu, le MP4 et le direct."};
+function rcStageOptions(K,extra){ return Object.assign({fmt:RC.fmt,K,theme:RC.theme,items:RC.items,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),recitant:RC.recitant,showTr:RC.showTr,total:RC.an?RC.an.duration:0,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset},extra||{}); }
+function rcStageMk(K){ return SP_RECIT.stage(rcStageOptions(K)); }
+function rcSyncLabel(){ if(!$("rc-sync-v")) return; const n=Number(RC.syncOffset)||0; $("rc-sync-v").textContent=`${n>0?"+":""}${n.toFixed(2).replace(".",",")} s`; }
+function rcFxApply(cat,id){ const key=RC_FX_KEY[cat], list=SP_RECIT.fx&&SP_RECIT.fx[cat]; if(!key||!list||!list[id]) return; RC[key]=id; rcFxRender(cat); rcPreview(); rcSave(); }
+let rcFxAnim=null;
+async function rcFxRender(cat){ await SP_RECIT.ready(); const all=SP_RECIT.fx||{}, tabs=$("rc-fx-tabs"), grid=$("rc-fx-grid"); if(!tabs||!grid) return; cat=all[cat]?cat:"subtitles"; RC.fxTab=cat;
+  if(rcFxAnim){ cancelAnimationFrame(rcFxAnim.raf); rcFxAnim=null; }
+  tabs.innerHTML=RC_FX_TABS.map(([k,n])=>`<button type="button" role="tab" data-rc-fxtab="${k}" aria-selected="${k===cat}" aria-pressed="${k===cat}">${n} <small>${Object.keys(all[k]||{}).length}</small></button>`).join(""); $("rc-fx-hint").textContent=RC_FX_HINT[cat]||"";
+  const key=RC_FX_KEY[cat], cur=RC[key], sample=RC.items.find(x=>x.kind==="verset")||RC.items[0]||{kind:"verset",ar:"بِسْمِ ٱللَّهِ",tr:"Au nom d’Allah",a:0,b:4}, sample2=Object.assign({},sample,{ar:String(sample.ar||"")+" ۞",a:3,b:6});
+  grid.innerHTML=Object.entries(all[cat]||{}).map(([id,x])=>`<button type="button" class="rc-fxc" data-rc-fx="${cat}:${id}" aria-pressed="${id===cur}" title="${esc(x.desc||x.nom)}"><span>${esc(x.nom)}</span></button>`).join("");
+  grid.querySelectorAll(".rc-fxc").forEach(b=>{ const id=b.dataset.rcFx.slice(cat.length+1), extra={[key]:id,syncOffset:0,recitant:"",fixe:true,total:6,items:cat==="transitions"?[Object.assign({},sample,{a:0,b:3}),sample2]:[Object.assign({},sample,{a:0,b:6})]}, st=SP_RECIT.stage(rcStageOptions(RC.fmt==="9:16"?.12:.1,extra)), at=cat==="transitions"?2.9:cat==="animations"?.12:2.2; st.draw(at); st.canvas.setAttribute("aria-hidden","true"); b.prepend(st.canvas); b._rcStage=st; b._rcAt=at; }); }
 async function rcThemes(){ await SP_RECIT.ready(); const box=$("rc-themes"), sample=RC.items.find(x=>x.kind==="verset")||RC.items[0]; box.replaceChildren();
   Object.entries(SP_RECIT.themes).forEach(([k,th])=>{ const b=document.createElement("button"); b.type="button"; b.className="rc-th"; b.setAttribute("role","radio"); b.setAttribute("aria-checked",String(k===RC.theme)); b.dataset.rcTheme=k;
-    const st=SP_RECIT.stage({fmt:RC.fmt, K:.25, theme:k, items:sample?[Object.assign({},sample,{a:0,b:12})]:[], sourate:rcHead(), fixe:true, recitant:RC.recitant, showTr:RC.showTr, total:12}); st.draw(4);
+    const st=SP_RECIT.stage(rcStageOptions(.25,{theme:k,items:sample?[Object.assign({},sample,{a:0,b:12})]:[],fixe:true,total:12,syncOffset:0})); st.draw(4);
     st.canvas.setAttribute("aria-hidden","true"); b.append(st.canvas); b.insertAdjacentHTML("beforeend",`<b>${esc(th.nom)}</b><small>${esc(th.desc)}</small>`); box.append(b); }); }
 async function rcPreview(){ await SP_RECIT.ready(); RC.st=rcStageMk(.5); RC.st.canvas.setAttribute("role","img"); RC.st.canvas.setAttribute("aria-label","Aperçu de l’habillage"); $("rc-prev").replaceChildren(RC.st.canvas); rcDraw(); }
 function rcDraw(){ if(!RC.st) return; const au=$("rc-audio"), t=au.currentTime||0; RC.st.draw(t); $("rc-seek").value=String(t); $("rc-time").textContent=`${rcT(t)} / ${rcT(RC.an?RC.an.duration:0)}`; }
-let rcRefreshT=0; function rcRefresh(){ clearTimeout(rcRefreshT); rcRefreshT=setTimeout(()=>{ rcThemes(); rcPreview(); rcSave(); },250); }
+let rcRefreshT=0; function rcRefresh(){ clearTimeout(rcRefreshT); rcRefreshT=setTimeout(()=>{ rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcSave(); },250); }
 /* ---------- ambiances de la nature (aucun instrument), fabriquées ici : 60 s qui bouclent sans couture ---------- */
 async function rcAmbBuf(kind){
   if(RC.ambBufs[kind]) return RC.ambBufs[kind];
@@ -3747,20 +3789,20 @@ async function rcMake(){
     } finally{ try{ ve.close(); }catch(e){} }
     const secs=f/Q.fps; if(secs<1) throw {message:"Arrêtée avant la première seconde : rien à garder."};
     say(.97,"La voix d’origine est remise sur l’image…");
-    await rcApi("/api/recit/render/finish",{method:"POST", body:{id:RC.id, rid, duration:secs, nom:rcNom(), ambiance:RC.amb!=="aucune", volume:RC.vol}});
+    await rcApi("/api/recit/render/finish",{method:"POST", body:{id:RC.id, rid, duration:secs, nom:rcNom(), voix:RC.voice, ambiance:RC.amb!=="aucune", volume:RC.vol}});
     let r=null; for(;;){ await new Promise(z=>setTimeout(z,700)); const s=await rcApi(`/api/recit/status?id=${rid}`); if(s.state==="done"){ r=s.result; break; } if(s.state==="failed") throw {message:s.error||"La voix n’a pas pu être remise."}; say(.97+.03*(s.progress||0),`La voix d’origine est remise : ${Math.round((s.progress||0)*100)} %…`); }
-    say(1,""); $("rc-out").innerHTML=`<figure class="rc-vid"><video controls playsinline preload="metadata" src="${esc(r.url)}"></video><figcaption class="actions"><a class="btn primary" href="${esc(r.url)}" download="${esc(r.name)}">⬇ Télécharger (${rcSize(r.size)})</a></figcaption></figure><p class="hint">✅ ${RC.stop?`Début gardé : ${rcDur(secs)}.`:`Vidéo complète : ${rcDur(secs)}.`} MP4 H.264, ${W} × ${H}, ${Q.fps} images/s, la voix d’origine intacte${RC.amb!=="aucune"?" avec l’ambiance très douce":""}.</p>`;
+    say(1,""); const voiceLabel=RC.voice==="original"?"voix originale intacte":`voix avec finition « ${$("rc-voice").selectedOptions[0].textContent} »`; $("rc-out").innerHTML=`<figure class="rc-vid"><video controls playsinline preload="metadata" src="${esc(r.url)}"></video><figcaption class="actions"><a class="btn primary" href="${esc(r.url)}" download="${esc(r.name)}">⬇ Télécharger (${rcSize(r.size)})</a></figcaption></figure><p class="hint">✅ ${RC.stop?`Début gardé : ${rcDur(secs)}.`:`Vidéo complète : ${rcDur(secs)}.`} MP4 H.264, ${W} × ${H}, ${Q.fps} images/s, ${voiceLabel}${RC.amb!=="aucune"?" avec l’ambiance très douce":""}.</p>`;
     rcProjects();
   }catch(e){ say(0,e.message||"La fabrication a échoué. Réessaie, ou choisis « HD 720p »."); }
   finally{ RC.busy=false; $("rc-make").disabled=false; $("rc-stop").hidden=true; } }
 function rcLive(){ if(!RC.id) return; const u=`${location.origin}/direct.html?id=${RC.id}${$("rc-loop").checked?"&boucle=1":""}`; $("rc-live").value=u; $("rc-open").href=u; }
-function rcSave(){ clearTimeout(RC.saveT); RC.saveT=setTimeout(()=>{ if(!RC.id||!RC.an) return;
-  fetch("/api/recit/project",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:RC.id, v:1, nom:rcNom(), mode:RC.mode, pass:RC.pass, isti:$("rc-isti").checked, basm:$("rc-basm").checked, tr:$("rc-tr").value, txt:$("rc-txt").value, titre:$("rc-titre").value.trim(),
-    items:RC.items, theme:RC.theme, fmt:RC.fmt, showTr:RC.showTr, recitant:RC.recitant, sourate:rcHead(), fixe:!!$("rc-titre").value.trim(), amb:RC.ambUp, vol:RC.vol, audio:RC.an.audio, duration:RC.an.duration})}).catch(()=>{}); },400); }
+function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration}; }
+function rcSaveNow(){ clearTimeout(RC.saveT); if(!RC.id||!RC.an) return Promise.resolve(); const data=rcProjectData(); RC.saveP=(RC.saveP||Promise.resolve()).catch(()=>{}).then(()=>fetch("/api/recit/project",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); })); return RC.saveP; }
+function rcSave(){ clearTimeout(RC.saveT); RC.saveT=setTimeout(()=>{ rcSaveNow().catch(()=>{}); },400); }
 async function rcOpen(id){ if(!id||RC.busy) return; const p=RC.projs.find(x=>x.id===id); if(!p) return;
   try{ const s=await rcApi(`/api/recit/status?id=${id}`); if(s.state!=="done"||!s.result) throw {message:"Ce projet n’est pas prêt : envoie de nouveau le fichier."};
     const pj=p.projet?await rcApi(`/api/recit/project?id=${id}`).catch(()=>null):null; $("rc-audio").pause(); RC.id=id; RC.fileName=p.nom||"";
-    Object.assign(RC, pj?{mode:pj.mode||"coran", pass:pj.pass&&pj.pass.length?pj.pass:RC.pass, items:pj.items||[], theme:pj.theme||RC.theme, fmt:pj.fmt||RC.fmt, showTr:pj.showTr!==false, recitant:pj.recitant||"", ambUp:pj.amb||"", amb:pj.amb||"aucune", vol:pj.vol||.08}:{items:[], ambUp:"", amb:"aucune"});
+    Object.assign(RC, pj?{mode:pj.mode||"coran", pass:pj.pass&&pj.pass.length?pj.pass:RC.pass, items:pj.items||[], theme:pj.theme||RC.theme, fmt:pj.fmt||RC.fmt, showTr:pj.showTr!==false, recitant:pj.recitant||"", voice:pj.voice||"original", subtitle:pj.subtitle||"mushaf", transition:pj.transition||"precise", palette:pj.palette||"theme", animation:pj.animation||"rise", effect:pj.effect||"aucune", syncOffset:Number(pj.syncOffset)||0, ambUp:pj.amb||"", amb:pj.amb||"aucune", vol:pj.vol||.08}:{items:[], voice:"original", subtitle:"mushaf", transition:"precise", palette:"theme", animation:"rise", effect:"poussiere_doree", syncOffset:0, ambUp:"", amb:"aucune"});
     rcLoaded(s.result, pj); $("rc-del").disabled=false; }
   catch(e){ $("rc-info").textContent=e.message||"Projet introuvable."; } }
 function rcInit(){
@@ -3782,7 +3824,7 @@ function rcInit(){
     if(b.dataset.rcGo){ const i=+b.dataset.rcGo; au.currentTime=Math.max(0,RC.items[i].a-.3); au.play().catch(()=>{}); }
     else if(b.dataset.rcNd){ const [i,d]=b.dataset.rcNd.split(":").map(Number); rcSet(i,RC.items[i].a+d); }
     else if(b.dataset.rcHere) rcSet(+b.dataset.rcHere, au.currentTime||0); });
-  $("rc-tap").addEventListener("click", rcTapStart); $("rc-next").addEventListener("click", rcTapNext); $("rc-tapend").addEventListener("click", rcTapEnd);
+  $("rc-tap").addEventListener("click", rcTapStart); $("rc-next").addEventListener("pointerdown", e=>{ e.preventDefault(); rcTapNext(); }); $("rc-next").addEventListener("keydown",e=>{ if(e.code==="Space"||e.code==="Enter"){ e.preventDefault(); rcTapNext(); } }); $("rc-tapend").addEventListener("click", rcTapEnd);
   document.addEventListener("keydown", e=>{ if(RC.tap<0||$("view-recitation").hidden||e.code!=="Space"||/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) return; e.preventDefault(); rcTapNext(); });
   const au=$("rc-audio");
   au.addEventListener("play", ()=>{ cancelAnimationFrame(RC.raf); const tick=()=>{ rcDraw(); RC.raf=requestAnimationFrame(tick); }; tick(); rcAmbPlay(true); $("rc-play").textContent="⏸ Pause"; });
@@ -3790,17 +3832,23 @@ function rcInit(){
   au.addEventListener("seeked", rcDraw); au.addEventListener("timeupdate", rcHi);
   $("rc-play").addEventListener("click", ()=>{ if(au.paused) au.play().catch(()=>{}); else au.pause(); });
   $("rc-seek").addEventListener("input", e=>{ au.currentTime=+e.target.value; rcDraw(); });
-  $("rc-themes").addEventListener("click", e=>{ const b=e.target.closest("[data-rc-theme]"); if(!b) return; RC.theme=b.dataset.rcTheme; document.querySelectorAll("#rc-themes [data-rc-theme]").forEach(x=>x.setAttribute("aria-checked",String(x===b))); rcPreview(); rcEst(); rcSave(); });
+  $("rc-themes").addEventListener("click", e=>{ const b=e.target.closest("[data-rc-theme]"); if(!b) return; RC.theme=b.dataset.rcTheme; document.querySelectorAll("#rc-themes [data-rc-theme]").forEach(x=>x.setAttribute("aria-checked",String(x===b))); rcFxRender(RC.fxTab); rcPreview(); rcEst(); rcSave(); });
+  $("rc-fx").addEventListener("click",e=>{ const tab=e.target.closest("[data-rc-fxtab]"); if(tab){ rcFxRender(tab.dataset.rcFxtab); return; } const b=e.target.closest("[data-rc-fx]"); if(!b) return; const [cat,id]=b.dataset.rcFx.split(":"); rcFxApply(cat,id); });
+  $("rc-fx").addEventListener("pointerover",e=>{ const b=e.target.closest(".rc-fxc"); if(!b||!b._rcStage||(rcFxAnim&&rcFxAnim.b===b)) return; if(rcFxAnim) cancelAnimationFrame(rcFxAnim.raf); const cat=b.dataset.rcFx.split(":")[0], t0=performance.now(), step=()=>{ if(!b.isConnected) return; const s=(performance.now()-t0)/1000, t=cat==="transitions"?2.76+(s%.9)/.9*.24:cat==="animations"?(s%1.4)*.35:(s%4.8)+.1; b._rcStage.draw(t); rcFxAnim.raf=requestAnimationFrame(step); }; rcFxAnim={b,raf:requestAnimationFrame(step)}; });
+  $("rc-fx").addEventListener("pointerout",e=>{ const b=e.target.closest(".rc-fxc"); if(!rcFxAnim||b!==rcFxAnim.b||(e.relatedTarget&&b.contains(e.relatedTarget))) return; cancelAnimationFrame(rcFxAnim.raf); if(b._rcStage) b._rcStage.draw(b._rcAt); rcFxAnim=null; });
   $("rc-fmt").addEventListener("change", e=>{ RC.fmt=e.target.value; rcRefresh(); rcEst(); });
   $("rc-reci").addEventListener("input", e=>{ RC.recitant=e.target.value.trim(); rcRefresh(); });
   $("rc-showtr").addEventListener("change", e=>{ RC.showTr=e.target.checked; rcRefresh(); });
+  $("rc-sync").addEventListener("input",e=>{ RC.syncOffset=+e.target.value; RC.hiK=-1; rcSyncLabel(); rcPreview(); rcHi(); rcSave(); });
+  $("rc-voice").addEventListener("change", e=>{ RC.voice=e.target.value; rcSave(); });
   $("rc-titre").addEventListener("input", ()=>{ if(RC.items.length) rcRefresh(); });
   $("rc-amb").addEventListener("change", async e=>{ RC.amb=e.target.value; if(!au.paused) rcAmbPlay(true); try{ await rcAmbUpload(); }catch(err){ toast(err.message); } });
   $("rc-vol").addEventListener("input", e=>{ RC.vol=+e.target.value; if(rcAmbG) rcAmbG.gain.value=RC.vol; rcSave(); });
   $("rc-qual").addEventListener("change", ()=>rcEst());
   $("rc-make").addEventListener("click", rcMake); $("rc-stop").addEventListener("click", ()=>{ RC.stop=true; });
   $("rc-loop").addEventListener("change", rcLive);
-  $("rc-copy").addEventListener("click", async ()=>{ try{ await navigator.clipboard.writeText($("rc-live").value); toast("Adresse copiée : colle-la dans OBS (source Navigateur)."); }catch(e){ $("rc-live").select(); } });
+  $("rc-open").addEventListener("click",async e=>{ e.preventDefault(); const w=window.open("about:blank","_blank"); try{ await rcSaveNow(); if(w) w.location=$("rc-live").value; else location.href=$("rc-live").value; }catch(err){ if(w) w.close(); toast("Le projet n’a pas pu être enregistré avant le direct."); } });
+  $("rc-copy").addEventListener("click", async ()=>{ try{ await rcSaveNow(); await navigator.clipboard.writeText($("rc-live").value); toast("Projet enregistré et adresse copiée : colle-la dans OBS (source Navigateur)."); }catch(e){ $("rc-live").select(); } });
   window.addEventListener("beforeunload", e=>{ if(RC.busy&&$("rc-stop").hidden===false){ e.preventDefault(); e.returnValue=""; } });
 }
 

@@ -38,17 +38,30 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.click("#rc-align");
     await pg.waitForFunction(() => document.querySelectorAll("#rc-list li").length > 0, {timeout: 30000});
     const al = await pg.evaluate(() => ({n: document.querySelectorAll("#rc-list li").length, t: [...document.querySelectorAll("#rc-list .rc-at")].map(x => x.textContent.replace("▶ ", "")), ar: document.querySelectorAll("#rc-list .rc-ar").length, src: document.getElementById("rc-src").textContent}));
-    check("calage automatique : les 7 passages commencent aux 7 moments de parole", al.n === 7 && al.t.join(",") === "0:00,0:04,0:07,0:12,0:16,0:20,0:23", al.t.join(","));
+    check("calage automatique : les 7 passages commencent aux 7 moments de parole, au dixième de seconde", al.n === 7 && al.t.join(",") === "0:00.0,0:04.0,0:07.0,0:12.0,0:15.5,0:19.5,0:22.5", al.t.join(","));
+    await wait(700);
+    const alignedProject = await pg.evaluate(async () => { const id=(document.getElementById("rc-live").value.match(/id=([a-f0-9]+)/)||[])[1], r=await fetch(`/api/recit/project?id=${id}`); return r.json(); });
+    const windows = (alignedProject.items || []).filter(x => x.kind === "verset").map(x => (x.speech || []).map(s => [s.a, s.b]));
+    check("progression des sous-titres : les fenêtres de parole sont gardées et les pauses ne font plus avancer le néon", windows.length === 7 && windows.every(x => x.length === 1), JSON.stringify(windows));
     if(net) check("Coran : texte arabe officiel affiché (écriture uthmani) et source citée", al.ar === 7 && /Tanzil|alquran/.test(al.src), al.src.slice(0, 140));
     /* correction à la main */
-    await pg.click("[data-rc-nd='1:0.5']"); const t1 = await pg.evaluate(() => document.querySelector("#rc-list li[data-i='1'] .rc-at").textContent);
-    await pg.click("[data-rc-nd='1:-0.5']"); const t2 = await pg.evaluate(() => document.querySelector("#rc-list li[data-i='1'] .rc-at").textContent);
-    check("correction à la main : +½ s puis −½ s sur un passage", /0:05/.test(t1) && /0:04/.test(t2), `${t1} → ${t2}`);
+    await pg.click("[data-rc-nd='1:0.1']"); const t1 = await pg.evaluate(() => document.querySelector("#rc-list li[data-i='1'] .rc-at").textContent);
+    await pg.click("[data-rc-nd='1:-0.1']"); const t2 = await pg.evaluate(() => document.querySelector("#rc-list li[data-i='1'] .rc-at").textContent);
+    check("correction fine à la main : +0,1 s puis −0,1 s sur un passage", /0:04\.1/.test(t1) && /0:04\.0/.test(t2), `${t1} → ${t2}`);
     /* 4. habillages */
-    await pg.waitForFunction(() => document.querySelectorAll("#rc-themes .rc-th canvas").length === 7, {timeout: 30000});
+    await pg.waitForFunction(() => document.querySelectorAll("#rc-themes .rc-th canvas").length === 15, {timeout: 30000});
     const th = await pg.evaluate(() => [...document.querySelectorAll("#rc-themes .rc-th canvas")].map(c => { const g = c.getContext("2d"), d = g.getImageData(0, 0, c.width, c.height).data; let s = 0, v = 0; for(let i = 0; i < d.length; i += 4){ const l = d[i] + d[i + 1] + d[i + 2]; s += l; v += l * l; } const n = d.length / 4, m = s / n; return [Math.round(m), Math.round(Math.sqrt(v / n - m * m))]; }));
     const distinct = new Set(th.map(x => x.join("/"))).size;
-    check("7 habillages premium dessinés (vignettes non vides et toutes différentes)", th.every(x => x[1] > 8) && distinct === 7, JSON.stringify(th));
+    check("15 habillages premium dessinés (vignettes non vides et toutes différentes)", th.every(x => x[1] > 8) && distinct === 15, JSON.stringify(th));
+    const fx0 = await pg.evaluate(() => ({tabs: document.querySelectorAll("#rc-fx-tabs [role='tab']").length, counts: Object.fromEntries(Object.entries(SP_RECIT.fx).map(([k, v]) => [k, Object.keys(v).length]))}));
+    check("studio islamique : sous-titres, transitions, couleurs, animations et effets ont leurs vignettes", fx0.tabs === 5 && fx0.counts.subtitles === 6 && fx0.counts.transitions === 6 && fx0.counts.palettes === 6 && fx0.counts.animations === 6 && fx0.counts.effects === 8, JSON.stringify(fx0));
+    const exact = await pg.evaluate(() => { const items = [{kind:"verset", ar:"الأول", a:0, b:3}, {kind:"verset", ar:"الثاني", a:3, b:6}], make = syncOffset => SP_RECIT.stage({fmt:"16:9", K:.1, theme:"nuit", items, transition:"sacred_fade", animation:"glow", syncOffset}); const a = make(0), b = make(.25); return {before:a.activeAt(2.999), edge:a.activeAt(3), corrected:b.activeAt(2.8)}; });
+    check("synchronisation stricte : aucune transition ne retarde le nouveau passage, et le réglage global agit au bon moment", exact.before === 0 && exact.edge === 1 && exact.corrected === 1, JSON.stringify(exact));
+    const chooseFx = async (cat, id) => { await pg.click(`[data-rc-fxtab="${cat}"]`); await pg.waitForFunction(v => !!document.querySelector(`[data-rc-fx="${v}"]`), {}, `${cat}:${id}`); await pg.click(`[data-rc-fx="${cat}:${id}"]`); await wait(120); };
+    await chooseFx("subtitles","emerald"); await chooseFx("transitions","light"); await chooseFx("palettes","black_gold"); await chooseFx("animations","glow"); await chooseFx("effects","anneaux_neon");
+    await pg.evaluate(() => { const s = document.getElementById("rc-sync"); s.value = ".25"; s.dispatchEvent(new Event("input", {bubbles:true})); }); await wait(800);
+    const picked = await pg.evaluate(async () => { const id=(document.getElementById("rc-live").value.match(/id=([a-f0-9]+)/)||[])[1], p=await fetch(`/api/recit/project?id=${id}`).then(r=>r.json()); return {fx:[p.subtitle,p.transition,p.palette,p.animation,p.effect], sync:p.syncOffset, canvases:document.querySelectorAll("#rc-fx-grid canvas").length}; });
+    check("choix premium appliqués : néon émeraude, voile lumineux, noir-or, éclat et anneaux néon", picked.fx.join("|") === "emerald|light|black_gold|glow|anneaux_neon" && picked.sync === .25 && picked.canvases === 8, JSON.stringify(picked));
     await pg.evaluate(() => { document.querySelector("[data-rc-theme='livre']").click(); const f = document.getElementById("rc-fmt"); f.value = "9:16"; f.dispatchEvent(new Event("change", {bubbles: true})); });
     await wait(900);
     const pv = await pg.evaluate(() => { const c = document.querySelector("#rc-prev canvas"); return {w: c.width, h: c.height, on: document.querySelector("[data-rc-theme='livre']").getAttribute("aria-checked")}; });
@@ -61,7 +74,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     /* 5. ambiance + vidéo */
     await pg.evaluate(() => { const s = document.getElementById("rc-amb"); s.value = "pluie"; s.dispatchEvent(new Event("change", {bubbles: true})); });
     const id = await pg.evaluate(() => (document.getElementById("rc-live").value.match(/id=([a-f0-9]+)/) || [])[1]);
-    for(let k = 0; k < 60 && !fs.existsSync(path.join(GEN, `recit-${id}`, "ambiance.wav")); k++) await wait(250);
+    for(let k = 0; k < 120; k++){ const f=path.join(GEN, `recit-${id}`, "ambiance.wav"); if(fs.existsSync(f) && fs.statSync(f).size > 3e6) break; await wait(250); }
     const amb = path.join(GEN, `recit-${id}`, "ambiance.wav");
     check("ambiance « pluie douce » fabriquée sur l'ordinateur (60 s qui bouclent) et envoyée au serveur", fs.existsSync(amb) && fs.statSync(amb).size > 3e6 && /Duration: 00:01:00/.test(probe(amb)), fs.existsSync(amb) ? (probe(amb).match(/Duration: [^,]+/) || [""])[0] : "absent");
     await pg.evaluate(() => { const q = document.getElementById("rc-qual"); q.value = "hd24"; q.dispatchEvent(new Event("change", {bubbles: true})); document.getElementById("rc-make").click(); });
@@ -75,8 +88,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     const live = await pg.evaluate(() => document.getElementById("rc-live").value);
     const lp = await b.newPage(); const lerr = []; lp.on("pageerror", e => lerr.push(e.message)); lp.on("console", m => { if(m.type() === "error") lerr.push(m.text()); });
     await lp.setViewport({width: 540, height: 960}); await lp.goto(live.replace(/^http:\/\/[^/]+/, BASE), {waitUntil: "domcontentloaded"});
-    await wait(2500); await lp.evaluate(() => { if(!document.getElementById("start").hidden) document.getElementById("go").click(); }); await wait(1500);
-    const ls = await lp.evaluate(() => { const c = document.getElementById("cv"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let s = 0; for(let i = 0; i < d.length; i += 40) s += d[i] + d[i + 1] + d[i + 2]; return {w: c.width, h: c.height, lit: s > 0, t: document.getElementById("voix").currentTime, amb: !!document.getElementById("amb").getAttribute("src")}; });
+    await wait(2500); if(await lp.$eval("#start", x => !x.hidden)) await lp.click("#go");
+    for(let k=0;k<24;k++){ if(await lp.$eval("#voix",x=>x.currentTime>.5)) break; if(k===8 && await lp.$eval("#start",x=>!x.hidden)) await lp.click("#go"); await wait(250); }
+    const ls = await lp.evaluate(() => { const c = document.getElementById("cv"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, a=document.getElementById("voix"); let s = 0; for(let i = 0; i < d.length; i += 40) s += d[i] + d[i + 1] + d[i + 2]; return {w: c.width, h: c.height, lit: s > 0, t:a.currentTime, paused:a.paused, ready:a.readyState, duration:a.duration, mediaError:a.error&&a.error.code, overlay:!document.getElementById("start").hidden, msg:document.getElementById("msg").textContent, amb: !!document.getElementById("amb").getAttribute("src")}; });
     check("écran de direct (OBS, TikTok LIVE Studio) : habillage en temps réel, voix qui joue, ambiance incluse", ls.lit && ls.h > ls.w && ls.t > .5 && ls.amb && !lerr.length, JSON.stringify(ls) + (lerr.length ? " · " + lerr[0] : ""));
     await lp.close();
     /* projets : repris après un rechargement, puis supprimés */
@@ -84,8 +98,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.waitForFunction(() => document.querySelectorAll("#rc-old option").length > 1, {timeout: 15000});
     await pg.evaluate(id => { const s = document.getElementById("rc-old"); s.value = id; s.dispatchEvent(new Event("change", {bubbles: true})); }, id);
     await pg.waitForFunction(() => document.querySelectorAll("#rc-list li").length === 7, {timeout: 20000});
-    const back = await pg.evaluate(() => ({theme: (document.querySelector("#rc-themes [aria-checked='true']") || {dataset: {}}).dataset.rcTheme, fmt: document.getElementById("rc-fmt").value, amb: document.getElementById("rc-amb").value, vids: (document.getElementById("rc-out").textContent.match(/\.mp4/g) || []).length}));
-    check("projet repris après fermeture : calage, habillage, format, ambiance et vidéo retrouvés", back.theme === "livre" && back.fmt === "9:16" && back.amb === "pluie" && back.vids === 1, JSON.stringify(back));
+    const back = await pg.evaluate(async id => { const p=await fetch(`/api/recit/project?id=${id}`).then(r=>r.json()); return {theme: (document.querySelector("#rc-themes [aria-checked='true']") || {dataset: {}}).dataset.rcTheme, fmt: document.getElementById("rc-fmt").value, amb: document.getElementById("rc-amb").value, fx:[p.subtitle,p.transition,p.palette,p.animation,p.effect], sync:p.syncOffset, vids: (document.getElementById("rc-out").textContent.match(/\.mp4/g) || []).length}; }, id);
+    check("projet repris après fermeture : calage, habillage, studio d'effets, synchronisation, ambiance et vidéo retrouvés", back.theme === "livre" && back.fmt === "9:16" && back.amb === "pluie" && back.fx.join("|") === "emerald|light|black_gold|glow|anneaux_neon" && back.sync === .25 && back.vids === 1, JSON.stringify(back));
     const wide = await pg.evaluate(() => document.documentElement.scrollWidth);
     check("téléphone (390 px) : aucun défilement horizontal", wide <= 390, `${wide} px`);
     pg.on("dialog", d => d.accept()); await pg.click("#rc-del");

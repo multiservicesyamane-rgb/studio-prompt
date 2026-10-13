@@ -39,21 +39,30 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
 
   /* ---------- 2. analyse : voix gardée, pauses repérées ---------- */
   async function analyze(id, noise, minPause){
-    const dir = dirOf(id), src = fs.readdirSync(dir).find(f => f.startsWith("source.")); if(!src) throw Object.assign(new Error("Fichier introuvable : envoie-le de nouveau."), {code:"not_found"});
+    const dir = dirOf(id), previousFile=path.join(dir,"analyse.json"), previous=fs.existsSync(previousFile)?JSON.parse(fs.readFileSync(previousFile,"utf8")):null;
+    const src = fs.readdirSync(dir).find(f => f.startsWith("source.")), kept=path.join(dir,"voix.m4a"), input=src?path.join(dir,src):kept;
+    if(!fs.existsSync(input)) throw Object.assign(new Error("Fichier introuvable : envoie-le de nouveau."), {code:"not_found"});
     const J = jobs[id] = {state:"running", step:"lecture du fichier", progress:0};
-    const probe = await ffmpeg(["-i", path.join(dir, src), "-f", "null", "-t", "0.1", "-"]).catch(e => e.detail || ""), D = durationOf(String(probe));
+    const probe = await ffmpeg(["-i", input, "-f", "null", "-t", "0.1", "-"]).catch(e => e.detail || ""), D = durationOf(String(probe));
     if(!/Audio:/.test(String(probe))) throw Object.assign(new Error("Ce fichier n'a pas de son : il faut une vidéo ou un audio avec la voix."), {code:"no_audio"});
-    J.step = "extraction de la voix"; J.duration = D;
-    await ffmpeg(["-y", "-i", path.join(dir, src), "-vn", "-map", "0:a:0", "-ac", "2", "-c:a", "aac", "-b:a", "192k", path.join(dir, "voix.m4a")], t => { J.progress = D ? Math.min(.5, t / D * .5) : 0; });
+    /* format de la vidéo d'origine (rotation des téléphones comprise) */
+    const vm = /Video:[^\n]*?\b(\d{2,5})x(\d{2,5})\b/.exec(String(probe)); let vw = vm ? +vm[1] : Number(previous&&previous.video&&previous.video.w)||0, vh = vm ? +vm[2] : Number(previous&&previous.video&&previous.video.h)||0;
+    if(/rotation of -?(90|270)|rotate\s*:\s*(90|270|-90)/.test(String(probe))) [vw, vh] = [vh, vw];
+    J.step = src?"extraction de la voix":"nouvelle analyse de la voix"; J.duration = D;
+    if(src) await ffmpeg(["-y", "-i", input, "-vn", "-map", "0:a:0", "-ac", "2", "-c:a", "aac", "-b:a", "192k", kept], t => { J.progress = D ? Math.min(.5, t / D * .5) : 0; });
     J.step = "repérage des pauses";
     const log = await ffmpeg(["-i", path.join(dir, "voix.m4a"), "-af", `silencedetect=noise=${noise}dB:d=${minPause}`, "-f", "null", "-"], t => { J.progress = .5 + (D ? Math.min(.5, t / D * .5) : 0); });
     const sil = []; let st = null; String(log).split(/\r?\n/).forEach(l => { const a = /silence_start: (-?\d+(?:\.\d+)?)/.exec(l), b = /silence_end: (\d+(?:\.\d+)?)/.exec(l); if(a) st = Math.max(0, +a[1]); if(b && st != null){ sil.push([st, +b[1]]); st = null; } });
     if(st != null) sil.push([st, D]);
     /* morceaux de parole = entre les silences ; les tout petits bruits (< 0,25 s) sont écartés */
     const speech = []; let cur = 0; sil.forEach(([a, b]) => { if(a - cur >= .25) speech.push({a:+cur.toFixed(2), b:+a.toFixed(2)}); cur = b; }); if(D - cur >= .25) speech.push({a:+cur.toFixed(2), b:+D.toFixed(2)});
+    /* 6 images de la vidéo d'origine, petites (pour comparer « avant / après » et laisser l'agent comprendre son design) */
+    const apercus = src?[]:((previous&&previous.apercus)||[]).filter(u=>fs.existsSync(path.join(dir,path.basename(String(u)))));
+    if(src&&vw && !/^source\.(m4a|mp3|wav|aac|ogg|opus|flac)$/.test(src)){ J.step = "images de la vidéo d'origine";
+      for(let i = 0; i < 6; i++){ const name = `apercu-${i + 1}.jpg`; try{ await ffmpeg(["-y", "-ss", String(+(D * (i + .5) / 6).toFixed(2)), "-i", path.join(dir, src), "-frames:v", "1", "-vf", "scale=360:-2", "-q:v", "4", path.join(dir, name)]); if(fs.existsSync(path.join(dir, name))) apercus.push(urlOf(id, name)); }catch(e){} } }
     /* la vidéo d'origine n'est plus utile : seule la voix est gardée (place sur le disque) */
-    if(!/^source\.(m4a|mp3|wav|aac|ogg|opus|flac)$/.test(src)) try{ fs.rmSync(path.join(dir, src), {force:true}); }catch(e){}
-    const result = {id, duration:+D.toFixed(2), audio:urlOf(id, "voix.m4a"), speech, noise, minPause};
+    if(src&&!/^source\.(m4a|mp3|wav|aac|ogg|opus|flac)$/.test(src)) try{ fs.rmSync(path.join(dir, src), {force:true}); }catch(e){}
+    const result = {id, duration:+D.toFixed(2), audio:urlOf(id, "voix.m4a"), speech, noise, minPause, video:vw ? {w:vw, h:vh} : null, apercus};
     fs.writeFileSync(path.join(dir, "analyse.json"), JSON.stringify(result));
     Object.assign(J, {state:"done", step:"", progress:1, result});
     return result;
@@ -78,6 +87,52 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       /* comparaison sans les signes de lecture (leur ordre varie selon les textes) : les 4 premiers mots sont-ils la basmala ? */
       if(w.length > 4 && bare(w.slice(0, 4).join(" ")) === bare(b)){ out.basmala = w.slice(0, 4).join(" "); out.versets[0].ar = w.slice(4).join(" "); } else out.basmala = b; }
     fs.mkdirSync(CACHE, {recursive:true}); fs.writeFileSync(f, JSON.stringify(out)); return out;
+  }
+
+  /* ---------- 3 bis. reconnaissance : quelle sourate, quels versets ? Le texte entendu (Gemini ou Whisper) est comparé au Coran complet,
+     écriture simple sans voyelles, par groupes de 2 et 3 mots qui « votent » pour une position. Résiste aux mots mal entendus. ---------- */
+  const NORM = t => String(t || "").replace(/\uFEFF/g, "").replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, "").replace(/[ٱأإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/ؤ/g, "و").replace(/ئ/g, "ي").replace(/ء/g, "").replace(/[^\u0621-\u064A\s]/g, " ").split(/\s+/).filter(Boolean);
+  const BASM = NORM("بسم الله الرحمن الرحيم"), ISTI = NORM("أعوذ بالله من الشيطان الرجيم");
+  let CORPUS = null;
+  async function corpus(){
+    if(CORPUS) return CORPUS;
+    const f = path.join(CACHE, "quran-simple-clean.json"); let rows;
+    if(fs.existsSync(f)) rows = JSON.parse(fs.readFileSync(f, "utf8"));
+    else{ const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 90000); let j; try{ const r = await fetch("https://api.alquran.cloud/v1/quran/quran-simple-clean", {signal:ctl.signal}); if(!r.ok) throw new Error(`HTTP ${r.status}`); j = await r.json(); } finally{ clearTimeout(t); }
+      rows = []; (j.data.surahs || []).forEach(su => su.ayahs.forEach(a => rows.push([su.number, a.numberInSurah, String(a.text || "")])));
+      fs.mkdirSync(CACHE, {recursive:true}); fs.writeFileSync(f, JSON.stringify(rows)); }
+    const words = [], verse = [], last = {}, g2 = new Map(), g3 = new Map();
+    rows.forEach(([su, v, text], k) => { let w = NORM(text); if(v === 1 && su !== 1 && w.slice(0, 4).join(" ") === BASM.join(" ")) w = w.slice(4); w.forEach(x => { words.push(x); verse.push(k); }); last[su] = v; });
+    const add = (m, key, p) => { const a = m.get(key); if(a) a.push(p); else m.set(key, [p]); };
+    for(let i = 0; i + 1 < words.length; i++){ add(g2, words[i] + " " + words[i + 1], i); if(i + 2 < words.length) add(g3, words[i] + " " + words[i + 1] + " " + words[i + 2], i); }
+    return CORPUS = {rows, words, verse, last, g2, g3};
+  }
+  const strip = (q, seq) => { for(let i = 0; i <= Math.min(12, q.length - seq.length); i++) if(seq.every((w, k) => q[i + k] === w)) return [q.slice(0, i).concat(q.slice(i + seq.length)), true]; return [q, false]; };
+  async function quranFind(texte){
+    const C = await corpus(); let q = NORM(texte), isti, basm; [q, isti] = strip(q, ISTI); [q, basm] = strip(q, BASM);
+    if(q.length < 3) return {ok:false, isti, basm, mots:q.length};
+    const votes = new Map(), vote = (off, n) => votes.set(off, (votes.get(off) || 0) + n), hits = [];
+    for(let i = 0; i + 1 < q.length; i++){ const p2 = C.g2.get(q[i] + " " + q[i + 1]) || []; if(p2.length < 400) p2.forEach(p => { vote(p - i, 1); hits.push([p, i, 2]); });
+      if(i + 2 < q.length){ const p3 = C.g3.get(q[i] + " " + q[i + 1] + " " + q[i + 2]) || []; p3.forEach(p => { vote(p - i, 2); hits.push([p, i, 3]); }); } }
+    let best = null, bv = 0; for(const [off] of votes){ let v = 0; for(let d = -4; d <= 4; d++) v += votes.get(off + d) || 0; if(v > bv){ bv = v; best = off; } }
+    if(best == null) return {ok:false, isti, basm, mots:q.length};
+    const near = hits.filter(([p, i]) => Math.abs(p - i - best) <= 8); if(!near.length) return {ok:false, isti, basm, mots:q.length};
+    const p0 = Math.min(...near.map(h => h[0])), p1 = Math.max(...near.map(h => h[0] + h[2] - 1)), r0 = C.rows[C.verse[p0]], r1 = C.rows[C.verse[p1]];
+    const score = +(bv / Math.max(1, 3 * (q.length - 2))).toFixed(2), ok = bv >= 6 && score >= .12;
+    return {ok, score, isti, basm, mots:q.length, debut:{s:r0[0], v:r0[1]}, fin:{s:r1[0], v:r1[1]}, versets:C.last};
+  }
+
+  /* ---------- 3 ter. extrait de la voix (16 kHz, mono, WAV) : pour l'écoute par Gemini ou par le moteur gratuit ---------- */
+  function extrait(req, res, u){
+    const id = u.searchParams.get("id"), a = Math.max(0, Number(u.searchParams.get("a")) || 0), b = Number(u.searchParams.get("b")), f = okId(id) && path.join(dirOf(id), "voix.m4a");
+    if(!f || !(b > a) || b - a > 330 || !fs.existsSync(f)) return json(res, 400, {code:"bad_request", message:"Extrait invalide (330 s au plus)."});
+    const p = spawn(FFMPEG_PATH, ["-hide_banner", "-nostdin", "-loglevel", "error", "-ss", String(a), "-t", String(+(b - a).toFixed(2)), "-i", f, "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-f", "wav", "pipe:1"], {windowsHide:true, stdio:["ignore", "pipe", "ignore"]});
+    const bufs = []; p.stdout.on("data", c => bufs.push(c)); p.once("error", () => { if(!res.headersSent) json(res, 500, {code:"ffmpeg_missing", message:"FFmpeg introuvable."}); });
+    p.once("close", () => { if(res.headersSent) return; const w = Buffer.concat(bufs); if(w.length < 44) return json(res, 500, {code:"server_error", message:"Extrait vide."});
+      /* tailles du WAV corrigées (FFmpeg ne peut pas revenir en arrière dans un flux) */
+      w.writeUInt32LE(w.length - 8, 4); const d = w.indexOf("data", 12, "ascii"); if(d > 0) w.writeUInt32LE(w.length - d - 8, d + 4);
+      res.writeHead(200, {"Content-Type":"audio/wav", "Content-Length":w.length, "Cache-Control":"no-store"}); res.end(w); });
+    req.on("close", () => { try{ p.kill(); }catch(e){} });
   }
 
   /* ---------- 4. projet (pour l'écran de direct), liste des projets, place libre sur le disque ---------- */
@@ -108,10 +163,20 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
   }
   async function finish(id, rid, o){
     const dir = dirOf(id), img = path.join(dir, `image-${rid}.mp4`), voix = path.join(dir, "voix.m4a"); if(!fs.existsSync(img) || !fs.existsSync(voix)) throw new Error("Vidéo ou voix introuvable.");
-    const J = jobs[rid] = {state:"running", step:"la voix d'origine est remise", progress:0}, D = Number(o.duration) || 0, amb = o.ambiance && fs.existsSync(path.join(dir, "ambiance.wav")), vol = Math.max(0, Math.min(.4, Number(o.volume) || .1));
+    const J = jobs[rid] = {state:"running", step:"la voix est finalisée", progress:0}, D = Number(o.duration) || 0, amb = o.ambiance && fs.existsSync(path.join(dir, "ambiance.wav")), vol = Math.max(0, Math.min(.4, Number(o.volume) || .1));
+    const voice = ["original","studio","warm","deep","airy"].includes(o.voix) ? o.voix : "original";
+    const voiceFx = {
+      studio:"highpass=f=70,lowpass=f=12500,afftdn=nf=-28,dynaudnorm=f=250:g=7:p=0.9,acompressor=threshold=-18dB:ratio=2.2:attack=15:release=180:makeup=1.5",
+      warm:"highpass=f=60,equalizer=f=180:t=q:w=0.8:g=3,equalizer=f=3200:t=q:w=1:g=-1.5,acompressor=threshold=-20dB:ratio=2:attack=20:release=220:makeup=1.4",
+      deep:"highpass=f=45,bass=g=4:f=120:w=0.6,equalizer=f=250:t=q:w=1:g=2,treble=g=-1:f=5000,acompressor=threshold=-19dB:ratio=2.3:attack=18:release=240:makeup=1.4",
+      airy:"highpass=f=85,equalizer=f=250:t=q:w=0.9:g=-1.5,treble=g=3.5:f=6500,acompressor=threshold=-18dB:ratio=1.8:attack=12:release=160:makeup=1.3"
+    }[voice] || "";
     const name = `${String(o.nom || "recitation").replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 60) || "recitation"}-${rid}.mp4`, out = path.join(dir, name);
     const args = ["-y", "-i", img, "-i", voix]; if(amb) args.push("-stream_loop", "-1", "-i", path.join(dir, "ambiance.wav"));
-    if(amb) args.push("-filter_complex", `[2:a]volume=${vol},afade=t=in:d=3[b];[1:a][b]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`, "-map", "0:v", "-map", "[a]", "-c:a", "aac", "-b:a", "192k");
+    const vf = voiceFx ? `[1:a]${voiceFx}[v];` : "";
+    const vin = voiceFx ? "[v]" : "[1:a]";
+    if(amb) args.push("-filter_complex", `${vf}[2:a]volume=${vol},afade=t=in:d=3[b];${vin}[b]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`, "-map", "0:v", "-map", "[a]", "-c:a", "aac", "-b:a", "192k");
+    else if(voiceFx) args.push("-filter_complex", `${vf.slice(0,-1)}`, "-map", "0:v", "-map", "[v]", "-c:a", "aac", "-b:a", "192k");
     else args.push("-map", "0:v", "-map", "1:a", "-c:a", "copy");
     args.push("-c:v", "copy", "-shortest"); if(!D || D <= 3600) args.push("-movflags", "+faststart"); args.push(out);
     await ffmpeg(args, t => { J.progress = D ? Math.min(.99, t / D) : 0; });
@@ -131,6 +196,8 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       if(req.method === "GET" && r === "status"){ const id = u.searchParams.get("id"); if(!okId(id)) return json(res, 400, {code:"bad_request", message:"Identifiant invalide."});
         const J = jobs[id]; if(J) return json(res, 200, J); const f = path.join(dirOf(id), "analyse.json"); return fs.existsSync(f) ? json(res, 200, {state:"done", progress:1, result:JSON.parse(fs.readFileSync(f, "utf8"))}) : json(res, 404, {code:"not_found", message:"Rien en cours."}); }
       if(req.method === "GET" && r === "quran/list") return json(res, 200, {sourates:await quranList()});
+      if(req.method === "POST" && r === "quran/find"){ const b = await body(); if(!b || typeof b.texte !== "string") return json(res, 400, {code:"bad_request", message:"Texte manquant."}); return json(res, 200, await quranFind(b.texte.slice(0, 20000))); }
+      if(req.method === "GET" && r === "extrait") return extrait(req, res, u);
       if(req.method === "GET" && r === "quran/surah"){ const n = Math.round(Number(u.searchParams.get("n"))); if(!(n >= 1 && n <= 114)) return json(res, 400, {code:"bad_request", message:"Numéro de sourate : de 1 à 114."}); return json(res, 200, await quranSurah(n, u.searchParams.get("tr"))); }
       if(req.method === "POST" && r === "project"){ const b = await body(40e6); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); saveProject(b.id, b); return json(res, 200, {ok:true}); }
       if(req.method === "GET" && r === "project"){ const id = u.searchParams.get("id"), f = okId(id) && path.join(dirOf(id), "projet.json"); if(!f || !fs.existsSync(f)) return json(res, 404, {code:"not_found", message:"Projet introuvable."}); return json(res, 200, JSON.parse(fs.readFileSync(f, "utf8"))); }
