@@ -203,7 +203,7 @@ async function handlePdfText(req, res){
 /* Fabrication des vidéos et des voix (generation.js) : tâches suivies, budget du jour, fichiers dans public/generated/ */
 const gen = require("./generation")({dir:GENERATED, env:process.env, sendJson, readBody});
 /* « Garder la voix, refaire l'image » : longues récitations, conférences, lectures (analyse FFmpeg, texte du Coran, vidéo reçue par morceaux) */
-const recit = require("./recitation")({GENERATED, FFMPEG_PATH, sendJson, readBody, DATA:path.join(GENERATED, "_textes")});
+const recit = require("./recitation")({GENERATED, FFMPEG_PATH, sendJson, readBody, DATA:path.join(GENERATED, "_textes"), GROQ:{key:GROQ_KEY, base:GROQ_BASE}});
 const safePart = (v, fallback) => String(v || fallback).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || fallback;
 /* ---------- finition locale des cours par FFmpeg ---------- */
 let courseFfmpegBusy = false;

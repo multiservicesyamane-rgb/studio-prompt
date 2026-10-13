@@ -7,7 +7,7 @@
    Tout est local et gratuit. Aucune clé. */
 const fs = require("fs"), path = require("path"), {spawn} = require("child_process"), crypto = require("crypto");
 
-module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, readBody, DATA}){
+module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, readBody, DATA, GROQ}){
   const ROOT = path.join(GENERATED), CACHE = path.join(DATA || path.join(GENERATED, "_textes"), "coran");
   const jobs = {};   /* id → {state, step, progress, result, error} (analyses et finitions) */
   const okId = v => /^[a-z0-9]{6,32}$/.test(String(v || ""));
@@ -102,15 +102,16 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     else{ const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 90000); let j; try{ const r = await fetch("https://api.alquran.cloud/v1/quran/quran-simple-clean", {signal:ctl.signal}); if(!r.ok) throw new Error(`HTTP ${r.status}`); j = await r.json(); } finally{ clearTimeout(t); }
       rows = []; (j.data.surahs || []).forEach(su => su.ayahs.forEach(a => rows.push([su.number, a.numberInSurah, String(a.text || "")])));
       fs.mkdirSync(CACHE, {recursive:true}); fs.writeFileSync(f, JSON.stringify(rows)); }
-    const words = [], verse = [], last = {}, g2 = new Map(), g3 = new Map();
-    rows.forEach(([su, v, text], k) => { let w = NORM(text); if(v === 1 && su !== 1 && w.slice(0, 4).join(" ") === BASM.join(" ")) w = w.slice(4); w.forEach(x => { words.push(x); verse.push(k); }); last[su] = v; });
+    const words = [], verse = [], last = {}, g2 = new Map(), g3 = new Map(), vstart = [], vlen = [], pos = new Map();
+    rows.forEach(([su, v, text], k) => { let w = NORM(text); if(v === 1 && su !== 1 && w.slice(0, 4).join(" ") === BASM.join(" ")) w = w.slice(4); vstart[k] = words.length; vlen[k] = w.length; w.forEach(x => { words.push(x); verse.push(k); }); last[su] = v; });
+    words.forEach((x, i) => { const a = pos.get(x); if(a) a.push(i); else pos.set(x, [i]); });
     const add = (m, key, p) => { const a = m.get(key); if(a) a.push(p); else m.set(key, [p]); };
     for(let i = 0; i + 1 < words.length; i++){ add(g2, words[i] + " " + words[i + 1], i); if(i + 2 < words.length) add(g3, words[i] + " " + words[i + 1] + " " + words[i + 2], i); }
-    return CORPUS = {rows, words, verse, last, g2, g3};
+    return CORPUS = {rows, words, verse, last, g2, g3, vstart, vlen, pos};
   }
   const strip = (q, seq) => { for(let i = 0; i <= Math.min(12, q.length - seq.length); i++) if(seq.every((w, k) => q[i + k] === w)) return [q.slice(0, i).concat(q.slice(i + seq.length)), true]; return [q, false]; };
   async function quranFind(texte){
-    const C = await corpus(); let q = NORM(texte), isti, basm; [q, isti] = strip(q, ISTI); [q, basm] = strip(q, BASM);
+    const C = await corpus(); let q = muq(NORM(texte)), isti, basm; [q, isti] = strip(q, ISTI); [q, basm] = strip(q, BASM);
     if(q.length < 3) return {ok:false, isti, basm, mots:q.length};
     const votes = new Map(), vote = (off, n) => votes.set(off, (votes.get(off) || 0) + n), hits = [];
     for(let i = 0; i + 1 < q.length; i++){ const p2 = C.g2.get(q[i] + " " + q[i + 1]) || []; if(p2.length < 400) p2.forEach(p => { vote(p - i, 1); hits.push([p, i, 2]); });
@@ -123,17 +124,71 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     return {ok, score, isti, basm, mots:q.length, debut:{s:r0[0], v:r0[1]}, fin:{s:r1[0], v:r1[1]}, versets:C.last};
   }
 
+  /* lettres isolées du début de certaines sourates, souvent écrites en toutes lettres par l'écoute (« يا سين » → يس) */
+  const MUQ = [["الف","لام","ميم","صاد","المص"],["الف","لام","ميم","را","المر"],["الف","لام","ميم","الم"],["الف","لام","را","الر"],["كاف","ها","يا","عين","صاد","كهيعص"],["طا","سين","ميم","طسم"],["طا","سين","طس"],["طا","ها","طه"],["يا","سين","يس"],["ياسين","يس"],["حا","ميم","حم"],["عين","سين","قاف","عسق"]].map(a => [a.slice(0, -1), a[a.length - 1]]);
+  const muq = q => { const out = []; for(let i = 0; i < q.length; ){ const m = MUQ.find(([seq]) => seq.every((w, k) => q[i + k] === w)); if(m){ out.push(m[1]); i += m[0].length; } else { out.push(q[i]); i++; } } return out; };
+
+  /* ---------- 3 bis bis. suivre le récitant : chaque phrase entendue (dans l'ordre du temps) est retrouvée dans le Coran,
+     en tenant compte de l'endroit où il en était (suite logique), des répétitions (même passage redit, comme dans les vidéos
+     d'apprentissage) et d'un ordre libre (sourates à l'envers, extraits). Marqueurs au début : demande de protection, basmala. ---------- */
+  async function quranFollow(phrases){
+    const C = await corpus(), out = []; let prevStart = -1, prevEnd = -1;
+    for(const ph of phrases){
+      let q = muq(NORM(ph && ph.texte)); const pre = [];
+      for(let loop = 0; loop < 4; loop++){
+        if(q.length >= ISTI.length && ISTI.every((w, k) => q[k] === w)){ pre.push("isti"); q = q.slice(ISTI.length); continue; }
+        if(q.length >= BASM.length && BASM.every((w, k) => q[k] === w)){ pre.push("basm"); q = q.slice(BASM.length); continue; }
+        break; }
+      const preL = pre.reduce((n, k) => n + (k === "isti" ? ISTI : BASM).join("").length, 0), restL = q.join("").length;
+      if(!q.length){ out.push({ok:false, pre, preL, restL}); continue; }
+      const expect = prevEnd + 1; let best = null, bv = 0, bs = -1;
+      if(q.length === 1){ /* un seul mot : seulement à l'endroit attendu, ou en répétition */
+        for(const p of (C.pos.get(q[0]) || [])){ const sc = p >= expect - 1 && p <= expect + 3 ? 3 : prevStart >= 0 && Math.abs(p - prevStart) <= 1 ? 2.5 : 0; if(sc > bs){ bs = sc; best = p; bv = 1; } }
+        if(bs <= 0 && (C.pos.get(q[0]) || []).length === 1){ best = C.pos.get(q[0])[0]; bv = 1; bs = 1; }
+        if(bs <= 0){ out.push({ok:false, pre, preL, restL}); continue; } }
+      else{
+        const votes = new Map(), vote = (o, n) => votes.set(o, (votes.get(o) || 0) + n);
+        for(let i = 0; i + 1 < q.length; i++){ const p2 = C.g2.get(q[i] + " " + q[i + 1]) || []; if(p2.length < 400) p2.forEach(p => vote(p - i, 1)); if(i + 2 < q.length) (C.g3.get(q[i] + " " + q[i + 1] + " " + q[i + 2]) || []).forEach(p => vote(p - i, 2)); }
+        for(const [o] of votes){ let v = 0; for(let d = -2; d <= 2; d++) v += votes.get(o + d) || 0;
+          /* suite logique (juste après la phrase précédente) ; répétition = même début exactement que la phrase précédente */
+          const near = o >= expect - 1 && o <= expect + 6 ? 3 : Math.abs(o - expect) <= 80 ? 1 : 0, again = prevStart >= 0 && Math.abs(o - prevStart) <= 1 ? 2.5 : 0, sc = v + near + again;
+          if(sc > bs){ bs = sc; best = o; bv = v; } }
+        if(best == null || !(bv >= 3 || (bv >= 1 && bs >= 3.5))){ out.push({ok:false, pre, preL, restL}); continue; } }
+      const p0 = Math.max(0, Math.min(C.words.length - 1, best)), p1 = Math.max(p0, Math.min(C.words.length - 1, best + q.length - 1)), r0 = C.verse[p0], r1 = C.verse[p1];
+      out.push({ok:true, pre, preL, restL, score:bv, from:{s:C.rows[r0][0], v:C.rows[r0][1], f:+((p0 - C.vstart[r0]) / Math.max(1, C.vlen[r0])).toFixed(3)}, to:{s:C.rows[r1][0], v:C.rows[r1][1], f:+((p1 + 1 - C.vstart[r1]) / Math.max(1, C.vlen[r1])).toFixed(3)}});
+      prevStart = p0; prevEnd = p1; }
+    return out; }
+
   /* ---------- 3 ter. extrait de la voix (16 kHz, mono, WAV) : pour l'écoute par Gemini ou par le moteur gratuit ---------- */
+  function wavOf(id, a, b){
+    return new Promise((resolve, reject) => { const f = okId(id) && path.join(dirOf(id), "voix.m4a");
+      if(!f || !(b > a) || b - a > 330 || !fs.existsSync(f)) return reject(Object.assign(new Error("Extrait invalide (330 s au plus)."), {code:"bad_request"}));
+      const p = spawn(FFMPEG_PATH, ["-hide_banner", "-nostdin", "-loglevel", "error", "-ss", String(a), "-t", String(+(b - a).toFixed(2)), "-i", f, "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-f", "wav", "pipe:1"], {windowsHide:true, stdio:["ignore", "pipe", "ignore"]});
+      const bufs = []; p.stdout.on("data", c => bufs.push(c)); p.once("error", () => reject(Object.assign(new Error("FFmpeg introuvable."), {code:"ffmpeg_missing"})));
+      p.once("close", () => { const w = Buffer.concat(bufs); if(w.length < 44) return reject(Object.assign(new Error("Extrait vide."), {code:"server_error"}));
+        /* tailles du WAV corrigées (FFmpeg ne peut pas revenir en arrière dans un flux) */
+        w.writeUInt32LE(w.length - 8, 4); const d = w.indexOf("data", 12, "ascii"); if(d > 0) w.writeUInt32LE(w.length - d - 8, d + 4); resolve(w); }); });
+  }
   function extrait(req, res, u){
-    const id = u.searchParams.get("id"), a = Math.max(0, Number(u.searchParams.get("a")) || 0), b = Number(u.searchParams.get("b")), f = okId(id) && path.join(dirOf(id), "voix.m4a");
-    if(!f || !(b > a) || b - a > 330 || !fs.existsSync(f)) return json(res, 400, {code:"bad_request", message:"Extrait invalide (330 s au plus)."});
-    const p = spawn(FFMPEG_PATH, ["-hide_banner", "-nostdin", "-loglevel", "error", "-ss", String(a), "-t", String(+(b - a).toFixed(2)), "-i", f, "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-f", "wav", "pipe:1"], {windowsHide:true, stdio:["ignore", "pipe", "ignore"]});
-    const bufs = []; p.stdout.on("data", c => bufs.push(c)); p.once("error", () => { if(!res.headersSent) json(res, 500, {code:"ffmpeg_missing", message:"FFmpeg introuvable."}); });
-    p.once("close", () => { if(res.headersSent) return; const w = Buffer.concat(bufs); if(w.length < 44) return json(res, 500, {code:"server_error", message:"Extrait vide."});
-      /* tailles du WAV corrigées (FFmpeg ne peut pas revenir en arrière dans un flux) */
-      w.writeUInt32LE(w.length - 8, 4); const d = w.indexOf("data", 12, "ascii"); if(d > 0) w.writeUInt32LE(w.length - d - 8, d + 4);
-      res.writeHead(200, {"Content-Type":"audio/wav", "Content-Length":w.length, "Cache-Control":"no-store"}); res.end(w); });
-    req.on("close", () => { try{ p.kill(); }catch(e){} });
+    wavOf(u.searchParams.get("id"), Math.max(0, Number(u.searchParams.get("a")) || 0), Number(u.searchParams.get("b")))
+      .then(w => { res.writeHead(200, {"Content-Type":"audio/wav", "Content-Length":w.length, "Cache-Control":"no-store"}); res.end(w); })
+      .catch(e => { if(!res.headersSent) json(res, e.code === "bad_request" ? 400 : 500, {code:e.code || "server_error", message:e.message}); });
+  }
+  /* écoute de secours, gratuite : Whisper « large » chez Groq (même clé que l'agent de secours), temps donnés phrase par phrase.
+     Sert quand le quota de Gemini est épuisé (longues vidéos), avant le moteur Whisper du navigateur. La clé reste sur le serveur. */
+  async function ecoute(id, a, b, lang){
+    if(!GROQ || !GROQ.key) throw Object.assign(new Error("Pas de clé Groq (GROQ_API_KEY)."), {code:"no_key"});
+    const wav = await wavOf(id, a, b), fd = new FormData();
+    fd.append("file", new Blob([wav], {type:"audio/wav"}), "extrait.wav"); fd.append("model", process.env.GROQ_WHISPER_MODEL || "whisper-large-v3"); fd.append("response_format", "verbose_json"); fd.append("temperature", "0");
+    if(/^[a-z]{2}$/.test(lang || "")) fd.append("language", lang);
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 120000); let r;
+    try{ r = await fetch(`${GROQ.base}/audio/transcriptions`, {method:"POST", headers:{Authorization:`Bearer ${GROQ.key}`}, body:fd, signal:ctl.signal}); }
+    catch(e){ throw Object.assign(new Error("Groq injoignable."), {code:"network"}); } finally{ clearTimeout(t); }
+    if(r.status === 429) throw Object.assign(new Error("Groq : quota d'écoute atteint pour le moment."), {code:"rate_limited"});
+    if(r.status === 401 || r.status === 403) throw Object.assign(new Error("Groq : clé refusée."), {code:"bad_key"});
+    if(!r.ok) throw Object.assign(new Error(`Groq : erreur ${r.status}.`), {code:"server_error"});
+    const j = await r.json();
+    return {engine:"Whisper large (Groq, gratuit)", langue:String(j.language || ""), segments:(j.segments || []).map(s => ({t0:+(a + Number(s.start || 0)).toFixed(2), t1:+(a + Number(s.end || s.start || 0)).toFixed(2), texte:String(s.text || "").trim()})).filter(s => s.texte)};
   }
 
   /* ---------- 3 quater. énergie de la voix toutes les 40 ms (0 à 100) : les lèvres de l'avatar suivent la vraie voix ---------- */
@@ -222,6 +277,9 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       if(req.method === "GET" && r === "quran/list") return json(res, 200, {sourates:await quranList()});
       if(req.method === "POST" && r === "quran/find"){ const b = await body(); if(!b || typeof b.texte !== "string") return json(res, 400, {code:"bad_request", message:"Texte manquant."}); return json(res, 200, await quranFind(b.texte.slice(0, 20000))); }
       if(req.method === "GET" && r === "extrait") return extrait(req, res, u);
+      if(req.method === "POST" && r === "ecoute"){ const b = await body(); if(!b || !okId(b.id)) return json(res, 400, {code:"bad_request", message:"Projet inconnu."});
+        try{ return json(res, 200, await ecoute(b.id, Math.max(0, Number(b.a) || 0), Number(b.b), String(b.lang || ""))); }catch(e){ return json(res, e.code === "no_key" || e.code === "bad_request" ? 400 : e.code === "rate_limited" ? 429 : 502, {code:e.code || "server_error", message:e.message}); } }
+      if(req.method === "POST" && r === "quran/follow"){ const b = await body(8e6); if(!b || !Array.isArray(b.phrases)) return json(res, 400, {code:"bad_request", message:"Phrases manquantes."}); return json(res, 200, {suivi:await quranFollow(b.phrases.slice(0, 20000))}); }
       if(req.method === "GET" && r === "env"){ const id = u.searchParams.get("id"); if(!okId(id) || !fs.existsSync(dirOf(id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); return json(res, 200, await envelope(id)); }
       if(req.method === "GET" && r === "quran/surah"){ const n = Math.round(Number(u.searchParams.get("n"))); if(!(n >= 1 && n <= 114)) return json(res, 400, {code:"bad_request", message:"Numéro de sourate : de 1 à 114."}); return json(res, 200, await quranSurah(n, u.searchParams.get("tr"), u.searchParams.get("ph") === "1")); }
       if(req.method === "POST" && r === "project"){ const b = await body(40e6); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); saveProject(b.id, b); return json(res, 200, {ok:true}); }
@@ -229,7 +287,7 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       if(req.method === "POST" && r === "render/start"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); return json(res, 200, {rid:crypto.randomBytes(5).toString("hex"), libre:freeBytes()}); }
       if(req.method === "GET" && r === "list") return json(res, 200, {projets:list(), libre:freeBytes()});
       /* suppression d'un projet (voix, vidéos) pour libérer de la place */
-      if(req.method === "POST" && r === "delete"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); fs.rmSync(dirOf(b.id), {recursive:true, force:true}); return json(res, 200, {ok:true, libre:freeBytes()}); }
+      if(req.method === "POST" && r === "delete"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); try{ fs.rmSync(dirOf(b.id), {recursive:true, force:true, maxRetries:15, retryDelay:200}); }catch(e){ return json(res, 409, {code:"busy", message:"Un fichier du projet est encore ouvert : ferme la lecture en cours, puis réessaie."}); } return json(res, 200, {ok:true, libre:freeBytes()}); }
       if(req.method === "PUT" && r === "render/chunk") return chunk(req, res, u);
       if(req.method === "PUT" && r === "ambiance") return ambient(req, res, u);
       if(req.method === "POST" && r === "render/finish"){ const b = await body(); if(!b || !okId(b.id) || !okId(b.rid)) return json(res, 400, {code:"bad_request", message:"Paramètres invalides."});

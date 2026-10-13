@@ -19,6 +19,7 @@ const waitJob = async (BASE, id, ms) => { const t0 = Date.now(); for(;;){ const 
 const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["ignore", "ignore", "pipe"]}); }catch(e){ return String(e.stderr || ""); } return ""; };
 (async () => {
   fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250});
+  require("./coran-cache")(GEN);
   const PORT = 3000 + 400 + Math.floor(Math.random() * 90), BASE = `http://127.0.0.1:${PORT}`;
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], {env: Object.assign({}, process.env, {SP_NO_DOTENV: "1", PORT: String(PORT), HOST: "127.0.0.1", GEMINI_API_KEY: "x", GEN_DIR: GEN}), stdio: ["ignore", "pipe", "pipe"]});
   let log = ""; srv.stdout.on("data", d => log += d); srv.stderr.on("data", d => log += d);
@@ -51,6 +52,11 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
       const fd = async texte => (await req(BASE, "POST", "/api/recit/quran/find", {texte})).j;
       const y = await fd("اعوذ بالله من الشيطان الرجيم بسم الله الرحمن الرحيم يس والقران الحكيم انك لمن المرسلين على صراط مستقيم"), k = await fd("الله لا اله الا هو الحي القيوم لا تاخذه سنة ولا نوم له ما في السماوات وما في الارض من ذا الذي يشفع"), fr = await fd("bonjour la patience est une lumiere");
       check("reconnaissance : Yâ-Sîn 36:1 à 36:4 (avec « A‘ûdhu » et basmala repérées), Ayat al-Kursi 2:255 malgré des mots déformés, le français rejeté", y.ok && y.debut.s === 36 && y.debut.v === 1 && y.fin.v === 4 && y.isti && y.basm && k.ok && k.debut.s === 2 && k.debut.v === 255 && !fr.ok, `${y.ok ? `${y.debut.s}:${y.debut.v}-${y.fin.v}` : "?"} · ${k.ok ? `${k.debut.s}:${k.debut.v}` : "?"} · fr ${fr.ok}`);
+      /* suivre le récitant (vidéo d'apprentissage) : nom de chaîne, protection, basmala, versets répétés, sourates à l'envers, « يا سين » en deux mots */
+      const ph = [["قناة داوود"], ["أعوذ بالله من الشيطان الرجيم"], ["بسم الله الرحمن الرحيم"], ["قل أعوذ برب الناس"], ["قل أعوذ برب الناس"], ["ملك الناس"], ["ملك الناس"], ["إله الناس"], ["قل أعوذ برب الفلق"], ["من شر ما خلق"], ["يا سين والقرآن الحكيم"], ["إنك لمن المرسلين على صراط مستقيم"]].map(([texte], i) => ({t0: i * 5, t1: i * 5 + 4, texte}));
+      const fw = (await req(BASE, "POST", "/api/recit/quran/follow", {phrases: ph})).j.suivi || [], sh = r => r.ok ? `${(r.pre || []).join("+")}${r.pre && r.pre.length ? " " : ""}${r.from.s}:${r.from.v}${r.to.v !== r.from.v ? "-" + r.to.v : ""}` : (r.pre || []).join("+") || "—";
+      const got = fw.map(sh).join(" | "), want = "— | isti | basm | 114:1 | 114:1 | 114:2 | 114:2 | 114:3 | 113:1 | 113:2 | 36:1-2 | 36:3-4";
+      check("suivre le récitant : nom de chaîne ignoré, protection et basmala, répétitions, sourates à l'envers (114 puis 113), « يا سين » reconnu, deux versets dans une phrase", got === want, got);
     } else out.push(`(pas d'Internet : texte du Coran non testé — ${s1.j.message || s1.status})`);
     /* extrait de la voix pour l'écoute (Gemini ou moteur gratuit) : WAV 16 kHz mono, tailles justes */
     const ex = await new Promise(res => http.get(`${BASE}/api/recit/extrait?id=${id}&a=4&b=6.5`, x => { const c = []; x.on("data", d => c.push(d)); x.on("end", () => res({s: x.statusCode, b: Buffer.concat(c)})); }));

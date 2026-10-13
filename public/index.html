@@ -1468,7 +1468,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
             </details>
             <p class="hint" id="rc-info" aria-live="polite"></p>
             <ul class="rc-check" id="rc-auto" hidden aria-live="polite"></ul>
-            <div class="actions" id="rc-autobar" hidden><button type="button" class="btn primary" id="rc-see" hidden>▶ Voir le résultat</button><button type="button" class="btn" id="rc-gomake" hidden>🎬 Aller à la fabrication</button><button type="button" class="btn" id="rc-stopauto">Arrêter l’analyse</button><button type="button" class="btn" id="rc-reauto" hidden>Refaire l’analyse complète</button></div>
+            <div class="actions" id="rc-autobar" hidden><button type="button" class="btn primary" id="rc-see" hidden>▶ Voir le résultat</button><button type="button" class="btn" id="rc-gomake" hidden>🎬 Aller à la fabrication</button><button type="button" class="btn" id="rc-stopauto">Arrêter l’analyse</button><button type="button" class="btn" id="rc-reauto" hidden>🎧 Refaire l’analyse complète (écoute, sans décalage)</button></div>
           </div>
           <div class="panel rc-step" id="rc-s2" hidden>
             <h2 class="sub-h">2 · Les paroles à afficher</h2>
@@ -3674,13 +3674,13 @@ async function rcAnalyze(){ await rcApi("/api/recit/analyze",{method:"POST", bod
     rcProg("rc-prog",.5+.5*(s.progress||0),`Analyse : ${s.step||"…"} (${Math.round((s.progress||0)*100)} %)`); } }
 /* fichier analysé (nouveau ou repris) : tout est rempli à partir de RC */
 function rcLoaded(an, pj){
-  RC.an=an; rcProg("rc-prog",0,""); $("rc-reanalyze").disabled=false;
+  RC.an=an; rcProg("rc-prog",0,""); $("rc-reanalyze").disabled=false; if(!RC.autoRun){ $("rc-autobar").hidden=false; $("rc-reauto").hidden=false; $("rc-stopauto").hidden=true; }
   const few=(an.speech||[]).length<3;
   $("rc-info").textContent=`✅ Voix gardée : ${rcDur(an.duration)}, ${(an.speech||[]).length} moments de parole repérés entre les pauses.${few?" Très peu de pauses : ouvre « Réglage des pauses » si la voix est sur un fond bruyant.":""}`;
   const au=$("rc-audio"); if(au.getAttribute("src")!==an.audio){ au.src=an.audio; } $("rc-seek").max=String(an.duration||1);
   if(pj){ $("rc-isti").checked=!!pj.isti; $("rc-basm").checked=pj.basm!==false; $("rc-ph").checked=!!pj.ph; $("rc-tr").value=pj.tr==null?"fr.hamidullah":pj.tr; $("rc-txt").value=pj.txt||""; $("rc-titre").value=pj.titre||""; }
   if(pj){ RC.font=SP_RECIT.fonts[pj.font]?pj.font:"amiri"; RC.avStyle=pj.avStyle||"indigo"; RC.avSkin=pj.avSkin||"fonce"; } rcFontSel(); $("rc-fmt").value=RC.fmt; $("rc-reci").value=RC.recitant; $("rc-showtr").checked=RC.showTr; $("rc-voice").value=RC.voice; $("rc-sync").value=String(RC.syncOffset); rcSyncLabel(); $("rc-amb").value=RC.amb; $("rc-vol").value=String(RC.vol);
-  if(pj){ RC.heard=pj.heard||null; RC.heardTxt=pj.heardTxt||""; RC.msg=pj.msg||null; } rcOrig(); rcPub();
+  if(pj){ RC.heard=pj.heard||null; RC.heardTxt=pj.heardTxt||""; RC.msg=pj.msg||null; RC.follow=!!pj.follow; RC.followRes=pj.followRes||null; } rcOrig(); rcPub();
   rcMode(RC.mode); rcPassRender(); $("rc-out").innerHTML=rcVideosHtml();
   rcThumbDefaults(false);
   if(RC.items.length){ rcSteps(6); rcListRender(); rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); } else rcSteps(2);
@@ -3714,6 +3714,8 @@ async function rcBuild(){
   return out; }
 async function rcAlignRun(){
   if(!RC.an) return; const b=$("rc-align"); b.disabled=true; $("rc-src").textContent="Préparation des paroles…";
+  if(RC.follow&&RC.mode==="coran"&&RC.heard&&RC.followRes){ try{ RC.items=await rcFollowItems(RC.heard, RC.followRes); const sm=rcFollowSummary(RC.items); $("rc-src").textContent=`✅ Suivi du récitant : ${RC.items.filter(x=>x.kind==="verset").length} passages placés sur les phrases entendues. ${sm.texte}.`;
+      rcSteps(6); rcListRender(); rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); rcSave(); } catch(e){ $("rc-src").textContent=e.message||"Échec. Réessaie."; } finally{ b.disabled=false; } return; }
   try{ const items=await rcBuild(), sp=RC.an.speech||[]; let timing=null;
     if(items.length){
       if(RC.mode==="texte"&&RC.heard&&RC.heardTxt&&$("rc-txt").value===RC.heardTxt&&RC.heard.length===items.length){ /* paroles écoutées : elles gardent leurs propres temps */
@@ -3725,7 +3727,7 @@ async function rcAlignRun(){
     if(head&&first>=2) RC.items.unshift({kind:"titre", ar:head.ar, a:0, b:first, sourate:items[0]&&items[0].sourate});
     const nv=items.filter(x=>x.kind==="verset").length, few=items.length&&sp.length<items.length*.6;
     const estimated=timing&&timing.syntheticCuts>0&&!RC.nAnchors;
-    $("rc-src").textContent=items.length?(estimated?`⚠️ Calage estimé : seulement ${sp.length} pauses pour ${items.length} passages ; ${timing.syntheticCuts} limites ont été estimées. Utilise « Corriger en écoutant » pour un résultat exact. Les effets visuels, eux, ne retardent jamais le texte après son timecode.`:`✅ ${nv} passage${nv>1?"s":""} calé${nv>1?"s":""} sur ${sp.length} moments de parole.${RC.mode==="coran"&&RC.srcNote?` ${RC.srcNote}.`:""} Vérifie à l’étape 3.${few?" Peu de pauses repérées : choisis « Pause la plus courte : 0,3 s » puis refais l’analyse, ou corrige en écoutant.":""}`):"✅ Sans texte : seul l’habillage et le titre seront affichés.";
+    $("rc-src").textContent=items.length?(estimated?`⚠️ Calage estimé : seulement ${sp.length} pauses pour ${items.length} passages ; ${timing.syntheticCuts} limites ont été estimées. Utilise « Corriger en écoutant » pour un résultat exact. Les effets visuels, eux, ne retardent jamais le texte après son timecode.`:`✅ ${nv} passage${nv>1?"s":""} calé${nv>1?"s":""} sur ${sp.length} moments de parole.${RC.mode==="coran"&&RC.srcNote?` ${RC.srcNote}.`:""} Vérifie à l’étape 3.${few?" Le son a peu de vrais silences (musique, écho) : le calage sur les pauses est approximatif. Pour un calage exact, clique « 🎧 Refaire l’analyse complète » à l’étape 1 (l’application écoute les paroles).":""}`):"✅ Sans texte : seul l’habillage et le titre seront affichés.";
     rcSteps(6); rcListRender(); rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); rcSave();
   }catch(e){ $("rc-src").textContent=e.message||"Échec. Réessaie."; }
   finally{ b.disabled=false; } }
@@ -3873,7 +3875,7 @@ async function rcThumb(){ await SP_RECIT.ready(); await SP_RECIT.loadFont(RC.fon
   if(a.dataset.url) URL.revokeObjectURL(a.dataset.url); a.dataset.url=url; a.href=url; a.download=`miniature-${rcNom().replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,40)||"recitation"}-${st.canvas.width}x${st.canvas.height}.png`; a.hidden=false;
   $("rc-th-img").innerHTML=`<img src="${url}" alt="Miniature : ${esc($("rc-th-t").value)}">`; }
 function rcLive(){ if(!RC.id) return; const u=`${location.origin}/direct.html?id=${RC.id}${$("rc-loop").checked?"&boucle=1":""}`; $("rc-live").value=u; $("rc-open").href=u; }
-function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,ph:$("rc-ph").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,avStyle:RC.avStyle,avSkin:RC.avSkin,amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",msg:RC.msg||null}; }
+function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,ph:$("rc-ph").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,avStyle:RC.avStyle,avSkin:RC.avSkin,amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",msg:RC.msg||null,follow:!!RC.follow,followRes:RC.follow?RC.followRes||null:null}; }
 function rcSaveNow(){ clearTimeout(RC.saveT); if(!RC.id||!RC.an) return Promise.resolve(); const data=rcProjectData(); RC.saveP=(RC.saveP||Promise.resolve()).catch(()=>{}).then(()=>fetch("/api/recit/project",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); })); return RC.saveP; }
 function rcSave(){ clearTimeout(RC.saveT); RC.saveT=setTimeout(()=>{ rcSaveNow().catch(()=>{}); },400); }
 async function rcOpen(id){ if(!id||RC.busy) return; const p=RC.projs.find(x=>x.id===id); if(!p) return;
@@ -3895,29 +3897,78 @@ function rcWavF32(ab){ const v=new DataView(ab); let o=12, data=44, len=Math.max
   while(o+8<=ab.byteLength){ const id=String.fromCharCode(v.getUint8(o),v.getUint8(o+1),v.getUint8(o+2),v.getUint8(o+3)), sz=v.getUint32(o+4,true); if(id==="data"){ data=o+8; len=Math.min(sz,ab.byteLength-data); break; } o+=8+sz+(sz&1); }
   const n=len>>1, f=new Float32Array(n); for(let i=0;i<n;i++) f[i]=v.getInt16(data+i*2,true)/32768; return f; }
 /* un morceau de voix écouté : phrases courtes avec leurs temps (Gemini ; sinon Whisper, gratuit, sur l'ordinateur) */
+/* consigne d'écoute : celle de « Depuis un audio », plus l'écriture arabe obligatoire (sinon Gemini translittère parfois en lettres latines) */
+const rcListenPrompt = (n, strict) => transcribePrompt(n,"")+`
+IMPORTANT : l'arabe s'écrit TOUJOURS en lettres arabes (avec ou sans voyelles), jamais en lettres latines ni en translittération.${strict?" Ta réponse précédente était en lettres latines : recommence en lettres arabes.":""} Si c'est une récitation du Coran, écris exactement les mots récités, et chaque répétition séparément.`;
 async function rcHearSegs(a, b, say, signal){
   const r=await fetch(`/api/recit/extrait?id=${RC.id}&a=${a.toFixed(2)}&b=${b.toFixed(2)}`,{signal}); if(!r.ok) throw {message:"Extrait de la voix impossible."};
-  const blob=await r.blob(), out=[];
-  if(sample&&!RC.noGemini){ try{ const j=await sample.json(transcribePrompt(b-a,""), {images:[new Blob([blob],{type:"audio/wav"})], modelTier:"default", engine:"default", signal, cache:false});
-      if(j&&j.langue&&!RC.lang) RC.lang=String(j.langue).toLowerCase().slice(0,3);
-      (Array.isArray(j&&j.segments)?j.segments:[]).forEach(x=>{ const tx=String(x&&x.texte||"").replace(/\s+/g," ").trim(), t0=secOf(x.t0), t1=secOf(x.t1); if(!tx||!isFinite(t0)||/^\[…\]$/.test(tx)) return;
-        out.push({t0:+(a+Math.max(0,t0)).toFixed(2), t1:+(a+(isFinite(t1)&&t1>t0?t1:t0+2)).toFixed(2), texte:tx}); });
-      RC.engine="Gemini"; return out; }
-    catch(e){ if(e&&e.code==="cancelled") throw e; RC.noGemini=true; } }
+  const blob=await r.blob(), wav=new Blob([blob],{type:"audio/wav"});
+  const parse=j=>{ const out=[]; (Array.isArray(j&&j.segments)?j.segments:[]).forEach(x=>{ const tx=String(x&&x.texte||"").replace(/\s+/g," ").trim(), t0=secOf(x.t0), t1=secOf(x.t1); if(!tx||!isFinite(t0)||/^\[…\]$/.test(tx)) return;
+    out.push({t0:+(a+Math.max(0,t0)).toFixed(2), t1:+(a+(isFinite(t1)&&t1>t0?t1:t0+2)).toFixed(2), texte:tx}); }); return out; };
+  if(sample&&!RC.noGemini){
+    for(let k=0;k<4;k++){ try{ let j=await sample.json(rcListenPrompt(b-a,false), {images:[wav], modelTier:"default", engine:"default", signal, cache:false});
+        if(j&&j.langue&&!RC.lang) RC.lang=String(j.langue).toLowerCase().slice(0,3);
+        let out=parse(j); const latin=out.filter(x=>!/[\u0600-\u06FF]/.test(x.texte)&&/[a-z]{3}/i.test(x.texte)).length;
+        if(String(j&&j.langue||"").startsWith("ar")&&latin>out.length/2){ j=await sample.json(rcListenPrompt(b-a,true), {images:[wav], modelTier:"default", engine:"default", signal, cache:false}); const o2=parse(j); if(o2.some(x=>/[\u0600-\u06FF]/.test(x.texte))) out=o2; }
+        RC.engine="Gemini"; return out; }
+      catch(e){ if(e&&e.code==="cancelled") throw e; if(["rate_limited","overloaded"].includes(e&&e.code)&&k<3){ say(`Gemini est occupé : nouvel essai dans ${8*(k+1)} s…`); await new Promise(z=>setTimeout(z,8000*(k+1))); continue; } RC.noGemini=true; break; } } }
+  if(!RC.noGroq){ for(let k=0;k<3;k++){ try{ const g=await rcApi("/api/recit/ecoute",{method:"POST", body:{id:RC.id, a:+a.toFixed(2), b:+b.toFixed(2), lang:/^[a-z]{2}$/.test(RC.lang||"")?RC.lang:""}});
+        if(g.langue&&!RC.lang) RC.lang=String(g.langue).toLowerCase().slice(0,2); RC.engine=g.engine||"Whisper (Groq)"; return (g.segments||[]).filter(x=>!WHISPER_JUNK.test(x.texte)); }
+      catch(e){ if(e&&e.code==="rate_limited"&&k<2){ say(`Écoute gratuite occupée : nouvel essai dans ${20*(k+1)} s…`); await new Promise(z=>setTimeout(z,20000*(k+1))); continue; } RC.noGroq=true; break; } } }
   RC.engine="moteur gratuit (Whisper, sur l'ordinateur)";
-  const f=rcWavF32(await blob.arrayBuffer()), W=28*16000;
+  const f=rcWavF32(await blob.arrayBuffer()), W=28*16000, out=[];
   for(let k=0;k<f.length;k+=W){ const res=await whisperRun(f.slice(k,Math.min(f.length,k+W)), null, WHISPER_MODELS["local-small"], d=>{ if(d.total>2e6) say(`Téléchargement du moteur d'écoute gratuit (une seule fois) : ${Math.round(d.loaded/1e6)} / ${Math.round(d.total/1e6)} Mo…`); }, signal);
     (res.chunks||[]).forEach(c=>{ const tx=String(c&&c.text||"").replace(/\s+/g," ").trim(); if(!tx||WHISPER_JUNK.test(tx)) return; const ts=Array.isArray(c.timestamp)?c.timestamp:[], s0=a+k/16000+(Number(ts[0])||0), s1=ts[1]==null?s0+2:a+k/16000+Number(ts[1]);
       out.push({t0:+s0.toFixed(2), t1:+Math.max(s0+.3,s1).toFixed(2), texte:tx}); }); }
   return out; }
-/* toute la voix (écoute complète), ou seulement le début et la fin */
+/* toute la voix (écoute complète), ou seulement le début et la fin. Morceaux d'environ une minute (au-delà, les temps donnés par
+   Gemini dérivent : essai réel du 13 octobre, une phrase de 3 s notée 44 s dans un morceau de 290 s), coupés au creux le plus
+   bas de la voix ; deux morceaux écoutés en même temps. */
 async function rcListen(full, say, signal){
-  const S=RC.an.speech||[]; if(!S.length) return []; const st=S[0].a, en=S[S.length-1].b, wins=[];
-  const cutAt=(t,len)=>{ const p=S.filter(x=>x.b>t+len*.6&&x.b<t+len).pop(); return p?p.b+.15:t+len; };
-  if(full||en-st<=220){ for(let t=Math.max(0,st-.3); t<en-.2; ){ const c=Math.min(en+.3,cutAt(t,290)); wins.push([t,c]); t=c; } }
-  else { wins.push([Math.max(0,st-.3), cutAt(st,100)]); const a=(S.find(x=>x.a>en-100)||S[S.length-1]).a; wins.push([Math.max(0,a-.2), Math.min(RC.an.duration,en+.3)]); }
-  const segs=[]; for(let i=0;i<wins.length;i++){ const [a,b]=wins[i]; say(`Écoute des paroles : ${rcT(a-st)} sur ${rcT(en-st)} (${Math.round(100*(a-st)/Math.max(1,en-st))} %)…`); segs.push(...await rcHearSegs(a,b,say,signal)); }
+  const S=RC.an.speech||[], D=RC.an.duration; if(!S.length) return []; const st=S[0].a, en=S[S.length-1].b, wins=[];
+  let E=null; try{ E=await rcApi(`/api/recit/env?id=${RC.id}`); RC.env=E; RC.envId=RC.id; }catch(e){}
+  const cutAt=(t,len)=>{ if(E&&E.v&&E.v.length){ let bi=-1, bv=1e9; for(let x=t+len*.8;x<=t+len*1.12&&x<en;x+=E.step){ const v=E.v[Math.round(x/E.step)]; if(v!=null&&v<bv){ bv=v; bi=x; } } if(bi>0) return +bi.toFixed(2); }
+    const p=S.filter(x=>x.b>t+len*.6&&x.b<t+len).pop(); return p?p.b+.15:t+len; };
+  if(full||en-st<=150){ for(let t=Math.max(0,st-.3); t<en-.2; ){ const c=Math.min(en+.3,cutAt(t,60)); wins.push([t,c]); t=c; } }
+  else { wins.push([Math.max(0,st-.3), cutAt(st,60)]); wins.push([Math.max(st,en-62), Math.min(D,en+.3)]); }
+  const segs=[]; let done=0, next=0;
+  const worker=async()=>{ while(next<wins.length){ const i=next++, [a,b]=wins[i]; segs.push(...await rcHearSegs(a,b,say,signal)); done++; say(`Écoute des paroles : ${done} minute${done>1?"s":""} sur ${wins.length} (${Math.round(100*done/wins.length)} %)…`); } };
+  say(`Écoute des paroles : ${wins.length} minute${wins.length>1?"s":""} à écouter…`); await Promise.all([worker(),worker()]);
   return segs.sort((x,y)=>x.t0-y.t0); }
+/* un texte de sourate (en cache), avec traduction et phonétique selon les réglages */
+async function rcSurahGet(n){ const tr=$("rc-tr").value, ph=$("rc-ph").checked, k=`${n}|${tr}|${ph}`; if(!RC.cache[k]) RC.cache[k]=await rcApi(`/api/recit/quran/surah?n=${n}${tr?`&tr=${encodeURIComponent(tr)}`:""}${ph?"&ph=1":""}`); return RC.cache[k]; }
+/* « suivre le récitant » : chaque phrase entendue devient le verset officiel (écriture uthmani) affiché à son moment exact.
+   Ordre libre, plusieurs sourates, versets répétés (vidéos d'apprentissage), versets dits en plusieurs morceaux (un seul verset).
+   Une phrase qui n'est pas du Coran (nom d'une chaîne, annonce) n'est pas affichée. */
+async function rcFollowItems(heard, res){
+  const tr=$("rc-tr").value, ph=$("rc-ph").checked, word=!tr||/^fr\./.test(tr)?"Sourate":"Surah", S={};
+  const need=new Set([1]); res.forEach(r=>{ if(r&&r.ok) for(let n=r.from.s;n<=r.to.s;n++) need.add(n); });
+  for(const n of need){ try{ S[n]=await rcSurahGet(n); }catch(e){} }
+  const L=t=>Math.max(1,String(t).replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640\s]/g,"").length), so=n=>S[n]?{ar:S[n].ar, nom:`${word} ${S[n].nom} · ${n}`}:undefined;
+  const nextSurah=i=>{ for(let j=i;j<res.length;j++) if(res[j]&&res[j].ok) return res[j].from.s; return null; }, v1=S[1]&&S[1].versets[0];
+  const items=[], seen={};
+  heard.forEach((h,i)=>{ const r=res[i]; if(!r) return; const T0=+h.t0, T1=Math.max(T0+.3,+h.t1), tot=(r.preL||0)+(r.restL||0)||1; let t=T0;
+    const take=len=>{ const a=t; t+=(T1-T0)*len/tot; return [a,t]; };
+    (r.pre||[]).forEach(k=>{ const [a,b]=take(k==="isti"?22:19), ns=nextSurah(i);
+      if(k==="isti") items.push(Object.assign({kind:"ouverture", ar:RC_ISTI.ar, tr:tr?(RC_ISTI.tr[tr]||""):"", a, b, speech:[{a,b}], sourate:so(ns)}, ph?{ph:"A'oozu billaahi minash shaitaanir rajeem"}:{}));
+      else if(ns===1&&v1) items.push(Object.assign({kind:"verset", n:1, s:1, v:1, f1:1, ar:v1.ar, tr:tr?v1.tr:"", a, b, speech:[{a,b}], sourate:so(1)}, ph&&v1.ph?{ph:v1.ph}:{}));   /* Al-Fatiha : la basmala est son verset 1 */
+      else items.push(Object.assign({kind:"ouverture", ar:(ns&&S[ns]&&S[ns].basmala)||"بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", tr:tr&&v1?v1.tr:"", a, b, speech:[{a,b}], sourate:so(ns)}, ph&&v1&&v1.ph?{ph:v1.ph}:{})); });
+    if(!r.ok){ const words=String(h.texte).trim().split(/\s+/).filter(Boolean); if(!(r.pre||[]).length&&words.length>=2) items.push({kind:"parole", ar:String(h.texte).trim(), tr:"", a:T0, b:T1, speech:[{a:T0,b:T1}]}); return; }
+    const pieces=[]; let n=r.from.s, v=r.from.v;
+    for(let g=0;g<300;g++){ const sur=S[n], ver=sur&&sur.versets[v-1]; if(!ver) break; const f0=n===r.from.s&&v===r.from.v?r.from.f:0, f1=n===r.to.s&&v===r.to.v?r.to.f:1;
+      /* lettres isolées d'ouverture (يس، الم، حم…) : chaque lettre se prononce par son nom, longuement */
+      const muqa=v===1&&L(ver.ar)<=5&&!/\s/.test(String(ver.ar).trim()), w=muqa?L(ver.ar)*5:L(ver.ar);
+      pieces.push({n,v,ver,f0,f1,len:w*Math.max(.05,f1-f0)}); if(n===r.to.s&&v===r.to.v) break; v++; if(v>sur.versets.length){ n++; v=1; } }
+    const pl=pieces.reduce((q,p)=>q+p.len,0)||1, rest=T1-t;
+    pieces.forEach(p=>{ const a=t, b=t+rest*p.len/pl; t=b; const last=items[items.length-1];
+      if(last&&last.kind==="verset"&&last.s===p.n&&last.v===p.v&&p.f0>=(last.f1||0)-.08&&a-last.speech[last.speech.length-1].b<6){ last.f1=p.f1; last.speech.push({a,b}); }   /* suite du même verset */
+      else { const key=`${p.n}:${p.v}`; seen[key]=(seen[key]||0)+1; items.push(Object.assign({kind:"verset", n:p.v, s:p.n, v:p.v, f1:p.f1, ar:p.ver.ar, tr:tr?p.ver.tr:"", a, b, speech:[{a,b}], sourate:so(p.n), rep:seen[key]}, ph&&p.ver.ph?{ph:p.ver.ph}:{})); } }); });
+  items.sort((x,y)=>x.a-y.a); items.forEach((x,i)=>{ const endS=x.speech[x.speech.length-1].b; x.b=+Math.max(endS, items[i+1]?items[i+1].a:endS+1.5).toFixed(2); x.a=+x.a.toFixed(2); x.speech=x.speech.map(z=>({a:+z.a.toFixed(2),b:+z.b.toFixed(2)})); });
+  return items; }
+/* résumé lisible : sourates dans l'ordre entendu, versets, répétitions */
+function rcFollowSummary(items){ const g=[]; items.filter(x=>x.kind==="verset").forEach(x=>{ const l=g[g.length-1]; if(l&&l.s===x.s) { l.min=Math.min(l.min,x.v); l.max=Math.max(l.max,x.v); } else g.push({s:x.s, min:x.v, max:x.v}); });
+  const nm=n=>(((RC.sur||[]).find(z=>z.n===n)||{}).nom)||`sourate ${n}`, reps=items.filter(x=>(x.rep||1)>1).length;
+  return {pass:g.map(x=>({n:x.s, from:x.min, to:x.max})), texte:`${g.map(x=>`${nm(x.s)} (${x.s}), versets ${x.min} à ${x.max}`).join(" ; ")}${reps?` · ${reps} répétition${reps>1?"s":""} de versets suivie${reps>1?"s":""}`:""}`}; }
 /* quelles sourates, quels versets ? début et fin de la récitation, comparés au Coran complet */
 async function rcRecognize(heard){
   if(!heard.some(x=>/[\u0600-\u06FF]/.test(x.texte))) return {coran:false};
@@ -3965,7 +4016,7 @@ function rcOrig(){ const L=(RC.an&&RC.an.apercus)||[]; $("rc-orig").hidden=!L.le
 function rcPub(){ const m=RC.msg; $("rc-pub").hidden=!m; if(!m) return; $("rc-pub-t").value=m.titre||""; $("rc-pub-d").value=[m.description, (m.hashtags||[]).join(" ")].filter(Boolean).join("\n\n"); }
 async function rcAuto(){
   if(!RC.an||RC.autoRun) return; RC.autoRun=true; const ctl=RC.autoCtl=new AbortController(), signal=ctl.signal, bar=$("rc-autobar");
-  $("rc-auto").innerHTML=""; bar.hidden=false; $("rc-stopauto").hidden=false; ["rc-see","rc-gomake","rc-reauto"].forEach(x=>$(x).hidden=true); RC.noGemini=false; RC.lang="";
+  $("rc-auto").innerHTML=""; bar.hidden=false; $("rc-stopauto").hidden=false; ["rc-see","rc-gomake","rc-reauto"].forEach(x=>$(x).hidden=true); RC.noGemini=false; RC.noGroq=false; RC.lang="";
   rcCheck("voix",`Voix gardée : ${rcDur(RC.an.duration)}, ${(RC.an.speech||[]).length} moments de parole repérés`,"ok");
   if(RC.an.video) rcCheck("video",`Vidéo d’origine : ${RC.an.video.w} × ${RC.an.video.h}${(RC.an.apercus||[]).length?`, ${RC.an.apercus.length} images gardées pour comparer`:""}`,"ok");
   try{
@@ -3973,7 +4024,18 @@ async function rcAuto(){
     const heard=await rcListen(full, t=>rcCheck("ecoute",t,"run"), signal); RC.heard=heard;
     if(!heard.length) throw {message:"Aucune parole entendue (musique seule, ou voix trop faible) : choisis le texte à l’étape 2."};
     rcCheck("ecoute",`Paroles écoutées par ${RC.engine} : ${heard.length} phrases${full?", sur toute la durée":", au début et à la fin"}`,"ok");
-    rcCheck("paroles","Reconnaissance des paroles…","run"); const rec=await rcRecognize(heard);
+    rcCheck("paroles","Reconnaissance des paroles…","run");
+    /* d'abord : suivre le récitant phrase par phrase (ordre libre, répétitions) */
+    let fr=null; if(heard.some(x=>/[\u0600-\u06FF]/.test(x.texte))){ try{ fr=(await rcApi("/api/recit/quran/follow",{method:"POST", body:{phrases:heard.map(h=>({t0:h.t0,t1:h.t1,texte:h.texte}))}})).suivi; }catch(e){ fr=null; } }
+    const okN=fr?fr.filter(r=>r&&(r.ok||(r.pre||[]).length)).length:0;
+    if(fr&&okN>=Math.max(2,heard.length*.35)){ RC.follow=true; RC.followRes=fr; RC.mode="coran"; RC.heardTxt=""; rcMode("coran"); await rcSurahList();
+      RC.items=await rcFollowItems(heard, fr); const sm=rcFollowSummary(RC.items); if(sm.pass.length) RC.pass=sm.pass; rcPassRender();
+      $("rc-isti").checked=RC.items.some(x=>x.kind==="ouverture"&&x.ar===RC_ISTI.ar); $("rc-basm").checked=true;
+      rcCheck("paroles",`Coran reconnu en suivant le récitant : ${sm.texte}. Texte officiel en écriture uthmani.`,"ok");
+      const nv=RC.items.filter(x=>x.kind==="verset").length; $("rc-src").textContent=`✅ Suivi du récitant : ${nv} passages placés sur les phrases entendues. ${sm.texte}.`;
+      rcSteps(6); rcListRender(); rcSave();
+      rcCheck("calage",`${nv} versets placés exactement sur les phrases entendues (${okN} sur ${heard.length}) : sans décalage`,"ok"); }
+    else { RC.follow=false; const rec=await rcRecognize(heard);
     if(rec.coran){ RC.mode="coran"; RC.pass=rec.pass; $("rc-isti").checked=rec.isti; $("rc-basm").checked=rec.basm; RC.heardTxt=""; rcMode("coran"); await rcSurahList(); rcPassRender();
       const nm=n=>(((RC.sur||[]).find(z=>z.n===n)||{}).nom)||`sourate ${n}`;
       rcCheck("paroles",`Coran reconnu : ${rec.pass.map(p=>`${nm(p.n)} (${p.n}), versets ${p.from} à ${p.to}`).join(" ; ")}${rec.isti?" · commence par « A‘ûdhu billâhi »":""}. Texte officiel en écriture uthmani.`, rec.ordre?"ok":"warn");
@@ -3982,7 +4044,7 @@ async function rcAuto(){
       RC.mode="texte"; rcMode("texte"); $("rc-txt").value=heard.map(x=>x.texte).join("\n"); RC.heardTxt=$("rc-txt").value;
       rcCheck("paroles",`Paroles gardées telles qu’entendues : ${heard.length} phrases${RC.lang?` (${LANG_FR[RC.lang]||RC.lang})`:""}. Corrige un mot à l’étape 2 si besoin.`,"ok"); }
     rcCheck("calage","Calage des paroles sur la voix…","run"); await rcAlignRun(); const nv=RC.items.filter(x=>x.kind==="verset").length;
-    rcCheck("calage", RC.mode==="texte"?`${nv} phrases placées à leur moment exact`:`${nv} versets calés sur la voix${RC.nAnchors?` avec ${RC.nAnchors} repères d’écoute : sans décalage`:" (sur les pauses)"}`, RC.nAnchors||RC.mode==="texte"?"ok":"warn");
+    rcCheck("calage", RC.mode==="texte"?`${nv} phrases placées à leur moment exact`:`${nv} versets calés sur la voix${RC.nAnchors?` avec ${RC.nAnchors} repères d’écoute : sans décalage`:" (sur les pauses)"}`, RC.nAnchors||RC.mode==="texte"?"ok":"warn"); };
     rcCheck("design","Message et design…","run"); const m=await rcMessage(signal); RC.msg=m; RC.fmt=m.fmt; RC.theme=m.theme; $("rc-fmt").value=RC.fmt;
     rcCheck("design",`${m.message?m.message+" ":""}Habillage proposé : ${SP_RECIT.themes[m.theme].nom}${m.pourquoi?` (${m.pourquoi.replace(/\.$/,"")})`:""}. Format ${m.fmt==="9:16"?"téléphone 9:16 (TikTok, Shorts)":m.fmt==="1:1"?"carré 1:1":"PC 16:9 (YouTube)"}, comme l’original.`,"ok");
     rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); rcPub(); rcThumbDefaults(true); rcSave();
@@ -4003,10 +4065,11 @@ function rcInit(){
 ${$("rc-pub-d").value}`; try{ await navigator.clipboard.writeText(t); toast("Titre et description copiés."); }catch(e){ $("rc-pub-d").select(); } });
   $("rc-old").addEventListener("change", e=>{ $("rc-del").disabled=!e.target.value; rcOpen(e.target.value); });
   $("rc-del").addEventListener("click", async ()=>{ const id=$("rc-old").value||RC.id, p=RC.projs.find(x=>x.id===id); if(!id||RC.busy||!confirm(`Supprimer le projet « ${(p&&p.nom)||"Sans titre"} » (voix et vidéos) de l’ordinateur ?`)) return;
-    try{ await rcApi("/api/recit/delete",{method:"POST", body:{id}}); if(id===RC.id){ RC.id=""; RC.an=null; RC.items=[]; rcSteps(1); $("rc-audio").removeAttribute("src"); $("rc-info").textContent="Projet supprimé."; } await rcProjects(); }catch(e){ toast(e.message||"Suppression impossible."); } });
+    try{ if(id===RC.id){ const au=$("rc-audio"); au.pause(); au.removeAttribute("src"); au.load(); cancelAnimationFrame(RC.raf); }   /* libère le fichier de la voix (Windows refuse d’effacer un fichier ouvert) */
+      await rcApi("/api/recit/delete",{method:"POST", body:{id}}); if(id===RC.id){ RC.id=""; RC.an=null; RC.items=[]; rcSteps(1); $("rc-audio").removeAttribute("src"); $("rc-info").textContent="Projet supprimé."; } await rcProjects(); }catch(e){ toast(e.message||"Suppression impossible."); } });
   $("rc-reanalyze").addEventListener("click", async ()=>{ if(!RC.id||RC.busy) return; RC.busy=true; try{ const an=await rcAnalyze(); RC.busy=false; const had=RC.items.length; rcLoaded(an, null); if(had) await rcAlignRun(); }catch(e){ rcProg("rc-prog",0,""); $("rc-info").textContent=e.message; } finally{ RC.busy=false; } });
   document.querySelectorAll("[data-rc-mode]").forEach(b=>b.addEventListener("click",()=>rcMode(b.dataset.rcMode)));
-  $("rc-pass").addEventListener("change", e=>{ const el=e.target.closest("[data-rc-p]"); if(!el) return; const [i,k]=el.dataset.rcP.split(":"), p=RC.pass[+i]; if(!p) return;
+  $("rc-pass").addEventListener("change", e=>{ const el=e.target.closest("[data-rc-p]"); if(!el) return; RC.follow=false; const [i,k]=el.dataset.rcP.split(":"), p=RC.pass[+i]; if(!p) return;
     if(k==="n"){ p.n=+el.value; const s=(RC.sur||[]).find(x=>x.n===p.n); p.from=1; p.to=s?s.versets:p.to; rcPassRender(); } else p[k]=Math.max(1,Math.round(+el.value)||1); });
   $("rc-pass").addEventListener("click", e=>{ const b=e.target.closest("[data-rc-pdel]"); if(!b) return; RC.pass.splice(+b.dataset.rcPdel,1); rcPassRender(); });
   $("rc-addp").addEventListener("click", ()=>{ const last=RC.pass[RC.pass.length-1], n=Math.min(114,(last?last.n:0)+1), s=(RC.sur||[]).find(x=>x.n===n); RC.pass.push({n, from:1, to:s?s.versets:1}); rcPassRender(); });
@@ -9553,7 +9616,7 @@ async function transcribeGemini(signal){
 const WHISPER_LIB = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0";
 const WHISPER_MODELS = {local:"onnx-community/whisper-base", "local-small":"onnx-community/whisper-small"};   /* rapide ≈ 80 Mo, précis ≈ 250 Mo, téléchargés une seule fois */
 const WHISPER_LANG = {fr:"french", en:"english"};   /* wolof et pulaar : Whisper les connaît mal, détection automatique */
-const WHISPER_JUNK = /amara\.org|sous-titr(es|age) (réalisés?|par)|merci d'avoir regardé|abonnez-vous|(une )?(autre|prochaine) vidéo|n'oubliez pas de|à bientôt (pour|dans)|thanks for watching|see you next|^\W*$/i;   /* phrases inventées par Whisper sur les silences */
+const WHISPER_JUNK = /amara\.org|sous-titr(es|age) (réalisés?|par)|merci d'avoir regardé|abonnez-vous|(une )?(autre|prochaine) vidéo|n'oubliez pas de|à bientôt (pour|dans)|thanks for watching|see you next|^[\s\p{P}\p{S}]*$/iu;   /* phrases inventées par Whisper sur les silences ; une ligne sans aucune lettre (\p : toutes les écritures, arabe compris) */
 const WHISPER_WORKER = `import {pipeline} from "${WHISPER_LIB}";
 const pipes={};
 self.onmessage=async e=>{

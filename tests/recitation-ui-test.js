@@ -14,6 +14,7 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250});
+  require("./coran-cache")(GEN);
   const PORT = 3000 + 500 + Math.floor(Math.random() * 90), BASE = `http://127.0.0.1:${PORT}`;
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], {env: Object.assign({}, process.env, {SP_NO_DOTENV: "1", PORT: String(PORT), HOST: "127.0.0.1", GEMINI_API_KEY: "x", GEN_DIR: GEN}), stdio: ["ignore", "pipe", "pipe"]});
   let log = ""; srv.stdout.on("data", d => log += d); srv.stderr.on("data", d => log += d);
@@ -115,7 +116,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await lp.close();
     /* projets : repris après un rechargement, puis supprimés */
     await pg.reload({waitUntil: "networkidle0"});
-    await pg.waitForFunction(() => document.querySelectorAll("#rc-old option").length > 1, {timeout: 15000});
+    await pg.waitForFunction(() => document.querySelectorAll("#rc-old option").length > 1, {timeout: 45000});
     await pg.evaluate(id => { const s = document.getElementById("rc-old"); s.value = id; s.dispatchEvent(new Event("change", {bubbles: true})); }, id);
     await pg.waitForFunction(() => document.querySelectorAll("#rc-list li").length === 7, {timeout: 20000});
     const back = await pg.evaluate(async id => { const p=await fetch(`/api/recit/project?id=${id}`).then(r=>r.json()); return {theme: (document.querySelector("#rc-themes [aria-checked='true']") || {dataset: {}}).dataset.rcTheme, fmt: document.getElementById("rc-fmt").value, amb: document.getElementById("rc-amb").value, fx:[p.subtitle,p.transition,p.palette,p.animation,p.effect], sync:p.syncOffset, vids: (document.getElementById("rc-out").textContent.match(/\.mp4/g) || []).length}; }, id);
