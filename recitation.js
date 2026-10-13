@@ -136,6 +136,19 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     req.on("close", () => { try{ p.kill(); }catch(e){} });
   }
 
+  /* ---------- 3 quater. énergie de la voix toutes les 40 ms (0 à 100) : les lèvres de l'avatar suivent la vraie voix ---------- */
+  async function envelope(id){
+    const dir = dirOf(id), f = path.join(dir, "enveloppe.json"); if(fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, "utf8"));
+    const voix = path.join(dir, "voix.m4a"); if(!fs.existsSync(voix)) throw Object.assign(new Error("Voix introuvable."), {code:"not_found"});
+    const v = await new Promise((resolve, reject) => {
+      const p = spawn(FFMPEG_PATH, ["-hide_banner", "-nostdin", "-i", voix, "-af", "aresample=8000,asetnsamples=n=320:p=0,astats=metadata=1:reset=1,ametadata=mode=print:key=lavfi.astats.Overall.RMS_level:file=-", "-f", "null", "-"], {windowsHide:true, stdio:["ignore", "pipe", "ignore"]});
+      let buf = ""; const out = [];
+      p.stdout.on("data", d => { buf += d; let i; while((i = buf.indexOf("\n")) >= 0){ const l = buf.slice(0, i); buf = buf.slice(i + 1); const m = /RMS_level=(-?[\d.]+|-inf)/.exec(l); if(m){ const db = m[1] === "-inf" ? -100 : +m[1]; out.push(Math.max(0, Math.min(100, Math.round((db + 52) / 42 * 100)))); } } });
+      p.once("error", reject); p.once("close", c => c === 0 ? resolve(out) : reject(new Error("Analyse de la voix impossible.")));
+    });
+    const res = {step:.04, v}; fs.writeFileSync(f, JSON.stringify(res)); return res;
+  }
+
   /* ---------- 4. projet (pour l'écran de direct), liste des projets, place libre sur le disque ---------- */
   function saveProject(id, body){ fs.writeFileSync(path.join(dirOf(id), "projet.json"), JSON.stringify(body)); }
   function list(){
@@ -209,6 +222,7 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       if(req.method === "GET" && r === "quran/list") return json(res, 200, {sourates:await quranList()});
       if(req.method === "POST" && r === "quran/find"){ const b = await body(); if(!b || typeof b.texte !== "string") return json(res, 400, {code:"bad_request", message:"Texte manquant."}); return json(res, 200, await quranFind(b.texte.slice(0, 20000))); }
       if(req.method === "GET" && r === "extrait") return extrait(req, res, u);
+      if(req.method === "GET" && r === "env"){ const id = u.searchParams.get("id"); if(!okId(id) || !fs.existsSync(dirOf(id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); return json(res, 200, await envelope(id)); }
       if(req.method === "GET" && r === "quran/surah"){ const n = Math.round(Number(u.searchParams.get("n"))); if(!(n >= 1 && n <= 114)) return json(res, 400, {code:"bad_request", message:"Numéro de sourate : de 1 à 114."}); return json(res, 200, await quranSurah(n, u.searchParams.get("tr"), u.searchParams.get("ph") === "1")); }
       if(req.method === "POST" && r === "project"){ const b = await body(40e6); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); saveProject(b.id, b); return json(res, 200, {ok:true}); }
       if(req.method === "GET" && r === "project"){ const id = u.searchParams.get("id"), f = okId(id) && path.join(dirOf(id), "projet.json"); if(!f || !fs.existsSync(f)) return json(res, 404, {code:"not_found", message:"Projet introuvable."}); return json(res, 200, JSON.parse(fs.readFileSync(f, "utf8"))); }

@@ -56,6 +56,9 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
     const ex = await new Promise(res => http.get(`${BASE}/api/recit/extrait?id=${id}&a=4&b=6.5`, x => { const c = []; x.on("data", d => c.push(d)); x.on("end", () => res({s: x.statusCode, b: Buffer.concat(c)})); }));
     const wav = ex.b, okWav = ex.s === 200 && wav.toString("ascii", 0, 4) === "RIFF" && wav.readUInt32LE(4) === wav.length - 8 && wav.readUInt16LE(22) === 1 && wav.readUInt32LE(24) === 16000 && Math.abs((wav.length - 44) / 32000 - 2.5) < .05;
     check("extrait de la voix (4 s → 6,5 s) : WAV 16 kHz mono de 2,5 s, prêt pour l'écoute", okWav, `${ex.s} · ${wav.length} octets`);
+    /* énergie de la voix toutes les 40 ms (lèvres de l'avatar) : forte pendant les sons, nulle pendant les pauses */
+    const en = (await req(BASE, "GET", `/api/recit/env?id=${id}`)).j, vv = en.v || [], at = s => vv[Math.round(s / .04)] || 0;
+    check("énergie de la voix pour les lèvres de l'avatar : 663 mesures, forte pendant la voix (1,5 s · 5 s), nulle dans les pauses (3,5 s · 6,5 s)", Math.abs(vv.length - 663) <= 3 && at(1.5) > 40 && at(5) > 40 && at(3.5) < 10 && at(6.5) < 10, `${vv.length} · ${at(1.5)}/${at(3.5)}/${at(5)}/${at(6.5)}`);
     /* vidéo refaite : 2 morceaux écrits à leur position, puis la voix remise */
     const st = await req(BASE, "POST", "/api/recit/render/start", {id}), rid = st.j.rid, img = fs.readFileSync(F("recit-image.mp4")), half = Math.floor(img.length / 2);
     const c2 = await req(BASE, "PUT", `/api/recit/render/chunk?id=${id}&rid=${rid}&pos=${half}`, img.subarray(half), "application/octet-stream");
