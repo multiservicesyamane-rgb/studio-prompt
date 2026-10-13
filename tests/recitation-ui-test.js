@@ -80,6 +80,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.waitForFunction(() => !document.getElementById("rc-roles-box").hidden, {timeout: 20000}); await wait(1500);
     const dar = await pg.evaluate(() => { const c = document.querySelector("#rc-prev canvas"), d = c.getContext("2d").getImageData(0, Math.round(c.height * .5), c.width, Math.round(c.height * .45)).data; let s = 0, v = 0; for(let i = 0; i < d.length; i += 16){ s += d[i]; v += d[i] * d[i]; } const n = d.length / 16, m = s / n; return {roles: document.getElementById("rc-roles").options.length, sd: Math.round(Math.sqrt(v / n - m * m))}; });
     check("daara : l'oustaz et ses talibés dessinés, réglage « qui récite » (oustaz puis talibés, ou oustaz seul)", dar.roles === 2 && dar.sd > 12, JSON.stringify(dar));
+    /* voix signature : analyse des qualités de la voix, proposition, enregistrement (la fabrication du son est testée dans gen-api-test) */
+    await pg.evaluate(() => { document.getElementById("rc-sig").open = true; document.getElementById("rc-sig-an").click(); });
+    await pg.waitForFunction(() => !document.getElementById("rc-sig-opts").hidden || /impossible/.test(document.getElementById("rc-sig-desc").textContent), {timeout: 30000});
+    await pg.evaluate(() => { document.getElementById("rc-sig-name").value = "Oustaz doux"; document.getElementById("rc-sig-save").click(); });
+    const vsig = await pg.evaluate(() => ({desc: document.getElementById("rc-sig-desc").textContent, base: document.getElementById("rc-sig-base").value, pitch: document.getElementById("rc-sig-pitch").value, saved: (JSON.parse(localStorage.getItem("sp-prefs") || "{}").sigs || []).map(x => x.nom + ":" + x.base)}));
+    check("voix signature : qualités de la voix décrites (hauteur, rythme, timbre, écho), proposition réglée, voix « Oustaz doux » gardée pour toute l'application", /Voix .*rythme .*timbre .*écho/.test(vsig.desc) && !!vsig.base && vsig.saved.some(x => /^Oustaz doux:/.test(x)), vsig.desc.slice(0, 120) + " · " + vsig.saved.join(","));
     await pg.evaluate(() => document.querySelector("[data-rc-theme='enseignant']").click()); await wait(800);
     check("habillage « Livre ancien » choisi, aperçu au format téléphone (vertical)", pv.on === "true" && pv.h > pv.w, JSON.stringify(pv));
     /* miniature YouTube (couverture TikTok en format téléphone) : même décor, grand titre */

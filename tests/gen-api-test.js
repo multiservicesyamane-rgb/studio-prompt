@@ -39,7 +39,7 @@ const fake = http.createServer(async (req, res) => {
 /* ---------- Studio Prompt réduit à la fabrication ---------- */
 const sendJson = (res, s, o) => { res.writeHead(s, {"Content-Type": "application/json; charset=utf-8"}); res.end(JSON.stringify(o)); };
 const readBody = (req, limit) => new Promise((ok, ko) => { let n = 0; const c = []; req.on("data", x => { n += x.length; if(n > limit){ ko(new Error("too_large")); req.destroy(); } else c.push(x); }); req.on("end", () => ok(Buffer.concat(c).toString("utf8"))); });
-function studio(env){ const gen = createGeneration({dir: DIR, env, sendJson, readBody}); return {gen, srv: http.createServer((req, res) => { if(!gen.handle(req, res)){ res.writeHead(404); res.end(); } })}; }
+function studio(env){ const gen = createGeneration({dir: DIR, env, sendJson, readBody, FFMPEG_PATH: require(path.join(__dirname, "..", "node_modules", "ffmpeg-static"))}); return {gen, srv: http.createServer((req, res) => { if(!gen.handle(req, res)){ res.writeHead(404); res.end(); } })}; }
 const get = (port, p, headers) => new Promise((r, j) => http.get({host: "127.0.0.1", port, path: p, headers: headers || {}}, res => { const c = []; res.on("data", x => c.push(x)); res.on("end", () => r({status: res.statusCode, headers: res.headers, buf: Buffer.concat(c)})); }).on("error", j));
 const getJ = async (port, p) => JSON.parse((await get(port, p)).buf.toString("utf8"));
 const postJ = (port, p, o) => new Promise((r, j) => { const d = JSON.stringify(o), q = http.request({host: "127.0.0.1", port, path: p, method: "POST", headers: {"Content-Type": "application/json", "Content-Length": Buffer.byteLength(d)}}, res => { const c = []; res.on("data", x => c.push(x)); res.on("end", () => r({status: res.statusCode, body: JSON.parse(Buffer.concat(c).toString("utf8") || "{}")})); }); q.on("error", j); q.end(d); });
@@ -63,6 +63,12 @@ const PNG = "data:image/png;base64," + Buffer.alloc(300, 9).toString("base64");
   const wav = j && j.url ? (await get(port, j.url)).buf : Buffer.alloc(0);
   check("voix Gemini : fichier WAV valide, durée calculée, coût 0", j && j.status === "done" && wav.slice(0, 4).toString() === "RIFF" && j.seconds === 1 && j.estimate === 0, j ? `${j.status} ${j.url} ${j.seconds} s ${j.error || ""}` : r.body.message);
   check("voix : clé GRATUITE utilisée, voix demandée transmise", seen.keys.some(k => k[0] === "tts" && k[1] === "cle-gratuite" && k[2] === "Charon") && !seen.keys.some(k => k[0] === "tts" && k[1] === "cle-payante"));
+
+  // 1 ter. voix signature : la voix demandée, puis son réglage (hauteur, rythme, chaleur, écho) par FFmpeg ; une voix nouvelle, pas une copie
+  r = await postJ(port, "/api/gen/start", {kind: "voice", service: "gemini", project: "proj1", plan: 2, text: "Répétez après moi.", voice: "Leda", style: "gentle teacher", fx: {pitch: 3, speed: .8, warm: .6, echo: .5}});
+  j = r.status === 200 && await waitJob(port, r.body.job.id);
+  const sw = j && j.url ? (await get(port, j.url)).buf : Buffer.alloc(0);
+  check("voix signature : réglage appliqué (1 s de voix ralentie à 0,8 → 1,25 s, plus la traîne de l'écho, WAV 24 kHz), marquée « voix signature »", j && j.status === "done" && sw.slice(0, 4).toString() === "RIFF" && j.seconds >= 1.2 && j.seconds <= 1.48 && /voix signature/.test(j.model || ""), j ? `${j.status} ${j.seconds} s ${j.model || ""} ${j.error || ""}` : r.body.message);
 
   // 1 bis. offre gratuite des voix : une à la fois, attente si limite par minute, message clair si limite du jour
   ttsMode = "minute-once";

@@ -204,6 +204,44 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     const res = {step:.04, v}; fs.writeFileSync(f, JSON.stringify(res)); return res;
   }
 
+  /* ---------- 3 quinquies. profil d'une voix (pour créer une voix nouvelle aux mêmes qualités, jamais une copie) ----------
+     hauteur : autocorrélation sur 8 kHz (fondamentale médiane des passages voisés) ; rythme : pics d'énergie par seconde de parole ;
+     chaleur : part des aigus ; écho de salle : niveau du fond entre les phrases par rapport à la voix. */
+  function pcm8k(id, a, b){ return new Promise((resolve, reject) => { const f = path.join(dirOf(id), "voix.m4a"); if(!fs.existsSync(f)) return reject(Object.assign(new Error("Voix introuvable."), {code:"not_found"}));
+    const p = spawn(FFMPEG_PATH, ["-hide_banner", "-nostdin", "-loglevel", "error", "-ss", String(a), "-t", String(b - a), "-i", f, "-ac", "1", "-ar", "8000", "-f", "s16le", "pipe:1"], {windowsHide:true, stdio:["ignore", "pipe", "ignore"]});
+    const out = []; p.stdout.on("data", c => out.push(c)); p.once("error", reject); p.once("close", () => { const b2 = Buffer.concat(out), n = b2.length >> 1, x = new Float32Array(n); for(let i = 0; i < n; i++) x[i] = b2.readInt16LE(i * 2) / 32768; resolve(x); }); }); }
+  async function voiceProfile(id, chant){
+    const an = JSON.parse(fs.readFileSync(path.join(dirOf(id), "analyse.json"), "utf8")), sp = (an.speech || []).filter(s => s.b > s.a);
+    const a = sp.length ? Math.max(0, sp[0].a) : 0, b = Math.min(an.duration, a + 120), x = await pcm8k(id, a, b), sr = 8000, N = 320, hop = 160, minL = Math.floor(sr / 420), maxL = Math.floor(sr / 65);
+    const en = []; for(let i = 0; i + N + maxL < x.length; i += hop){ let e = 0; for(let k = 0; k < N; k++) e += x[i + k] * x[i + k]; en.push([i, e]); }
+    const sorted = en.map(z => z[1]).sort((p, q) => p - q), pct = q => sorted[Math.floor(sorted.length * q)] || 0, eth = pct(.55), f0 = []; let hf = 0, lf = 0;
+    for(const [i, e] of en){ if(e < eth) continue; const r = []; let best = 0;
+      for(let lag = minL; lag <= maxL; lag++){ let num = 0, d1 = 0, d2 = 0; for(let k = 0; k < N; k++){ const p1 = x[i + k], p2 = x[i + k + lag]; num += p1 * p2; d1 += p1 * p1; d2 += p2 * p2; } const v = num / Math.sqrt(d1 * d2 + 1e-12); r.push(v); if(v > best) best = v; }
+      if(best > .5){ const k = r.findIndex(v => v > best * .9); f0.push(sr / (minL + k)); }
+      for(let k = 1; k < N; k++){ const d = x[i + k] - x[i + k - 1]; hf += d * d; lf += x[i + k] * x[i + k]; } }
+    f0.sort((p, q) => p - q); const F0 = f0.length ? f0[f0.length >> 1] : 0;
+    /* rythme : pics d'énergie (syllabes) par seconde de parole, sur l'énergie toutes les 40 ms */
+    let E = null; try{ E = await envelope(id); }catch(e){}
+    let peaks = 0, voiced = 0, floor = 0, high = 0;
+    if(E && E.v && E.v.length){ const v = E.v, s2 = v.slice().sort((p, q) => p - q); floor = s2[Math.floor(s2.length * .15)] || 0; high = s2[Math.floor(s2.length * .75)] || 1;
+      for(let i = 2; i + 2 < v.length; i++){ if(v[i] < high * .55) continue; voiced++; if(v[i] >= v[i - 1] && v[i] > v[i + 1] && v[i] - Math.min(v[i - 2], v[i + 2]) >= 6) peaks++; } }
+    const rate = voiced ? peaks / (voiced * .04) : 0, bright = lf ? hf / lf : 0, echoRatio = high ? floor / high : 0;
+    /* description en mots simples */
+    const hauteur = !F0 ? "inconnue" : F0 < 115 ? "très grave" : F0 < 155 ? "grave" : F0 < 205 ? "moyenne" : F0 < 265 ? "aiguë" : "très aiguë (voix d'enfant ?)";
+    const rythme = !rate ? "inconnu" : rate < 2.6 ? "lent et posé" : rate < 4.4 ? "normal" : "rapide";
+    const chaleur = bright < .09 ? "chaude et douce" : bright < .22 ? "équilibrée" : "claire, brillante";
+    const echo = echoRatio > .45 ? "fort (grande salle, mosquée)" : echoRatio > .25 ? "léger" : "aucun";
+    /* une récitation est chantée bien plus haut que la voix parlée (essai réel : récitant mesuré à 258 Hz) : on estime la voix parlée */
+    const sF0 = F0 ? (chant ? F0 / 1.7 : F0) : 0, type = !sF0 ? "homme" : sF0 < 165 ? "homme" : sF0 < 250 ? "femme" : "enfant";
+    /* propositions : une voix gratuite proche pour chaque type (homme, femme, enfant), puis le réglage pour retrouver les qualités entendues */
+    const st = (v, a, b) => Math.max(a, Math.min(b, Math.round(v * 2) / 2)), lg = (f, b) => sF0 ? 12 * Math.log2(f / b) : 0;
+    const common = {speed:rate && rate < 2.6 ? .93 : rate > 4.6 ? 1.05 : 1, warm:bright < .12 ? .6 : .3, bright:bright > .25 ? .25 : 0, echo:+Math.max(0, Math.min(.7, (echoRatio - .15) / .5)).toFixed(2)};
+    const hb = sF0 && sF0 >= 125 ? {voice:"Iapetus", f:128} : {voice:"Charon", f:110};
+    const propositions = {homme:{base:hb.voice, fx:Object.assign({}, common, {pitch:st(lg(sF0, hb.f), -2, 2)})}, femme:{base:"Achernar", fx:Object.assign({}, common, {pitch:st(lg(sF0, 200), -2, 2)})},
+      enfant:{base:"Leda", fx:Object.assign({}, common, {pitch:st(lg(Math.max(sF0, 270), 215), 2.5, 4.5)})}};
+    return {f0:Math.round(F0), parle:Math.round(sF0), chant:!!chant, rate:+rate.toFixed(2), bright:+bright.toFixed(3), echoRatio:+echoRatio.toFixed(2), mots:{hauteur, rythme, chaleur, echo}, type, propositions,
+      style:"a gentle, calm and warm voice, like a kind teacher speaking to children: unhurried, clear, with soft pauses"}; }
+
   /* ---------- 4. projet (pour l'écran de direct), liste des projets, place libre sur le disque ---------- */
   function saveProject(id, body){ fs.writeFileSync(path.join(dirOf(id), "projet.json"), JSON.stringify(body)); }
   function list(){
@@ -277,6 +315,7 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       if(req.method === "GET" && r === "quran/list") return json(res, 200, {sourates:await quranList()});
       if(req.method === "POST" && r === "quran/find"){ const b = await body(); if(!b || typeof b.texte !== "string") return json(res, 400, {code:"bad_request", message:"Texte manquant."}); return json(res, 200, await quranFind(b.texte.slice(0, 20000))); }
       if(req.method === "GET" && r === "extrait") return extrait(req, res, u);
+      if(req.method === "GET" && r === "voixprofil"){ const id = u.searchParams.get("id"); if(!okId(id) || !fs.existsSync(path.join(dirOf(id), "analyse.json"))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); return json(res, 200, await voiceProfile(id, u.searchParams.get("chant") === "1")); }
       if(req.method === "POST" && r === "ecoute"){ const b = await body(); if(!b || !okId(b.id)) return json(res, 400, {code:"bad_request", message:"Projet inconnu."});
         try{ return json(res, 200, await ecoute(b.id, Math.max(0, Number(b.a) || 0), Number(b.b), String(b.lang || ""))); }catch(e){ return json(res, e.code === "no_key" || e.code === "bad_request" ? 400 : e.code === "rate_limited" ? 429 : 502, {code:e.code || "server_error", message:e.message}); } }
       if(req.method === "POST" && r === "quran/follow"){ const b = await body(8e6); if(!b || !Array.isArray(b.phrases)) return json(res, 400, {code:"bad_request", message:"Phrases manquantes."}); return json(res, 200, {suivi:await quranFollow(b.phrases.slice(0, 20000))}); }

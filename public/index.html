@@ -908,6 +908,8 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 .rc-sync{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
 .rc-sync input{grid-column:1/-1;width:100%;accent-color:var(--view-accent)}
 .rc-sync output{font-family:var(--mono);font-weight:700;color:var(--view-accent)}
+.rc-sliders>.field{flex:1 1 140px}.rc-sliders input[type=range]{width:100%;min-height:36px;accent-color:var(--view-accent)}
+#rc-sig-audio{width:100%}
 .rc-check{list-style:none;margin:0;padding:12px 14px;display:grid;gap:8px;border-radius:14px;background:var(--sunken);font-size:14px}
 .rc-check li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:6px;align-items:start;line-height:1.45;min-width:0;overflow-wrap:anywhere}
 .rc-check li.run>span:last-child{color:var(--muted)}
@@ -1521,6 +1523,30 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
               <div class="field"><label for="rc-av-skin">Couleur de peau</label><div class="sel"><select id="rc-av-skin"></select></div></div>
               <div class="field" id="rc-roles-box" hidden><label for="rc-roles">Qui récite ?</label><div class="sel"><select id="rc-roles"><option value="alterne">L’oustaz, puis les talibés répètent</option><option value="prof">L’oustaz seul</option></select></div></div>
             </div>
+            <details class="rc-fx" id="rc-sig">
+              <summary>🎙 Voix signature <small>une voix nouvelle, inspirée de cette voix</small></summary>
+              <div class="rc-fx-body">
+                <p class="hint">L’application écoute les qualités de cette voix (hauteur, rythme, chaleur, écho) et compose avec une voix gratuite une voix nouvelle qui leur ressemble, pour les explications et les « répète après moi ». Ce n’est jamais une copie de la voix de quelqu’un, et le Coran reste récité par une vraie voix.</p>
+                <div class="actions"><button type="button" class="btn" id="rc-sig-an">Analyser cette voix</button></div>
+                <p class="hint" id="rc-sig-desc" aria-live="polite"></p>
+                <div id="rc-sig-opts" class="rc-col" hidden>
+                  <div class="rc-row">
+                    <div class="field"><label for="rc-sig-type">Type de voix</label><div class="sel"><select id="rc-sig-type"><option value="homme">Homme</option><option value="femme">Femme</option><option value="enfant">Enfant (garçon)</option></select></div></div>
+                    <div class="field"><label for="rc-sig-base">Voix de départ (gratuite)</label><div class="sel"><select id="rc-sig-base"></select></div></div>
+                  </div>
+                  <div class="rc-row rc-sliders">
+                    <div class="field"><label for="rc-sig-pitch">Hauteur</label><input type="range" id="rc-sig-pitch" min="-4" max="5" step="0.5" value="0"></div>
+                    <div class="field"><label for="rc-sig-warm">Chaleur</label><input type="range" id="rc-sig-warm" min="0" max="1" step="0.05" value="0.3"></div>
+                    <div class="field"><label for="rc-sig-echo">Écho de salle</label><input type="range" id="rc-sig-echo" min="0" max="0.8" step="0.05" value="0"></div>
+                    <div class="field"><label for="rc-sig-speed">Rythme</label><input type="range" id="rc-sig-speed" min="0.8" max="1.2" step="0.01" value="1"></div>
+                  </div>
+                  <div class="field"><label for="rc-sig-txt">Phrase d’essai</label><textarea id="rc-sig-txt" rows="2">As-salamou aleykoum les enfants ! Aujourd’hui, nous apprenons ensemble. Écoutez bien, puis répétez après moi.</textarea></div>
+                  <div class="actions"><button type="button" class="btn" id="rc-sig-play">▶ Écouter cette voix</button><input type="text" id="rc-sig-name" class="plain-in rc-grow" maxlength="40" placeholder="Nom de la voix (ex. Oustaz doux)" aria-label="Nom de la voix signature"><button type="button" class="btn primary" id="rc-sig-save">Garder cette voix</button></div>
+                  <audio id="rc-sig-audio" controls hidden></audio>
+                  <p class="hint" id="rc-sig-msg" aria-live="polite"></p>
+                </div>
+              </div>
+            </details>
             <label class="check"><input type="checkbox" id="rc-showtr" checked><span>Afficher la traduction</span></label>
             <div class="field rc-sync"><label for="rc-sync">Synchronisation fine du texte <span class="hint">(si tout le texte semble légèrement en retard ou en avance)</span></label><output id="rc-sync-v" for="rc-sync">0,00 s</output><input type="range" id="rc-sync" min="-1" max="1" step="0.05" value="0"><p class="hint">0,00 s est recommandé. Une valeur positive affiche le texte plus tôt ; une valeur négative l’affiche plus tard. Le même réglage est appliqué à l’aperçu, au MP4 et au direct.</p></div>
             <div class="rc-orig" id="rc-orig" hidden><p class="hint">Ta vidéo d’origine (avant) :</p><div class="rc-orig-row" id="rc-orig-row"></div></div>
@@ -4052,7 +4078,29 @@ async function rcAuto(){
     rcCheck("pret","Tout est prêt : regarde le résultat, change ce que tu veux, puis fabrique la vidéo.","ok"); $("rc-see").hidden=false; $("rc-gomake").hidden=false;
   }catch(e){ rcCheck("err", e&&e.code==="cancelled"?"Analyse arrêtée : continue à la main à l’étape 2.":(e&&e.message)||"Analyse automatique interrompue : continue à la main à l’étape 2.","warn"); rcSteps(Math.max(2,RC.items.length?6:2)); }
   finally{ RC.autoRun=false; $("rc-stopauto").hidden=true; $("rc-reauto").hidden=false; } }
+/* ---------- voix signature : analyse des qualités de la voix importée, proposition (homme, femme, enfant), essai, enregistrement ---------- */
+const SIG_TYPES={homme:"homme", femme:"femme", enfant:"d'enfant"};
+async function rcSigAnalyze(){ const d=$("rc-sig-desc"); if(!RC.id) return; d.textContent="Écoute des qualités de la voix…";
+  try{ const p=await rcApi(`/api/recit/voixprofil?id=${RC.id}&chant=${RC.mode==="coran"?1:0}`); RC.sigProfile=p;
+    d.textContent=`Voix ${p.mots.hauteur}${p.chant&&p.parle?` (récitation chantée ; voix parlée estimée vers ${p.parle} Hz)`:""}, rythme ${p.mots.rythme}, timbre ${p.mots.chaleur}, écho ${p.mots.echo}. Proposition : une voix ${SIG_TYPES[p.type]} nouvelle, aux mêmes qualités. Tu peux tout changer.`;
+    $("rc-sig-type").value=p.type; rcSigFill(p.type); $("rc-sig-opts").hidden=false; }
+  catch(e){ d.textContent=e.message||"Analyse impossible."; } }
+function rcSigBases(sel){ const g=(FAB.voices&&FAB.voices.gemini||[]).length?FAB.voices.gemini:[{id:"Charon",name:"Charon",desc:"homme, grave"},{id:"Iapetus",name:"Iapetus",desc:"homme, clair"},{id:"Achernar",name:"Achernar",desc:"femme, douce"},{id:"Leda",name:"Leda",desc:"voix jeune"}], s=$("rc-sig-base");
+  s.innerHTML=g.map(v=>`<option value="${esc(v.id)}">${esc(v.name||v.id)}${v.desc?` · ${esc(v.desc)}`:""}</option>`).join(""); s.value=sel; if(s.value!==sel&&g.length) s.value=g[0].id; }
+function rcSigFill(type){ const p=RC.sigProfile, pr=p&&p.propositions&&p.propositions[type]; if(!pr) return; rcSigBases(pr.base); $("rc-sig-pitch").value=pr.fx.pitch; $("rc-sig-warm").value=pr.fx.warm; $("rc-sig-echo").value=pr.fx.echo; $("rc-sig-speed").value=pr.fx.speed; }
+const rcSigNow=()=>({base:$("rc-sig-base").value, style:(RC.sigProfile&&RC.sigProfile.style)||"a gentle, calm and warm voice, like a kind teacher", fx:{pitch:+$("rc-sig-pitch").value, warm:+$("rc-sig-warm").value, echo:+$("rc-sig-echo").value, speed:+$("rc-sig-speed").value}});
+async function rcSigPlay(){ const m=$("rc-sig-msg"), b=$("rc-sig-play"); if(!genApi){ m.textContent="La voix se fabrique avec Studio Prompt ouvert sur ton ordinateur."; return; } b.disabled=true; m.textContent="Fabrication de la voix (Gemini, gratuit)…";
+  try{ const sg=rcSigNow(); let {job}=await genApi.start({kind:"voice", service:"gemini", voice:sg.base, text:String($("rc-sig-txt").value||"").trim().slice(0,400)||"Répétez après moi.", style:sg.style, fx:sg.fx, project:"voix-signature", plan:0, base:"essai"});
+    for(let k=0;k<200&&/queued|running/.test(job.status);k++){ await new Promise(r=>setTimeout(r,700)); job=((await genApi.jobs("voix-signature",[job.id])).jobs||[])[0]||job; }
+    if(job.status!=="done") throw {message:job.error||"La voix n’a pas pu être fabriquée (quota Gemini du jour ?) : réessaie plus tard."};
+    const a=$("rc-sig-audio"); a.src=job.url; a.hidden=false; a.play().catch(()=>{}); m.textContent=`✅ Voix fabriquée : ${job.seconds} s.`; }
+  catch(e){ m.textContent=e.message||"Échec. Réessaie."; } finally{ b.disabled=false; } }
+function rcSigSave(){ const sg=rcSigNow(), type=$("rc-sig-type").value, nom=$("rc-sig-name").value.trim()||`Voix ${SIG_TYPES[type]} ${new Date().toLocaleDateString("fr-FR")}`, list=sigList();
+  list.push(Object.assign({id:"s"+Date.now().toString(36), nom, type}, sg)); savePrefs({sigs:list.slice(-20)});
+  $("rc-sig-msg").textContent=`✅ « ${nom} » est gardée : elle est dans les choix de voix (Constructeur, quiz, publicités…), groupe « Mes voix signature ».`; }
 function rcInit(){
+  $("rc-sig-an").addEventListener("click", rcSigAnalyze); $("rc-sig-type").addEventListener("change", e=>rcSigFill(e.target.value));
+  $("rc-sig-play").addEventListener("click", rcSigPlay); $("rc-sig-save").addEventListener("click", rcSigSave);
   $("rc-file").addEventListener("change", async e=>{ const f=e.target.files&&e.target.files[0]; if(!f||RC.busy) return; RC.busy=true; RC.fileName=f.name.replace(/\.[^.]+$/,"").slice(0,60); $("rc-info").textContent="";
     try{ const up=await rcUpload(f); RC.id=up.id; RC.items=[]; RC.ambUp=""; rcProg("rc-prog",.5,"Analyse : démarrage…"); RC.heard=null; RC.heardTxt=""; RC.msg=null; const an=await rcAnalyze(); RC.busy=false; await rcProjects(); rcLoaded(an, null); if($("rc-autoon").checked) rcAuto(); }
     catch(err){ rcProg("rc-prog",0,""); $("rc-info").textContent=err.message||"Échec. Réessaie."; }
@@ -8132,9 +8180,11 @@ function spCine(c, W, H, t, cuts){
   x.drawImage(c.__vig,0,0); x.save(); x.globalAlpha=0.045; x.globalCompositeOperation="overlay"; x.translate(-Math.random()*160,-Math.random()*160); x.fillStyle=c.__grain; x.fillRect(0,0,W+160,H+160); x.restore();   /* vignette et grain */
 }
 /* ---------- Voix (« parleurs ») des onglets Quiz et Publicités : la même chaîne gratuite que la revue de presse (Gemini, puis Hugging Face, puis l'ordinateur) ---------- */
+/* voix signature : une voix gratuite + sa manière de parler + le réglage du son (hauteur, chaleur, écho, rythme), créée à partir des qualités d'une voix importée */
+function sigList(){ try{ return (loadPrefs().sigs||[]).filter(x=>x&&x.id&&x.base); }catch(e){ return []; } }
 function spVoiceOptions(sel){
   const g=FAB.voices.gemini||[], o=(v,l)=>`<option value="${esc(v)}"${v===sel?" selected":""}>${esc(l)}</option>`;
-  return o("none","Sans voix (musique et effets seulement)")+`<optgroup label="Recommandé">${o("auto","⭐ La meilleure voix gratuite (automatique)")}</optgroup>`+(g.length?`<optgroup label="Voix Gemini (gratuites dans la limite du jour)">${g.map(v=>o(v.id,`${v.name} · ${v.desc}`)).join("")}</optgroup>`:"")
+  return o("none","Sans voix (musique et effets seulement)")+`<optgroup label="Recommandé">${o("auto","⭐ La meilleure voix gratuite (automatique)")}</optgroup>`+(sigList().length?`<optgroup label="Mes voix signature (gratuites)">${sigList().map(v=>o("sig:"+v.id,`🎙 ${v.nom}`)).join("")}</optgroup>`:"")+(g.length?`<optgroup label="Voix Gemini (gratuites dans la limite du jour)">${g.map(v=>o(v.id,`${v.name} · ${v.desc}`)).join("")}</optgroup>`:"")
     +((FAB.voices.elevenlabs||[]).length?`<optgroup label="Voix ElevenLabs (premium, très réalistes)">${FAB.voices.elevenlabs.map(v=>o("el:"+v.id,`${v.name}${v.desc?` · ${v.desc}`:""}`)).join("")}</optgroup>`:"")
     +`<optgroup label="Voix naturelle gratuite (Hugging Face)">${o("hf:fr_f1","Voix naturelle · femme, très naturelle")}</optgroup><optgroup label="Voix gratuites sur l'ordinateur (sans quota)">${LOCAL_VOICES.map(v=>o("local:"+v.id,`${v.name} · ${v.desc} · gratuite`)).join("")}</optgroup>`;
 }
@@ -8146,7 +8196,8 @@ async function spSay(text, sel, project, base, style, auto){
   text=String(text||"").replace(/\s+/g," ").trim(); if(!text||!sel||sel==="none") return null;
   const local=async id=>{ const x=await localSpeak(text,id,project,base); return {url:x.url, seconds:x.seconds, voice:id}; };
   if(/^local:/.test(sel)||!genApi) return local(/^local:/.test(sel)?sel.slice(6):"fr_FR-siwis-medium");
-  const job=async(service,voice)=>{ let {job}=await genApi.start({kind:"voice", service, voice, text, style:style||"", project, plan:0, base}); for(let k=0;k<300&&/queued|running/.test(job.status);k++){ await new Promise(r=>setTimeout(r,window.__voicePoll||700)); job=((await genApi.jobs(project,[job.id])).jobs||[])[0]||job; } if(job.status!=="done"||!job.url) throw {code:job.code, message:job.error||"Voix impossible."}; return {url:job.url, seconds:job.seconds||0, voice}; };
+  const job=async(service,voice,fx,st)=>{ let {job}=await genApi.start(Object.assign({kind:"voice", service, voice, text, style:st||style||"", project, plan:0, base}, fx?{fx}:{})); for(let k=0;k<300&&/queued|running/.test(job.status);k++){ await new Promise(r=>setTimeout(r,window.__voicePoll||700)); job=((await genApi.jobs(project,[job.id])).jobs||[])[0]||job; } if(job.status!=="done"||!job.url) throw {code:job.code, message:job.error||"Voix impossible."}; return {url:job.url, seconds:job.seconds||0, voice}; };
+  if(/^sig:/.test(sel)){ const sg=sigList().find(x=>x.id===sel.slice(4)); if(sg){ try{ return await job("gemini", sg.base, sg.fx, sg.style); }catch(e){} } sel="auto"; }   /* voix signature ; épuisée : la meilleure voix gratuite */
   if(/^hf:/.test(sel)){ try{ return await job("chatterbox",sel.slice(3)); }catch(e){ return local("fr_FR-siwis-medium"); } }
   if(/^el:/.test(sel)){ try{ return await job("elevenlabs",sel.slice(3)); }catch(e){ sel="auto"; } }   /* ElevenLabs épuisé : la meilleure voix gratuite prend le relais */
   try{ return await job("gemini", sel==="auto"?(auto||"Charon"):sel); }

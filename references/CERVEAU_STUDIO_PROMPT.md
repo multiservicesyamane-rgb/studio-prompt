@@ -738,6 +738,16 @@ Demande de l'utilisateur : « je te donne une vidéo de récitation du Coran tr�
   - **Qui récite** : réglage « L'oustaz, puis les talibés répètent » (par défaut) ou « L'oustaz seul ». Avec le suivi du récitant, la **première fois** qu'un verset est dit, l'oustaz récite et montre la tablette ; à la **répétition** (`rep` pair), les talibés répètent en se balançant pendant que l'oustaz les écoute. Les vidéos d'apprentissage (verset dit puis répété) s'animent donc toutes seules.
   - Les réglages assortis (style « Mushaf », couleurs du décor, sans effet par-dessus) valent pour les deux habillages à personnages. Écran de direct et miniature : mêmes scènes.
   - Tests : page 24 (17 habillages ; daara dessinée avec le réglage « qui récite »).
+- **Voix signature (13 octobre au soir)** : demande de l'utilisateur (« tu dois être capable de produire une voix comme les voix que j'importe »). Il a choisi **une voix nouvelle inspirée des qualités de ses voix importées, jamais une copie** : copier la voix d'un vrai récitant, c'est se faire passer pour lui sans son accord, et c'est refusé. Le Coran reste récité par une vraie voix.
+  - **Analyse** (`GET /api/recit/voixprofil?id&chant`) :
+    - hauteur : autocorrélation sur 8 kHz des passages voisés des 2 premières minutes, fondamentale médiane ;
+    - rythme : pics d'énergie par seconde de parole ;
+    - timbre : part des aigus ;
+    - écho de salle : niveau du fond entre les phrases par rapport à la voix.
+    Les qualités sont décrites en mots simples. **Une récitation est chantée bien plus haut que la voix parlée** (essai réel : récitant de Yâ-Sîn mesuré à 258 Hz) ; avec `chant=1`, la voix parlée est estimée à F0 / 1,7. La réponse propose un type (homme, femme ou enfant) et une proposition par type : voix gratuite de départ (Charon ou Iapetus pour un homme, Achernar pour une femme, Leda pour un enfant) et réglage (hauteur en demi-tons, rythme, chaleur, clarté, écho).
+  - **Réglage du son** (`generation.js`, champ `fx` d'une voix, FFmpeg) : hauteur (`asetrate` puis `atempo` pour garder le rythme), rythme, chaleur (graves +, aigus −), clarté, écho de salle (`aecho` à 3 retours), limiteur. Il s'applique après Gemini, Chatterbox ou ElevenLabs ; le modèle est noté « · voix signature ». Essai réel : une voix Gemini réglée (plus grave, chaude, écho de mosquée) fabriquée en 7 s.
+  - **Page** : panneau « 🎙 Voix signature » (étape 4 de « Garder la voix ») : analyser la voix, type (homme, femme, enfant), voix de départ, réglages (hauteur, chaleur, écho, rythme), phrase d'essai à écouter, « Garder cette voix ». Les voix gardées (`prefs.sigs`, 20 au plus) apparaissent **dans tous les choix de voix** (`spVoiceOptions`, groupe « Mes voix signature ») et se fabriquent par `spSay` (`sig:`) ; si Gemini est épuisé, la meilleure voix gratuite prend le relais.
+  - Tests : `gen-api-test.js` (+ réglage appliqué : 1 s ralentie à 0,8, plus la traîne de l'écho, WAV marqué « voix signature ») ; page 25 (analyse, proposition, voix gardée).
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -1038,6 +1048,7 @@ Les commits sont en français. Étapes majeures :
 33. Avatar 3D « Enseignant » (phase 1) : garçon en boubou moderne et kufi, tablette en bois où le verset s'allume, lèvres sur la vraie voix, 6 boubous, miniature (13 octobre, §4.3 terdecies).
 34. Voix et texte ensemble pour n'importe quel son : écoute par minutes, suivi du récitant phrase par phrase (ordre libre, répétitions, paroles hors Coran), relais Whisper large Groq, filtre arabe réparé (13 octobre, §4.3 terdecies).
 35. Avatar 3D version 2 (regard, sourcils, bouche selon les syllabes, hochements, gestes, caméra, ombres) et habillage « Daara » : jeune oustaz et talibés qui répètent (13 octobre, §4.3 terdecies).
+36. Voix signature : voix nouvelle aux qualités d'une voix importée (hauteur, rythme, timbre, écho), jamais une copie ; disponible dans tous les choix de voix (13 octobre, §4.3 terdecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

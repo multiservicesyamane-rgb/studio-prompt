@@ -12,7 +12,8 @@
 "use strict";
 const fs = require("fs"), path = require("path"), crypto = require("crypto");
 
-module.exports = function createGeneration({dir, env, sendJson, readBody}){
+const {spawn} = require("child_process");   /* FFmpeg : réglage des voix signature */
+module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG_PATH}){
   const GEMINI_KEY = env.GEMINI_API_KEY || "", GEMINI_BASE = (env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/$/, "");
   /* Clé d'un projet Google AVEC facturation, réservée aux médias payants (Veo, images) : la clé principale reste gratuite
      pour les agents et les voix. Sans elle, on essaie la clé principale (il faut alors activer la facturation de son projet). */
@@ -98,6 +99,27 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write("data", 36); h.writeUInt32LE(pcm.length, 40);
     return Buffer.concat([h, pcm]);
   }
+  /* ---------- voix signature : la voix choisie, puis son réglage (hauteur en demi-tons, rythme, chaleur, clarté, écho de salle).
+     Une voix nouvelle aux qualités voulues, jamais la copie de la voix de quelqu'un. ---------- */
+  const cleanFx = fx => { if(!fx || typeof fx !== "object") return null; const n = (v, a, b) => Math.max(a, Math.min(b, Number(v) || 0));
+    const o = {pitch:n(fx.pitch, -5, 5), speed:Number(fx.speed) ? n(fx.speed, .75, 1.3) : 1, warm:n(fx.warm, 0, 1), bright:n(fx.bright, -1, 1), echo:n(fx.echo, 0, 1)};
+    return o.pitch || o.speed !== 1 || o.warm || o.bright || o.echo ? o : null; };
+  function fxChain(fx){ const f = Math.pow(2, fx.pitch / 12), parts = ["aresample=24000"];
+    if(Math.abs(f - 1) > .001) parts.push(`asetrate=${Math.round(24000 * f)}`, "aresample=24000");
+    let tempo = (fx.speed || 1) / f; while(tempo < .5){ parts.push("atempo=0.5"); tempo /= .5; } while(tempo > 2){ parts.push("atempo=2"); tempo /= 2; } if(Math.abs(tempo - 1) > .001) parts.push(`atempo=${tempo.toFixed(4)}`);
+    if(fx.warm) parts.push(`equalizer=f=200:t=q:w=1:g=${(3.5 * fx.warm).toFixed(1)}`, `treble=g=${(-2.5 * fx.warm).toFixed(1)}:f=6500`);
+    if(fx.bright) parts.push(`treble=g=${(3 * fx.bright).toFixed(1)}:f=4500`);
+    if(fx.echo){ const e = fx.echo; parts.push(`aecho=0.9:0.85:45|95|160:${(.38 * e).toFixed(2)}|${(.26 * e).toFixed(2)}|${(.16 * e).toFixed(2)}`); }
+    parts.push("alimiter=limit=0.95"); return parts.join(","); }
+  function applyFx(buf, fx){ return new Promise((resolve, reject) => {
+    if(!FFMPEG_PATH) return reject(new Error("FFmpeg absent"));
+    const p = spawn(FFMPEG_PATH, ["-hide_banner", "-nostdin", "-loglevel", "error", "-i", "pipe:0", "-af", fxChain(fx), "-ac", "1", "-ar", "24000", "-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-f", "wav", "pipe:1"], {windowsHide:true, stdio:["pipe", "pipe", "ignore"]});
+    const out = []; p.stdout.on("data", c => out.push(c)); p.once("error", reject); p.stdin.on("error", () => {});
+    p.once("close", code => { const w = Buffer.concat(out); if(code !== 0 || w.length < 44) return reject(new Error("Réglage de la voix impossible."));
+      w.writeUInt32LE(w.length - 8, 4); const d = w.indexOf("data", 12, "ascii"); if(d > 0) w.writeUInt32LE(w.length - d - 8, d + 4); resolve(w); });
+    p.stdin.end(buf); }); }
+  /* la voix fabriquée passe par son réglage s'il y en a un (sinon telle quelle) */
+  async function voiceOut(j, buf, mime){ if(!j.fx) return {buf, mime}; try{ return {buf:await applyFx(buf, j.fx), mime:"audio/wav"}; }catch(e){ return {buf, mime}; } }
   function wavSeconds(buf){ try{ if(buf.slice(0, 4).toString() !== "RIFF") return 0; const rate = buf.readUInt32LE(24), bps = buf.readUInt16LE(32); let i = 12; while(i + 8 <= buf.length){ const id = buf.slice(i, i + 4).toString(), len = buf.readUInt32LE(i + 4); if(id === "data") return Math.round(Math.min(len, buf.length - i - 8) / (rate * bps) * 10) / 10; i += 8 + len; } }catch(e){} return 0; }
   /* Trouve un média (image ou audio) dans une réponse Gemini, quel que soit le format (interactions ou generateContent) ; garde le dernier */
   function findMedia(o, kind){
@@ -302,7 +324,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
       if(!r.ok) throw errOf("tts", r);
       const a = findMedia(r.json, "audio"); if(!a) throw {code:"server_error", message:"La voix Gemini n'a pas rendu d'audio : réessaie."};
       let buf = Buffer.from(a.data, "base64"); if(buf.slice(0, 4).toString() !== "RIFF") buf = wav(buf, Number((String(a.mime).match(/rate=(\d+)/) || [])[1]) || 24000);
-      return finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, buf, "audio/wav"), {seconds:wavSeconds(buf), model}));
+      const o = await voiceOut(j, buf, "audio/wav");
+      return finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:wavSeconds(o.buf), model:j.fx ? `${model} · voix signature` : model}));
     }
     throw {code:"quota_day", message:QUOTA_DAY_MSG()};
   }
@@ -345,15 +368,16 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
       if(!w) throw {code:"server_error", message:"La voix naturelle a rendu un son illisible : la voix de l'ordinateur prend le relais."};
       rate = w.rate; chunks.push(w.pcm, Buffer.alloc(Math.round(rate * 0.22) * 2));
     }
-    const buf = wav(Buffer.concat(chunks), rate);
-    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, buf, "audio/wav"), {seconds:wavSeconds(buf), model:"Chatterbox (Hugging Face)"}));
+    const o = await voiceOut(j, wav(Buffer.concat(chunks), rate), "audio/wav");
+    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:wavSeconds(o.buf), model:"Chatterbox (Hugging Face)"}));
   }
   async function runEleven(j){
     /* jeu de la voix selon la direction donnée : animateur ou annonceur plus expressif, voix posée plus stable ; sinon, réglages de la voix */
     const st = String(j.style || ""), vs = /energetic|lively|punchy|announcer|show host|dynamique/i.test(st) ? {stability:0.35, similarity_boost:0.8, style:0.45, use_speaker_boost:true} : /calm|grave|serious|measured|posé/i.test(st) ? {stability:0.6, similarity_boost:0.8, style:0.15, use_speaker_boost:true} : null;
     const r = await call(`${ELEVEN_BASE}/v1/text-to-speech/${encodeURIComponent(j.voice)}?output_format=mp3_44100_128`, post({"xi-api-key":ELEVEN_KEY, "Content-Type":"application/json", "Accept":"audio/mpeg"}, Object.assign({text:j.text, model_id:ELEVEN_MODEL}, vs ? {voice_settings:vs} : {})), 120000);
     if(!r.ok || /json/.test(r.type) || r.buf.length < 200) throw errOf("elevenlabs", r);
-    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, r.buf, "audio/mpeg"), {seconds:Math.round(r.buf.length / 16000 * 10) / 10}));
+    const o = await voiceOut(j, r.buf, "audio/mpeg");
+    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:o.mime === "audio/wav" ? wavSeconds(o.buf) : Math.round(r.buf.length / 16000 * 10) / 10}));
   }
   /* Reprise après redémarrage : on continue d'attendre les vidéos déjà commandées (jamais payées deux fois) */
   for(const j of jobs){
@@ -411,7 +435,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody}){
     if(service !== "chatterbox" && (service === "elevenlabs" ? !ELEVEN_KEY : !GEMINI_KEY)) return [400, {code:"no_key", message:`Pas de clé ${service === "elevenlabs" ? "ElevenLabs" : "Gemini"} dans le fichier .env : ouvre la page Connexions.`}];
     const text = String(b.text || "").trim(); if(!text || text.length > 3000) return [400, {code:"bad_request", message:"Texte à dire manquant ou trop long."}];
     if(service === "elevenlabs" && !b.voice) return [400, {code:"bad_request", message:"Choisis d'abord une voix ElevenLabs pour ce personnage."}];
-    const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service, label:service === "elevenlabs" ? "ElevenLabs" : service === "chatterbox" ? "Voix naturelle (Hugging Face)" : "Voix Gemini", project, plan, text, voice:String(b.voice || "").slice(0, 80), style:String(b.style || "").slice(0, 200), base:safeId(b.base || `P${pad(plan)}-voix`), who:String(b.who || "").slice(0, 80), line:Number(b.line) || 0, estimate:0, status:"queued", created:Date.now(), updated:Date.now()};
+    const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service, label:service === "elevenlabs" ? "ElevenLabs" : service === "chatterbox" ? "Voix naturelle (Hugging Face)" : "Voix Gemini", project, plan, text, voice:String(b.voice || "").slice(0, 80), style:String(b.style || "").slice(0, 200), fx:cleanFx(b.fx), base:safeId(b.base || `P${pad(plan)}-voix`), who:String(b.who || "").slice(0, 80), line:Number(b.line) || 0, estimate:0, status:"queued", created:Date.now(), updated:Date.now()};
     jobs.push(j); persist(); pump(); return [200, {job:pub(j)}];
   }
 

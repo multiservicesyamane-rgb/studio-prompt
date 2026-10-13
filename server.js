@@ -201,7 +201,7 @@ async function handlePdfText(req, res){
   }catch(e){ return sendJson(res, 422, {code:"bad_request", message:"Impossible de lire ce PDF. Il est peut-être protégé, corrompu ou composé uniquement d'images."}); }
 }
 /* Fabrication des vidéos et des voix (generation.js) : tâches suivies, budget du jour, fichiers dans public/generated/ */
-const gen = require("./generation")({dir:GENERATED, env:process.env, sendJson, readBody});
+const gen = require("./generation")({dir:GENERATED, env:process.env, sendJson, readBody, FFMPEG_PATH});
 /* « Garder la voix, refaire l'image » : longues récitations, conférences, lectures (analyse FFmpeg, texte du Coran, vidéo reçue par morceaux) */
 const recit = require("./recitation")({GENERATED, FFMPEG_PATH, sendJson, readBody, DATA:path.join(GENERATED, "_textes"), GROQ:{key:GROQ_KEY, base:GROQ_BASE}});
 const safePart = (v, fallback) => String(v || fallback).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || fallback;
