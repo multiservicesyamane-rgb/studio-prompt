@@ -38,7 +38,7 @@ let P=null, st=null, raf=0, ENV=null;
 const say=t=>{ msg.textContent=t; };
 /* le moteur dessine en 720p logique, multiplié selon la taille de la fenêtre (net dans OBS en 1080p) */
 function build(){ if(!P) return; const V=P.fmt==="9:16", Q=P.fmt==="1:1", W=V?720:Q?720:1280, H=V?1280:720, dpr=window.devicePixelRatio||1, K=Math.min(3,Math.max(.5,Math.min(innerWidth/W,innerHeight/H)*dpr));
-  st=SP_RECIT.stage({fmt:P.fmt, K, theme:(q.get("theme")||P.theme), items:P.items||[], sourate:P.sourate, fixe:P.fixe, recitant:P.recitant, showTr:P.showTr, total:loop?0:P.duration, font:P.font, avatar:{style:P.avStyle, skin:P.avSkin}, env:ENV, subtitle:P.subtitle, transition:P.transition, palette:P.palette, animation:P.animation, effect:P.effect, syncOffset:P.syncOffset});
+  st=SP_RECIT.stage({fmt:P.fmt, K, theme:(q.get("theme")||P.theme), items:P.items||[], sourate:P.sourate, fixe:P.fixe, recitant:P.recitant, showTr:P.showTr, total:loop?0:P.duration, font:P.font, avatar:{style:P.avStyle, skin:P.avSkin}, env:ENV, roles:P.roles, subtitle:P.subtitle, transition:P.transition, palette:P.palette, animation:P.animation, effect:P.effect, syncOffset:P.syncOffset});
   cv.width=st.canvas.width; cv.height=st.canvas.height; const sc=Math.min(innerWidth/W,innerHeight/H); cv.style.width=Math.round(W*sc)+"px"; cv.style.height=Math.round(H*sc)+"px"; draw(); }
 function draw(){ if(!st) return; st.draw(voix.currentTime||0); g.drawImage(st.canvas,0,0); }
 function tick(){ draw(); raf=requestAnimationFrame(tick); }
@@ -56,7 +56,7 @@ let it=0; addEventListener("mousemove", ()=>{ document.body.classList.remove("id
   voix.src=P.audio; voix.loop=loop; if(P.amb) amb.src=`/generated/recit-${id}/ambiance.wav?k=${encodeURIComponent(P.amb)}`;
   await SP_RECIT.ready(); await SP_RECIT.loadFont(P.font);
   /* avatar « Enseignant » : 3D et énergie de la voix pour ses lèvres */
-  if((q.get("theme")||P.theme)==="enseignant"){ try{ await SP_AVATAR.load(); }catch(e){} try{ const r=await fetch(`/api/recit/env?id=${id}`); if(r.ok) ENV=await r.json(); }catch(e){} }
+  if(/^(enseignant|daara)$/.test(q.get("theme")||P.theme)){ try{ await SP_AVATAR.load(); }catch(e){} try{ const r=await fetch(`/api/recit/env?id=${id}`); if(r.ok) ENV=await r.json(); }catch(e){} }
   build(); say(`${P.nom||"Direct"} · prêt`); start();
 })();
 })();

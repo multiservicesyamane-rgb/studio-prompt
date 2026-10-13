@@ -51,10 +51,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.click("[data-rc-nd='1:-0.1']"); const t2 = await pg.evaluate(() => document.querySelector("#rc-list li[data-i='1'] .rc-at").textContent);
     check("correction fine à la main : +0,1 s puis −0,1 s sur un passage", /0:04\.1/.test(t1) && /0:04\.0/.test(t2), `${t1} → ${t2}`);
     /* 4. habillages */
-    await pg.waitForFunction(() => document.querySelectorAll("#rc-themes .rc-th canvas").length === 16, {timeout: 60000});
+    await pg.waitForFunction(() => document.querySelectorAll("#rc-themes .rc-th canvas").length === 17, {timeout: 60000});
     const th = await pg.evaluate(() => [...document.querySelectorAll("#rc-themes .rc-th canvas")].map(c => { const g = c.getContext("2d"), d = g.getImageData(0, 0, c.width, c.height).data; let s = 0, v = 0; for(let i = 0; i < d.length; i += 4){ const l = d[i] + d[i + 1] + d[i + 2]; s += l; v += l * l; } const n = d.length / 4, m = s / n; return [Math.round(m), Math.round(Math.sqrt(v / n - m * m))]; }));
     const distinct = new Set(th.map(x => x.join("/"))).size;
-    check("16 habillages premium dessinés, dont l'enseignant en 3D (vignettes non vides et toutes différentes)", th.every(x => x[1] > 8) && distinct === 16, JSON.stringify(th));
+    check("17 habillages premium dessinés, dont l'enseignant et la daara en 3D (vignettes non vides et toutes différentes)", th.every(x => x[1] > 8) && distinct === 17, JSON.stringify(th));
     const fx0 = await pg.evaluate(() => ({tabs: document.querySelectorAll("#rc-fx-tabs [role='tab']").length, counts: Object.fromEntries(Object.entries(SP_RECIT.fx).map(([k, v]) => [k, Object.keys(v).length]))}));
     check("studio islamique : sous-titres, transitions, couleurs, animations et effets ont leurs vignettes", fx0.tabs === 5 && fx0.counts.subtitles === 6 && fx0.counts.transitions === 6 && fx0.counts.palettes === 6 && fx0.counts.animations === 6 && fx0.counts.effects === 8, JSON.stringify(fx0));
     const exact = await pg.evaluate(() => { const items = [{kind:"verset", ar:"الأول", a:0, b:3}, {kind:"verset", ar:"الثاني", a:3, b:6}], make = syncOffset => SP_RECIT.stage({fmt:"16:9", K:.1, theme:"nuit", items, transition:"sacred_fade", animation:"glow", syncOffset}); const a = make(0), b = make(.25); return {before:a.activeAt(2.999), edge:a.activeAt(3), corrected:b.activeAt(2.8)}; });
@@ -75,6 +75,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       const at = async t => { a.currentTime = t; await new Promise(r => a.addEventListener("seeked", r, {once: true})); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return g.getImageData(0, Math.round(c.height * .55), c.width, Math.round(c.height * .4)).data; };
       const d1 = await at(1.5), d2 = await at(3.5); let diff = 0; for(let i = 0; i < d1.length; i += 16) diff += Math.abs(d1[i] - d2[i]); return {ready: SP_AVATAR.ready(), env: (__spRecit.env || {}).v ? __spRecit.env.v.length : 0, diff, opts: document.getElementById("rc-av-style").options.length};});
     check("enseignant 3D : avatar chargé, 6 boubous au choix, énergie de la voix lue (lèvres), il bouge avec la voix", teach.ready && teach.opts === 6 && teach.env > 600 && teach.diff > 0, JSON.stringify(teach));
+    /* daara : le jeune oustaz et ses talibés ; réglage « qui récite » ; puis retour à l'enseignant */
+    await pg.evaluate(() => document.querySelector("[data-rc-theme='daara']").click());
+    await pg.waitForFunction(() => !document.getElementById("rc-roles-box").hidden, {timeout: 20000}); await wait(1500);
+    const dar = await pg.evaluate(() => { const c = document.querySelector("#rc-prev canvas"), d = c.getContext("2d").getImageData(0, Math.round(c.height * .5), c.width, Math.round(c.height * .45)).data; let s = 0, v = 0; for(let i = 0; i < d.length; i += 16){ s += d[i]; v += d[i] * d[i]; } const n = d.length / 16, m = s / n; return {roles: document.getElementById("rc-roles").options.length, sd: Math.round(Math.sqrt(v / n - m * m))}; });
+    check("daara : l'oustaz et ses talibés dessinés, réglage « qui récite » (oustaz puis talibés, ou oustaz seul)", dar.roles === 2 && dar.sd > 12, JSON.stringify(dar));
+    await pg.evaluate(() => document.querySelector("[data-rc-theme='enseignant']").click()); await wait(800);
     check("habillage « Livre ancien » choisi, aperçu au format téléphone (vertical)", pv.on === "true" && pv.h > pv.w, JSON.stringify(pv));
     /* miniature YouTube (couverture TikTok en format téléphone) : même décor, grand titre */
     await pg.evaluate(() => { document.getElementById("rc-th-t").value = "Al-Fatiha"; document.getElementById("rc-th-b").value = "1 H"; document.getElementById("rc-th-go").click(); });

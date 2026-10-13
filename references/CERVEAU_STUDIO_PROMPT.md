@@ -727,6 +727,17 @@ Demande de l'utilisateur : « je te donne une vidéo de récitation du Coran tr�
   - **Défaut corrigé partout** : le filtre des phrases inventées par Whisper (`WHISPER_JUNK`, `^\W*$`) jetait tout texte arabe, y compris dans « Depuis un audio ». Il ne rejette plus que les lignes sans aucune lettre (`\p{P}\p{S}`, drapeau `u`).
   - Autres : le bouton « 🎧 Refaire l'analyse complète (écoute, sans décalage) » est visible dès qu'un projet est rouvert ; quand le son a peu de vrais silences, la page conseille l'écoute. Avant de supprimer un projet, la page libère le lecteur, et le serveur réessaie (Windows refuse d'effacer un fichier ouvert). Les tests recopient le Coran gardé sur l'ordinateur (`tests/coran-cache.js`) pour ne pas dépendre d'Internet.
   - Tests : `recitation-auto-test.js` (11 : + son mélangé, une explication française puis Al-Fatiha 2-7 ; + Gemini épuisé, relais Whisper large Groq avec un faux Groq) ; `recitation-serveur-test.js` (17 : + suivi avec nom de chaîne, protection, basmala, répétitions, sourates à l'envers, « يا سين », deux versets dans une phrase) ; page 23.
+- **Avatar 3D version 2 et scène « Daara » (13 octobre au soir)** : demande de l'utilisateur (« plus fort, plus performant, plus dynamique, plus réaliste, plus de mouvement ; des fois un professeur et ses talibés »). Il a choisi un **jeune oustaz** comme professeur.
+  - `avatar-3d.js` réécrit (version 2) : `buildCharacter("enfant"|"oustaz", style, peau, graine)` et `poseCharacter(C, t, pose)`.
+    - L'adulte est plus grand, avec des épaules plus larges et une tête plus allongée. Sa barbe courte et sa moustache laissent voir la bouche.
+    - **Vie** : le regard se promène (caméra, tablette, livre) avec de petits mouvements d'œil ; clignements parfois doubles ; sourcils qui se lèvent avec la voix ou en écoutant ; **bouche qui change de forme selon les syllabes** (plus large ou plus ronde) ; hochement de tête au début de chaque phrase (`since`) ; tête qui bouge avec la voix ; respiration ; balancement en récitant.
+    - **Gestes** : montrer la tablette (index, ou bâton pour l'oustaz) ; expliquer mains ouvertes pendant les longs passages ; tourner la page entre deux versets.
+    - **Caméra 3D** qui se rapproche et tourne très lentement. **Ombres douces au sol.**
+  - Deux scènes dans le même moteur WebGL partagé : `solo` (le garçon) et `daara` (l'oustaz à sa table, trois talibés vus de dos en arc, tablettes sur les genoux, couleurs variées).
+  - Habillage `daara` (17e), qui partage le décor et la tablette de l'enseignant (`ENS`), avec sa propre disposition (tablette en haut à droite, classe à gauche ; en 9:16, tablette en haut, classe en bas).
+  - **Qui récite** : réglage « L'oustaz, puis les talibés répètent » (par défaut) ou « L'oustaz seul ». Avec le suivi du récitant, la **première fois** qu'un verset est dit, l'oustaz récite et montre la tablette ; à la **répétition** (`rep` pair), les talibés répètent en se balançant pendant que l'oustaz les écoute. Les vidéos d'apprentissage (verset dit puis répété) s'animent donc toutes seules.
+  - Les réglages assortis (style « Mushaf », couleurs du décor, sans effet par-dessus) valent pour les deux habillages à personnages. Écran de direct et miniature : mêmes scènes.
+  - Tests : page 24 (17 habillages ; daara dessinée avec le réglage « qui récite »).
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -1026,6 +1037,7 @@ Les commits sont en français. Étapes majeures :
 32. « Garder la voix » : phonétique, répétition « 100 fois / 1 heure » (image fabriquée une fois), miniature YouTube et couverture TikTok (13 octobre, §4.3 terdecies).
 33. Avatar 3D « Enseignant » (phase 1) : garçon en boubou moderne et kufi, tablette en bois où le verset s'allume, lèvres sur la vraie voix, 6 boubous, miniature (13 octobre, §4.3 terdecies).
 34. Voix et texte ensemble pour n'importe quel son : écoute par minutes, suivi du récitant phrase par phrase (ordre libre, répétitions, paroles hors Coran), relais Whisper large Groq, filtre arabe réparé (13 octobre, §4.3 terdecies).
+35. Avatar 3D version 2 (regard, sourcils, bouche selon les syllabes, hochements, gestes, caméra, ombres) et habillage « Daara » : jeune oustaz et talibés qui répètent (13 octobre, §4.3 terdecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 
