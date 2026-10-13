@@ -183,6 +183,14 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     try{ fs.rmSync(img, {force:true}); }catch(e){}
     Object.assign(J, {state:"done", step:"", progress:1, result:{url:urlOf(id, name), name, size:fs.statSync(out).size}});
   }
+  /* découpage en parties : chaque partie commence sur une image clé posée exprès au début d'un verset → coupe exacte, sans réencodage */
+  async function split(id, sid, file, parts){
+    const dir = dirOf(id), inp = path.join(dir, file); if(!fs.existsSync(inp)) throw new Error("Vidéo introuvable.");
+    const J = jobs[sid] = {state:"running", step:"découpage", progress:0}, base = file.replace(/\.mp4$/i, ""), out = [];
+    for(let k = 0; k < parts.length; k++){ const [a, b] = parts[k], name = `${base}-partie-${k + 1}-sur-${parts.length}.mp4`;
+      await ffmpeg(["-y", "-ss", String(a), "-i", inp, "-t", String(+(b - a).toFixed(3)), "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", "-movflags", "+faststart", path.join(dir, name)]);
+      out.push({url:urlOf(id, name), name, size:fs.statSync(path.join(dir, name)).size, a, b}); J.progress = (k + 1) / parts.length; J.step = `partie ${k + 1} sur ${parts.length}`; }
+    Object.assign(J, {state:"done", step:"", progress:1, result:{parts:out}}); }
   const start = (key, fn) => { fn().catch(e => { jobs[key] = Object.assign(jobs[key] || {}, {state:"failed", step:"", error:e.message || String(e), code:e.code || "server_error"}); }); };
 
   function handle(req, res){
@@ -209,6 +217,9 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       if(req.method === "PUT" && r === "ambiance") return ambient(req, res, u);
       if(req.method === "POST" && r === "render/finish"){ const b = await body(); if(!b || !okId(b.id) || !okId(b.rid)) return json(res, 400, {code:"bad_request", message:"Paramètres invalides."});
         jobs[b.rid] = {state:"running", step:"démarrage", progress:0}; start(b.rid, () => finish(b.id, b.rid, b)); return json(res, 200, {job:b.rid}); }
+      if(req.method === "POST" && r === "split"){ const b = await body(), parts = b && Array.isArray(b.parts) ? b.parts.filter(x => Array.isArray(x) && x[1] > x[0] && x[0] >= 0).slice(0, 400) : [];
+        if(!b || !okId(b.id) || !/^[A-Za-z0-9_-]{1,120}\.mp4$/.test(String(b.file || "")) || parts.length < 2) return json(res, 400, {code:"bad_request", message:"Découpage invalide."});
+        const sid = crypto.randomBytes(5).toString("hex"); jobs[sid] = {state:"running", step:"démarrage", progress:0}; start(sid, () => split(b.id, sid, b.file, parts)); return json(res, 200, {job:sid}); }
       json(res, 404, {code:"not_found", message:"Route inconnue."});
     })().catch(e => { if(!res.headersSent) json(res, 502, {code:e.code || "server_error", message:e.message || "Erreur du serveur."}); });
     return true;

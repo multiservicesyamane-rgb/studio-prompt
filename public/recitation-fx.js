@@ -9,6 +9,19 @@ const rnd=i=>{ const x=Math.sin(i*127.1+311.7)*43758.5453; return x-Math.floor(x
 const AR='"Amiri Quran","Amiri","Scheherazade New","Noto Naskh Arabic","Traditional Arabic",serif', AR_T='"Aref Ruqaa","Amiri","Noto Naskh Arabic",serif', LAT='"Cormorant Garamond",Georgia,"Times New Roman",serif', KID='"Baloo 2","Trebuchet MS","Segoe UI",sans-serif';
 const DIG="٠١٢٣٤٥٦٧٨٩", arNum=n=>String(n).replace(/\d/g,d=>DIG[d]);
 const rgba=(hex,a)=>{ const m=/^#?([0-9a-f]{6})$/i.exec(hex); if(!m) return hex; const n=parseInt(m[1],16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
+/* polices du texte coranique (libres, Google Fonts), essayées sur l'écriture uthmani complète (13 octobre) : toutes affichent
+   les voyelles, les petites lettres et les signes d'arrêt. Reem Kufi est écartée (signes qui se chevauchent). k = taille relative, pour un rendu égal. */
+const AR_FONTS={
+  amiri:{nom:"Mushaf classique · Amiri Quran", css:'"Amiri Quran"', k:1},
+  scheherazade:{nom:"Naskh très lisible · Scheherazade", css:'"Scheherazade New"', k:.98},
+  naskh:{nom:"Naskh moderne · Noto Naskh", css:'"Noto Naskh Arabic"', k:.9},
+  kufi:{nom:"Coufique moderne, très net sur téléphone · Noto Kufi", css:'"Noto Kufi Arabic"', w:"500", k:.8},
+  harmattan:{nom:"Style d'Afrique de l'Ouest · Harmattan", css:'"Harmattan"', k:1.02},
+  markazi:{nom:"Élégant · Markazi", css:'"Markazi Text"', w:"500", k:1.05},
+  lateef:{nom:"Doux et aéré · Lateef", css:'"Lateef"', k:1.25}
+};
+const fontLoads={};
+function loadFont(id){ const f=AR_FONTS[id], F=document.fonts; if(!f||!F||!F.load) return Promise.resolve(); return fontLoads[id]||(fontLoads[id]=F.load(`${f.w||"400"} 48px ${f.css}`,"بِسْمِ ٱللَّهِ").catch(()=>null)); }
 /* chargement des polices avant de dessiner (sinon le texte arabe sortirait dans une police de secours) */
 let fontsP=null;
 function ready(){ if(fontsP) return fontsP; const F=document.fonts; if(!F||!F.load) return fontsP=Promise.resolve();
@@ -112,7 +125,7 @@ const FX={
   }
 };
 const SUB_STYLE={
-  mushaf:{},
+  mushaf:{karaoke:true},
   royal:{ink:"#FFF4C2",ink2:"#F2DEAB",gold:"#F5C85B",active:"#FFFFFF",stroke:"#6B4300",glow:"rgba(245,200,91,.75)",karaoke:true},
   emerald:{ink:"#EFFFF7",ink2:"#CDEBDD",gold:"#58E6A9",active:"#FFFFFF",stroke:"#063D2B",glow:"rgba(40,255,164,.85)",karaoke:true,panel:"neon"},
   mihrab:{ink:"#FFFFFF",ink2:"#EDE7D6",gold:"#E7C66C",active:"#FFF6C8",stroke:"rgba(20,12,0,.8)",glow:"rgba(231,198,108,.55)",karaoke:true,panel:"glass"},
@@ -130,6 +143,7 @@ const PAL_STYLE={
 /* o = {fmt, K, theme, items:[{kind:"titre"|"basmala"|"verset", n, ar, tr, a, b}], sourate:{ar, nom}, recitant, showTr, total} */
 function stage(o){
   const V=o.fmt==="9:16", Q=o.fmt==="1:1", W=V?720:Q?720:1280, H=V?1280:720, K=o.K||1, L=Math.min(W,H)/720, T=THEMES[o.theme]?o.theme:"nuit";
+  const AF=AR_FONTS[o.font]||AR_FONTS.amiri;   /* police du texte coranique choisie */
   const SUB=SUB_STYLE[o.subtitle]?o.subtitle:"mushaf", TR=FX.transitions[o.transition]?o.transition:"precise", AN=FX.animations[o.animation]?o.animation:"rise", EFF=FX.effects[o.effect]?o.effect:"aucune", PAL=PAL_STYLE[o.palette]?o.palette:"theme", SYNC=cl(Number(o.syncOffset)||0,-1,1);
   const c=document.createElement("canvas"); c.width=Math.round(W*K); c.height=Math.round(H*K); const g=c.getContext("2d");
   const items=(o.items||[]).slice().sort((a,b)=>a.a-b.a), total=o.total||((items[items.length-1]||{}).b)||0, showTr=o.showTr!==false;
@@ -225,7 +239,7 @@ function stage(o){
   const wrapAr=(x,txt,maxw)=>{ const ws=String(txt).split(/\s+/).filter(Boolean), lines=[]; let line=""; ws.forEach(w=>{ const q=line?line+" "+w:w; if(line&&x.measureText(q).width>maxw){ lines.push(line); line=w; } else line=q; }); if(line) lines.push(line); return lines; };
   function layout(it){ const key=it; if(cache.has(key)){ const v=cache.get(key); cache.delete(key); cache.set(key,v); return v; } const tx=meas;
     const isT=it.kind==="titre", rtl=isRtl(it.ar), maxLines=isT?3:(V?(showTr&&it.tr?5:7):(showTr&&it.tr?3:5)), trH=showTr&&it.tr&&!isT?box.h*(V?.28:.3):0, phH=o.showPh!==false&&it.ph&&!isT?box.h*(V?.13:.15):0, arH=box.h-trH-phH, base=isT?(V?82:76):rtl?(V?62:56):(V?54:48), LH=rtl?1.75:1.32;
-    const font=sz=>rtl?`${isT?"700 ":""}${Math.round(sz)}px ${isT?AR_T:AR}`:T==="enfants"?`700 ${Math.round(sz)}px ${KID}`:`${isT?"700":"600"} ${Math.round(sz)}px ${LAT}`;
+    const font=sz=>rtl?(isT?`700 ${Math.round(sz)}px ${AR_T}`:`${AF.w?AF.w+" ":""}${Math.round(sz*AF.k)}px ${AF.css},${AR}`):T==="enfants"?`700 ${Math.round(sz)}px ${KID}`:`${isT?"700":"600"} ${Math.round(sz)}px ${LAT}`;
     const txt=String(it.ar).replace(/\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED])/g,"$1"), floor=isT?24:Math.round(base*.72);
     let size=base, lines=[]; for(;size>=floor;size-=2){ tx.font=font(size); lines=wrapAr(tx,txt,box.w*.94); if(lines.length<=maxLines&&lines.length*size*LH<=arH) break; }
     size=Math.max(size,floor); tx.font=font(size); lines=wrapAr(tx,txt,box.w*.94);
@@ -236,21 +250,42 @@ function stage(o){
     const trs=split(it.tr), phs=split(it.ph);
     const lh=size*LH, bys=[], render=(pl,x,trTxt,phTxt,hi)=>{ x.clearRect(0,0,box.w,box.h); x.direction=rtl?"rtl":"ltr"; x.textAlign="center"; x.textBaseline="middle"; x.font=font(size);
       const y0=(arH-pl.length*lh)/2+lh/2; if(!hi) bys.push(y0+(pl.length-1)*lh+size*.95); if(P.glow!=="rgba(0,0,0,0)"&&P.glow!=="rgba(255,230,170,.0)"){ x.shadowColor=P.glow; x.shadowBlur=size*(hi?.58:.34); } x.fillStyle=hi?P.active:(isT?P.gold:P.ink);
-      x.lineJoin="round"; x.lineWidth=Math.max(1,size*.045); x.strokeStyle=P.stroke; pl.forEach((ln,i)=>{ if(!hi&&SUB!=="mushaf") x.strokeText(ln,box.w/2,y0+i*lh); x.fillText(ln,box.w/2,y0+i*lh); }); x.shadowColor="transparent"; x.shadowBlur=0;
+      x.lineJoin="round"; x.lineWidth=Math.max(1,size*.045); x.strokeStyle=P.stroke; const dim=!hi&&!isT&&(SUB_STYLE[SUB]||{}).karaoke; if(dim) x.globalAlpha=PAPER?.42:.5;   /* mots pas encore récités : plus pâles */
+      pl.forEach((ln,i)=>{ if(!hi&&SUB!=="mushaf") x.strokeText(ln,box.w/2,y0+i*lh); x.fillText(ln,box.w/2,y0+i*lh); }); x.globalAlpha=1; x.shadowColor="transparent"; x.shadowBlur=0;
       if(!hi&&phH&&phTxt){ x.direction="ltr"; let ps=V?28:24, pl2=[]; for(;ps>=15;ps-=1){ x.font=T==="enfants"?`600 ${ps}px ${KID}`:`italic 600 ${ps}px ${LAT}`; pl2=wrapAr(x,phTxt,box.w*.92); if(pl2.length*ps*1.25<=phH*.92) break; }
         x.fillStyle=P.gold; if(P.glow!=="rgba(0,0,0,0)"&&!PAPER){ x.shadowColor=P.glow; x.shadowBlur=ps*.4; } const py=arH+(phH-pl2.length*ps*1.25)/2+ps*.62; pl2.forEach((ln,i)=>x.fillText(ln,box.w/2,py+i*ps*1.25)); x.shadowColor="transparent"; x.shadowBlur=0; }
       if(!hi&&trH){ x.direction="ltr"; const t0=arH+phH; let ts=V?30:26, tl=[]; for(;ts>=16;ts-=1){ x.font=T==="enfants"?`600 ${ts}px ${KID}`:`italic 500 ${ts}px ${LAT}`; tl=wrapAr(x,trTxt,box.w*.92); if(tl.length*ts*1.3<=trH*.9) break; }
         x.fillStyle=P.ink2; if(P.glow!=="rgba(0,0,0,0)"&&!PAPER&&T!=="nuit"&&T!=="arabesque"&&T!=="neon"){ x.shadowColor=P.glow; x.shadowBlur=ts*.4; } const ty=t0+(trH-tl.length*ts*1.3)/2+ts*.65; tl.forEach((ln,i)=>x.fillText(ln,box.w/2,ty+i*ts*1.3)); x.shadowColor="transparent"; x.shadowBlur=0;
         x.strokeStyle=rgba(P.gold.length===7?P.gold:"#C9A24A",.6); x.lineWidth=1.2; x.beginPath(); x.moveTo(box.w*.3,t0+4); x.lineTo(box.w*.7,t0+4); x.stroke(); } };
-    const hiPages=[], out={pages:pages.map((pl,i)=>{ const tr0=pages.length>1?trs[i]:String(it.tr||""), ph0=pages.length>1?phs[i]:String(it.ph||""), [pc,px]=off(box.w,box.h); render(pl,px,tr0,ph0,false); if((SUB_STYLE[SUB]||{}).karaoke&&!isT){ const [hc,hx]=off(box.w,box.h); render(pl,hx,"","",true); hiPages.push(hc); } return pc; }), hiPages, lines:lines.length, rtl, arH, bys, trH};
+    /* position de chaque mot, page par page, ligne après ligne, dans le sens de lecture : le surlignage suit vraiment la récitation */
+    tx.font=font(size); const geo=pages.map(pl=>{ const y0=(arH-pl.length*lh)/2+lh/2, ws=[]; pl.forEach((ln,li)=>{ const W=ln.split(" "), full=tx.measureText(ln).width, cx=box.w/2, yc=y0+li*lh; let pre="";
+        W.forEach((w,k)=>{ const a0=k?tx.measureText(pre+" ").width:0; pre=k?pre+" "+w:w; const a1=tx.measureText(pre).width;
+          ws.push({x0:rtl?cx+full/2-a1:cx-full/2+a0, x1:rtl?cx+full/2-a0:cx-full/2+a1, y0:yc-lh*.5, y1:yc+lh*.5, n:Math.max(1,w.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,"").length), waqf:/[\u06D6-\u06DB]/.test(w)}); }); }); return ws; });
+    const geoBase=[]; geo.reduce((n,g,i)=>{ geoBase[i]=n; return n+g.length; },0);
+    const hiPages=[], out={geo, geoBase, pages:pages.map((pl,i)=>{ const tr0=pages.length>1?trs[i]:String(it.tr||""), ph0=pages.length>1?phs[i]:String(it.ph||""), [pc,px]=off(box.w,box.h); render(pl,px,tr0,ph0,false); if((SUB_STYLE[SUB]||{}).karaoke&&!isT){ const [hc,hx]=off(box.w,box.h); render(pl,hx,"","",true); hiPages.push(hc); } return pc; }), hiPages, lines:lines.length, rtl, arH, bys, trH};
     cache.set(key,out); while(cache.size>12) cache.delete(cache.keys().next().value);   /* seuls les textes autour du moment présent restent en mémoire */
     return out; }
   const itemAt=t=>{ let lo=0, hi=items.length-1, k=-1; while(lo<=hi){ const m=(lo+hi)>>1; if(items[m].a<=t){ k=m; lo=m+1; } else hi=m-1; } return k; };
   const cueProgress=(it,t)=>{ const ws=(it.speech||[]).filter(z=>z&&z.b>z.a), total=ws.reduce((n,z)=>n+z.b-z.a,0); if(!total) return cl((t-it.a)/Math.max(.5,(it.b||it.a+4)-it.a)); let done=0; for(const z of ws){ if(t>=z.b) done+=z.b-z.a; else if(t>z.a){ done+=t-z.a; break; } else break; } return cl(done/total); };
-  const pageOf=(it,lay,t)=>lay.pages.length<2?0:Math.min(lay.pages.length-1,Math.floor(Math.min(.999,cueProgress(it,t))*lay.pages.length));
+  const wordTimes=new WeakMap();
+  function wordTiming(it,lay){ const words=lay.geo.flat(), sig=`${it.a}|${it.b}|${JSON.stringify(it.speech||[])}|${words.length}`, old=wordTimes.get(it); if(old&&old.sig===sig) return old;
+    let ws=(it.speech||[]).filter(z=>z&&z.b>z.a).map(z=>({a:+z.a,b:+z.b})); if(!ws.length) ws=[{a:it.a,b:Math.max(it.a+.5,it.b||it.a+4)}];
+    const groups=[[]]; words.forEach((w,i)=>{ groups[groups.length-1].push(i); if(w.waqf&&i<words.length-1) groups.push([]); });
+    const s=new Array(words.length), e=new Array(words.length);
+    const spread=(idx,wins)=>{ const tot=wins.reduce((n,z)=>n+z.b-z.a,0), L=idx.reduce((n,i)=>n+words[i].n,0)||1; let acc=0;
+      const at=f=>{ let d=f*tot; for(const z of wins){ const len=z.b-z.a; if(d<=len+1e-6) return z.a+d; d-=len; } return wins[wins.length-1].b; };
+      idx.forEach(i=>{ s[i]=at(acc/L); acc+=words[i].n; e[i]=at(acc/L); }); };
+    if(groups.length>1&&groups.length===ws.length) groups.forEach((gp,k)=>spread(gp,[ws[k]])); else spread(words.map((w,i)=>i),ws);
+    const r={sig,s,e}; wordTimes.set(it,r); return r; }
+  /* page d'un verset long : celle du mot en cours de récitation */
+  const pageOf=(it,lay,t)=>{ if(lay.pages.length<2) return 0; if(lay.geo){ const tm=wordTiming(it,lay); let k=0; for(let p=1;p<lay.pages.length;p++){ const i=lay.geoBase[p]; if(tm.s[i]!=null&&t>=tm.s[i]-.05) k=p; } return k; } return oldPageOf(it,lay,t); };
+  const oldPageOf=(it,lay,t)=>lay.pages.length<2?0:Math.min(lay.pages.length-1,Math.floor(Math.min(.999,cueProgress(it,t))*lay.pages.length));
   /* dessin d'un bloc de texte avec son entrée (fondu, montée, mise au point) */
   function drawText(x,it,t,alpha,dy,blur){ if(!it||alpha<=0) return; const lay=layout(it), pg=pageOf(it,lay,t), pc=lay.pages[pg]; x.save(); x.globalAlpha=alpha; if(blur>0.3) x.filter=`blur(${blur.toFixed(1)}px)`; x.drawImage(pc,box.x,box.y+(dy||0),box.w,box.h); x.restore();
-    if(lay.hiPages[pg]&&it.b>it.a){ const all=cueProgress(it,t), local=cl(all*lay.pages.length-pg), w=box.w*local; x.save(); x.globalAlpha=alpha; x.beginPath(); x.rect(lay.rtl?box.x+box.w-w:box.x,box.y+(dy||0),w,box.h); x.clip(); x.drawImage(lay.hiPages[pg],box.x,box.y+(dy||0),box.w,box.h); x.restore(); }
+    if(lay.hiPages[pg]&&it.b>it.a){ const tm=wordTiming(it,lay), G=lay.geo[pg], base=lay.geoBase[pg], oy=box.y+(dy||0), pad=3*L; let any=false; x.save(); x.globalAlpha=alpha; x.beginPath();
+      G.forEach((r,j)=>{ const i=base+j, s0=tm.s[i], s1=tm.e[i]; if(s0==null||t<s0) return; const f=t>=s1?1:cl((t-s0)/Math.max(.05,s1-s0)), w=(r.x1-r.x0)*f+(f>=1?pad*2:pad);
+        x.rect(lay.rtl?box.x+r.x1+pad-w:box.x+r.x0-pad, oy+r.y0, w, r.y1-r.y0); any=true; });
+      if(any){ x.clip(); x.drawImage(lay.hiPages[pg],box.x,oy,box.w,box.h); } x.restore(); }
     /* au rythme de la voix, dans le sens de lecture (de droite à gauche pour l'arabe) : sur le papier, un filet d'or avance sous le verset ;
        sur les fonds sombres, une lueur douce passe sur les mots */
     if(it.kind==="verset"&&it.b>it.a&&alpha>.5&&T!=="minimal"){ const p=cueProgress(it,t), y0=box.y+(dy||0);
@@ -316,7 +351,11 @@ function stage(o){
     else current(it,vt);
     chrome(g,t,it); g.restore();
     if(T==="minimal"&&it&&it.kind==="verset"){ g.save(); g.globalAlpha=.06; g.fillStyle="#C9A24A"; g.font=`700 ${Math.round(H*.32)}px ${AR}`; g.textAlign="center"; g.textBaseline="middle"; g.fillText(arNum(it.n),W/2,H*.5); g.restore(); }
-    vignette(g); }
+    vignette(g); partBadge(g,t); }
+  /* parties pour TikTok et Shorts : « Partie 2/4 », hors du mouvement de caméra */
+  function partBadge(x,t){ const P2=o.parts; if(!P2||P2.length<2) return; const k=P2.findIndex(([a,b])=>t>=a-.01&&t<b); if(k<0) return; x.save(); x.direction="ltr";
+    const txt=`Partie ${k+1}/${P2.length}`; x.font=`700 ${Math.round((V?26:19)*L)}px ${LAT}`; const h=(V?44:34)*L, w=x.measureText(txt).width+30*L, bx=(V?26:20)*L, by=(V?28:18)*L;
+    rrect(x,bx,by,w,h,h/2); x.fillStyle="rgba(0,0,0,.45)"; x.fill(); x.strokeStyle=P.gold; x.lineWidth=1.5*L; x.stroke(); x.fillStyle="#FFFFFF"; x.textAlign="left"; x.textBaseline="middle"; x.fillText(txt,bx+15*L,by+h/2+1*L); x.restore(); }
   function vignette(x){ const va=T==="enfants"?0:T==="paysage"||T==="lofi"?.25:.35; if(!va) return; const vg=x.createRadialGradient(W/2,H/2,Math.min(W,H)*.45,W/2,H/2,Math.hypot(W,H)/1.7); vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,`rgba(0,0,0,${va})`); x.fillStyle=vg; x.fillRect(0,0,W,H); }
   /* miniature YouTube (ou couverture de Short) : le même décor, un grand titre lisible de loin */
   function poster(p){ p=p||{}; g.setTransform(K,0,0,K,0,0); g.globalAlpha=1; g.filter="none"; g.globalCompositeOperation="source-over"; g.drawImage(bg,0,0,W,H); live(g,6);
@@ -372,5 +411,5 @@ function align(speech, texts, opts){
   const starts=[start].concat(cuts.map(ci=>ci==null?null:segs[ci+1].a)); for(let j=1;j<n;j++) if(starts[j]==null||starts[j]<=starts[j-1]) starts[j]=starts[j-1]+.3;
   return meta(starts.map((a,j)=>({a:+a.toFixed(2),b:+(j<n-1?starts[j+1]:Math.max(end,a+.3)).toFixed(2)}))); }
 
-window.SP_RECIT={version:2, themes:THEMES, fx:FX, ready, stage, align, arNum, isRtl:t=>/[\u0590-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(String(t||""))};
+window.SP_RECIT={version:2, themes:THEMES, fx:FX, fonts:AR_FONTS, loadFont, ready, stage, align, arNum, isRtl:t=>/[\u0590-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(String(t||""))};
 })();

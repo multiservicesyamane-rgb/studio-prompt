@@ -12,7 +12,7 @@
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Amiri+Quran&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Baloo+2:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Amiri+Quran&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Baloo+2:wght@600;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Noto+Kufi+Arabic:wght@500&family=Harmattan&family=Markazi+Text:wght@500&family=Lateef&display=swap">
 <style>
 [hidden]{display:none !important}
 /* Layout: app shell. Desktop = left sidebar (232px) + one centred content column (max 760px).
@@ -922,6 +922,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 #rc-vol{width:100%;accent-color:var(--view-accent);min-height:44px}
 .rc-how{display:grid;gap:8px;padding-left:20px;margin:0;font-size:14px;line-height:1.5}
 .rc-vid{margin:0;display:flex;flex-direction:column;gap:10px}
+.rc-parts{display:grid;gap:8px}
 .rc-vid video{width:100%;max-height:70vh;border-radius:14px;background:#000}
 </style>
 
@@ -1509,6 +1510,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
             </details>
             <div class="rc-row">
               <div class="field"><label for="rc-fmt">Format</label><div class="sel"><select id="rc-fmt"><option value="16:9">💻 PC · 16:9 · YouTube</option><option value="9:16">📱 Téléphone · 9:16 · TikTok, Shorts, Reels</option><option value="1:1">◻️ Carré · 1:1</option></select></div></div>
+              <div class="field"><label for="rc-font">Police du texte arabe</label><div class="sel"><select id="rc-font"></select></div></div>
               <div class="field"><label for="rc-reci">Nom du récitant <span class="hint">(facultatif)</span></label><input type="text" id="rc-reci" class="plain-in" maxlength="60"></div>
             </div>
             <label class="check"><input type="checkbox" id="rc-showtr" checked><span>Afficher la traduction</span></label>
@@ -1527,6 +1529,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
             </div>
             <p class="hint">Sons de la nature fabriqués sur ton ordinateur, sans instrument de musique. La voix reste toujours devant.</p>
             <div class="field"><label for="rc-qual">Qualité</label><div class="sel"><select id="rc-qual"></select></div></div>
+            <div class="field"><label for="rc-split">Découper pour TikTok et Shorts</label><div class="sel"><select id="rc-split"><option value="0">Non : une seule vidéo</option><option value="60">Parties de 1 min au plus (Shorts, statut WhatsApp)</option><option value="180">Parties de 3 min au plus (Shorts, TikTok)</option><option value="600">Parties de 10 min au plus (TikTok)</option></select></div><p class="hint">Chaque partie commence au début d’un verset et affiche « Partie 1/4 ». La vidéo complète est gardée aussi.</p></div>
             <p class="hint" id="rc-est"></p>
             <div class="actions"><button type="button" class="btn primary" id="rc-make">🎬 Fabriquer la vidéo</button><button type="button" class="btn" id="rc-stop" hidden>Arrêter et garder le début</button></div>
             <div class="rc-prog" id="rc-mprog" hidden><div class="rc-prog-t" id="rc-mprog-t" aria-live="polite"></div><progress id="rc-mprog-p" max="1" value="0"></progress></div>
@@ -3624,7 +3627,7 @@ window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VI
    4. Habillage premium dessiné image par image (public/recitation-fx.js), même moteur pour l'aperçu, la vidéo et le direct.
    5. Vidéo encodée ici (H.264) et envoyée par morceaux au serveur, qui remet la voix d'origine (+ ambiance de la nature, très douce).
    6. Écran de direct (direct.html) pour OBS Studio et TikTok LIVE Studio. Tout est gratuit. */
-const RC = {ready:false, server:null, id:"", an:null, mode:"coran", pass:[{n:1, from:1, to:7}], items:[], theme:"nuit", fmt:"16:9", showTr:true, recitant:"", voice:"original", subtitle:"mushaf", transition:"precise", palette:"theme", animation:"rise", effect:"poussiere_doree", syncOffset:0, fxTab:"subtitles", amb:"aucune", vol:.08, ambUp:"", sur:null, cache:{}, projs:[], st:null, raf:0, tap:-1, busy:false, stop:false, fileName:"", ambBufs:{}};
+const RC = {ready:false, server:null, id:"", an:null, mode:"coran", pass:[{n:1, from:1, to:7}], items:[], theme:"nuit", fmt:"16:9", showTr:true, recitant:"", voice:"original", subtitle:"mushaf", transition:"precise", palette:"theme", animation:"rise", effect:"poussiere_doree", syncOffset:0, fxTab:"subtitles", font:"amiri", amb:"aucune", vol:.08, ambUp:"", sur:null, cache:{}, projs:[], st:null, raf:0, tap:-1, busy:false, stop:false, fileName:"", ambBufs:{}};
 window.__spRecit = RC;   /* état lu par les tests automatiques (lecture seulement) */
 const RC_ISTI = {ar:"أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ", tr:{"fr.hamidullah":"Je cherche refuge auprès d’Allah contre le Diable banni.", "en.sahih":"I seek refuge in Allah from Satan, the expelled."}};
 const RC_QUAL = {fhd30:{nom:"Full HD · 30 images/s (le plus beau)", K:1.5, fps:30, br:4.5e6}, fhd24:{nom:"Full HD · 24 images/s (plus rapide, plus léger)", K:1.5, fps:24, br:3e6}, hd24:{nom:"HD 720p · 24 images/s (très longues vidéos : le plus rapide et le plus léger)", K:1, fps:24, br:1.4e6}};
@@ -3657,7 +3660,7 @@ function rcLoaded(an, pj){
   $("rc-info").textContent=`✅ Voix gardée : ${rcDur(an.duration)}, ${(an.speech||[]).length} moments de parole repérés entre les pauses.${few?" Très peu de pauses : ouvre « Réglage des pauses » si la voix est sur un fond bruyant.":""}`;
   const au=$("rc-audio"); if(au.getAttribute("src")!==an.audio){ au.src=an.audio; } $("rc-seek").max=String(an.duration||1);
   if(pj){ $("rc-isti").checked=!!pj.isti; $("rc-basm").checked=pj.basm!==false; $("rc-tr").value=pj.tr==null?"fr.hamidullah":pj.tr; $("rc-txt").value=pj.txt||""; $("rc-titre").value=pj.titre||""; }
-  $("rc-fmt").value=RC.fmt; $("rc-reci").value=RC.recitant; $("rc-showtr").checked=RC.showTr; $("rc-voice").value=RC.voice; $("rc-sync").value=String(RC.syncOffset); rcSyncLabel(); $("rc-amb").value=RC.amb; $("rc-vol").value=String(RC.vol);
+  if(pj) RC.font=SP_RECIT.fonts[pj.font]?pj.font:"amiri"; rcFontSel(); $("rc-fmt").value=RC.fmt; $("rc-reci").value=RC.recitant; $("rc-showtr").checked=RC.showTr; $("rc-voice").value=RC.voice; $("rc-sync").value=String(RC.syncOffset); rcSyncLabel(); $("rc-amb").value=RC.amb; $("rc-vol").value=String(RC.vol);
   if(pj){ RC.heard=pj.heard||null; RC.heardTxt=pj.heardTxt||""; RC.msg=pj.msg||null; } rcOrig(); rcPub();
   rcMode(RC.mode); rcPassRender(); $("rc-out").innerHTML=rcVideosHtml();
   if(RC.items.length){ rcSteps(6); rcListRender(); rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); } else rcSteps(2);
@@ -3729,7 +3732,7 @@ function rcTapEnd(){ RC.tap=-1; $("rc-tapbox").hidden=true; $("rc-audio").pause(
 /* habillage : le même moteur dessine les vignettes, l'aperçu, la vidéo et le direct */
 const RC_FX_TABS=[["subtitles","Sous-titres"],["transitions","Transitions"],["palettes","Couleurs"],["animations","Animations"],["effects","Effets"]], RC_FX_KEY={subtitles:"subtitle",transitions:"transition",palettes:"palette",animations:"animation",effects:"effect"};
 const RC_FX_HINT={subtitles:"Styles conçus pour l’arabe et l’écriture uthmani : ligatures et signes restent intacts. La lumière suit le passage sans masquer les mots.",transitions:"La transition se termine avant le début du passage suivant : le nouveau texte est entièrement lisible dès que la voix commence.",palettes:"Couleurs du texte, des ornements et des effets. Le contraste reste renforcé pour YouTube et les téléphones.",animations:"Animations calmes qui ne séparent jamais les lettres arabes et ne retardent jamais la lecture.",effects:"Ambiances visuelles rendues à partir du même temps audio dans l’aperçu, le MP4 et le direct."};
-function rcStageOptions(K,extra){ return Object.assign({fmt:RC.fmt,K,theme:RC.theme,items:RC.items,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),recitant:RC.recitant,showTr:RC.showTr,total:RC.an?RC.an.duration:0,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset},extra||{}); }
+function rcStageOptions(K,extra){ return Object.assign({fmt:RC.fmt,K,theme:RC.theme,items:RC.items,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),recitant:RC.recitant,showTr:RC.showTr,total:RC.an?RC.an.duration:0,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font},extra||{}); }
 function rcStageMk(K){ return SP_RECIT.stage(rcStageOptions(K)); }
 function rcSyncLabel(){ if(!$("rc-sync-v")) return; const n=Number(RC.syncOffset)||0; $("rc-sync-v").textContent=`${n>0?"+":""}${n.toFixed(2).replace(".",",")} s`; }
 function rcFxApply(cat,id){ const key=RC_FX_KEY[cat], list=SP_RECIT.fx&&SP_RECIT.fx[cat]; if(!key||!list||!list[id]) return; RC[key]=id; rcFxRender(cat); rcPreview(); rcSave(); }
@@ -3744,7 +3747,8 @@ async function rcThemes(){ await SP_RECIT.ready(); const box=$("rc-themes"), sam
   Object.entries(SP_RECIT.themes).forEach(([k,th])=>{ const b=document.createElement("button"); b.type="button"; b.className="rc-th"; b.setAttribute("role","radio"); b.setAttribute("aria-checked",String(k===RC.theme)); b.dataset.rcTheme=k;
     const st=SP_RECIT.stage(rcStageOptions(.25,{theme:k,items:sample?[Object.assign({},sample,{a:0,b:12})]:[],fixe:true,total:12,syncOffset:0})); st.draw(4);
     st.canvas.setAttribute("aria-hidden","true"); b.append(st.canvas); b.insertAdjacentHTML("beforeend",`<b>${esc(th.nom)}</b><small>${esc(th.desc)}</small>`); box.append(b); }); }
-async function rcPreview(){ await SP_RECIT.ready(); RC.st=rcStageMk(.5); RC.st.canvas.setAttribute("role","img"); RC.st.canvas.setAttribute("aria-label","Aperçu de l’habillage"); $("rc-prev").replaceChildren(RC.st.canvas); rcDraw(); }
+function rcFontSel(){ const s=$("rc-font"); if(!s.options.length) s.innerHTML=Object.entries(SP_RECIT.fonts).map(([k,f])=>`<option value="${k}">${esc(f.nom)}</option>`).join(""); s.value=RC.font||"amiri"; }
+async function rcPreview(){ await SP_RECIT.ready(); await SP_RECIT.loadFont(RC.font); RC.st=rcStageMk(.5); RC.st.canvas.setAttribute("role","img"); RC.st.canvas.setAttribute("aria-label","Aperçu de l’habillage"); $("rc-prev").replaceChildren(RC.st.canvas); rcDraw(); }
 function rcDraw(){ if(!RC.st) return; const au=$("rc-audio"), t=au.currentTime||0; RC.st.draw(t); $("rc-seek").value=String(t); $("rc-time").textContent=`${rcT(t)} / ${rcT(RC.an?RC.an.duration:0)}`; }
 let rcRefreshT=0; function rcRefresh(){ clearTimeout(rcRefreshT); rcRefreshT=setTimeout(()=>{ rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcSave(); },250); }
 /* ---------- ambiances de la nature (aucun instrument), fabriquées ici : 60 s qui bouclent sans couture ---------- */
@@ -3781,17 +3785,25 @@ async function rcAmbPlay(on){ try{ if(rcAmbSrc){ rcAmbSrc.stop(); rcAmbSrc=null;
 async function rcAmbUpload(){ if(!RC.id) return; if(RC.amb==="aucune"){ RC.ambUp=""; rcSave(); return; } if(RC.ambUp===RC.amb) return;
   const blob=prWav(await rcAmbBuf(RC.amb)), r=await fetch(`/api/recit/ambiance?id=${RC.id}`,{method:"PUT", headers:{"Content-Type":"audio/wav"}, body:blob}); if(!r.ok) throw {message:"Ambiance non envoyée au serveur."}; RC.ambUp=RC.amb; rcSave(); }
 /* ---------- qualité, estimation, fabrication ---------- */
-function rcQual(reset){ const sel=$("rc-qual"), d=RC.an?RC.an.duration:0; if(!sel.options.length) sel.innerHTML=Object.entries(RC_QUAL).map(([k,q])=>`<option value="${k}">${esc(q.nom)}</option>`).join(""); if(reset) sel.value=d<=2400?"fhd30":d<=7200?"fhd24":"hd24"; rcEst(); }
+/* parties pour TikTok et Shorts : coupées juste avant le début d'un verset (dans la pause), jamais au milieu d'un mot */
+function rcParts(maxLen){ const D=RC.an?RC.an.duration:0, fps=(RC_QUAL[$("rc-qual").value]||RC_QUAL.fhd24).fps; if(!maxLen||D<=maxLen+5) return [];
+  const S=RC.an.speech||[], starts=RC.items.filter(x=>x.kind!=="titre"&&x.a>.5).map(x=>x.a), out=[]; let s=0;
+  while(D-s>maxLen+5){ const lim=s+maxLen; let c=null; for(const a of starts) if(a>s+maxLen*.4&&a<=lim) c=a;
+    if(c!=null){ const before=S.filter(z=>z.b<=c).pop(); c=Math.max(before?before.b+.05:s+1, c-.25); } else { const g=S.filter(z=>z.b>s+maxLen*.4&&z.b<lim).pop(); c=g?g.b+.1:lim; }
+    c=Math.round(c*fps)/fps; out.push([+s.toFixed(3),+c.toFixed(3)]); s=c; }
+  out.push([+s.toFixed(3),+D.toFixed(3)]); return out; }
+function rcQual(reset){ const sel=$("rc-qual"), d=RC.an?RC.an.duration:0; if(reset) $("rc-split").value=RC.fmt==="9:16"&&d>185?"180":"0"; if(!sel.options.length) sel.innerHTML=Object.entries(RC_QUAL).map(([k,q])=>`<option value="${k}">${esc(q.nom)}</option>`).join(""); if(reset) sel.value=d<=2400?"fhd30":d<=7200?"fhd24":"hd24"; rcEst(); }
 async function rcEst(){ const q=RC_QUAL[$("rc-qual").value], d=RC.an?RC.an.duration:0; if(!q||!d) return; const size=(q.br+192e3)*d/8;
   let msg=`Vidéo de ${rcDur(d)} · fichier d’environ ${rcSize(size)} (garde ${rcSize(size*2.05)} de libre pendant la fabrication).`;
   try{ await SP_RECIT.ready(); const st=rcStageMk(q.K), n=10, t0=performance.now(); for(let i=0;i<n;i++) st.draw(30+i/q.fps); const ms=(performance.now()-t0)/n; msg+=` Fabrication : environ ${rcDur(Math.max(10,d*q.fps*(ms*1.4+4)/1000))} sur cet ordinateur, l’onglet ouvert.`; }catch(e){}
+  const np=rcParts(+$("rc-split").value).length; if(np>1) msg+=` Découpée ensuite en ${np} parties pour TikTok et Shorts (même place en plus).`;
   $("rc-est").textContent=msg; }
 async function rcMake(){
   if(RC.busy||!RC.an) return; const Q=RC_QUAL[$("rc-qual").value]||RC_QUAL.fhd24, dur=RC.an.duration, say=(p,t)=>rcProg("rc-mprog",p,t);
   if(typeof VideoEncoder!=="function"||typeof VideoFrame!=="function"){ say(0,"Ce navigateur ne sait pas fabriquer la vidéo : ouvre Studio Prompt dans Edge ou Chrome à jour, sur ordinateur. Gratuit aussi : l’écran de direct (étape 6), enregistré avec OBS Studio (« Démarrer l’enregistrement »)."); return; }
   RC.busy=true; RC.stop=false; $("rc-make").disabled=true; $("rc-stop").hidden=false; $("rc-out").innerHTML=""; $("rc-audio").pause();
   try{
-    say(0,"Préparation…"); await SP_RECIT.ready(); const st=rcStageMk(Q.K), W=st.canvas.width, H=st.canvas.height; let codec="";
+    say(0,"Préparation…"); await SP_RECIT.ready(); await SP_RECIT.loadFont(RC.font); const parts=rcParts(+$("rc-split").value), st=SP_RECIT.stage(rcStageOptions(Q.K,{parts})), W=st.canvas.width, H=st.canvas.height, keyAt=new Set(parts.slice(1).map(([a])=>Math.round(a*Q.fps))); let codec="";
     for(const c of ["avc1.640028","avc1.4d0028","avc1.42e028"]){ try{ if((await VideoEncoder.isConfigSupported({codec:c, width:W, height:H, bitrate:Q.br, framerate:Q.fps, avc:{format:"avc"}})).supported){ codec=c; break; } }catch(e){} }
     if(!codec) throw {message:"L’encodeur vidéo de ce navigateur refuse cette taille : choisis « HD 720p »."};
     const M=await spMuxer(), s0=await rcApi("/api/recit/render/start",{method:"POST", body:{id:RC.id}}), rid=s0.rid, need=(Q.br+192e3)*dur/8*2.05;
@@ -3806,7 +3818,7 @@ async function rcMake(){
     const frames=Math.max(1,Math.ceil(dur*Q.fps)), t0=performance.now(), pause=()=>new Promise(r=>{ const c=new MessageChannel(); c.port1.onmessage=()=>r(); c.port2.postMessage(0); }); let f=0;
     try{
       for(;f<frames;f++){ if(fail) throw fail; if(upErr) throw {message:"Envoi au serveur interrompu ("+upErr.message+")."}; if(RC.stop) break;
-        st.draw(f/Q.fps); const vf=new VideoFrame(st.canvas,{timestamp:Math.round(f*1e6/Q.fps), duration:Math.round(1e6/Q.fps)}); ve.encode(vf,{keyFrame:f%(Q.fps*2)===0}); vf.close();
+        st.draw(f/Q.fps); const vf=new VideoFrame(st.canvas,{timestamp:Math.round(f*1e6/Q.fps), duration:Math.round(1e6/Q.fps)}); ve.encode(vf,{keyFrame:f%(Q.fps*2)===0||keyAt.has(f)}); vf.close();
         while(ve.encodeQueueSize>4&&!fail) await Promise.race([new Promise(r=>ve.addEventListener("dequeue",r,{once:true})), new Promise(r=>setTimeout(r,40))]);
         while(pend.size>3&&!upErr) await Promise.race([...pend]);
         if(f%15===0){ const p=f/frames, el=(performance.now()-t0)/1000, eta=p>.002?el/p*(1-p):0; say(p*.97,`Image : ${rcT(f/Q.fps)} sur ${rcT(dur)} (${Math.floor(p*100)} %)${eta?` · encore environ ${rcDur(eta)}`:""}`); await pause(); } }
@@ -3817,11 +3829,14 @@ async function rcMake(){
     await rcApi("/api/recit/render/finish",{method:"POST", body:{id:RC.id, rid, duration:secs, nom:rcNom(), voix:RC.voice, ambiance:RC.amb!=="aucune", volume:RC.vol}});
     let r=null; for(;;){ await new Promise(z=>setTimeout(z,700)); const s=await rcApi(`/api/recit/status?id=${rid}`); if(s.state==="done"){ r=s.result; break; } if(s.state==="failed") throw {message:s.error||"La voix n’a pas pu être remise."}; say(.97+.03*(s.progress||0),`La voix d’origine est remise : ${Math.round((s.progress||0)*100)} %…`); }
     say(1,""); const voiceLabel=RC.voice==="original"?"voix originale intacte":`voix avec finition « ${$("rc-voice").selectedOptions[0].textContent} »`; $("rc-out").innerHTML=`<figure class="rc-vid"><video controls playsinline preload="metadata" src="${esc(r.url)}"></video><figcaption class="actions"><a class="btn primary" href="${esc(r.url)}" download="${esc(r.name)}">⬇ Télécharger (${rcSize(r.size)})</a></figcaption></figure><p class="hint">✅ ${RC.stop?`Début gardé : ${rcDur(secs)}.`:`Vidéo complète : ${rcDur(secs)}.`} MP4 H.264, ${W} × ${H}, ${Q.fps} images/s, ${voiceLabel}${RC.amb!=="aucune"?" avec l’ambiance très douce":""}.</p>`;
+    if(parts.length>1&&!RC.stop){ say(.99,`Découpage en ${parts.length} parties pour TikTok et Shorts…`); const j=await rcApi("/api/recit/split",{method:"POST", body:{id:RC.id, file:r.name, parts}});
+      let sp=null; for(;;){ await new Promise(z=>setTimeout(z,600)); const s=await rcApi(`/api/recit/status?id=${j.job}`); if(s.state==="done"){ sp=s.result; break; } if(s.state==="failed") throw {message:s.error||"Découpage impossible."}; say(.99,`Découpage : ${s.step||"…"}`); }
+      $("rc-out").insertAdjacentHTML("beforeend",`<div class="rc-parts"><p class="hint">✅ ${sp.parts.length} parties pour TikTok et Shorts, chacune commence au début d’un verset :</p>${sp.parts.map((x,i)=>`<div class="rc-row"><a class="btn" href="${esc(x.url)}" download="${esc(x.name)}">⬇ Partie ${i+1}/${sp.parts.length} · ${rcT(x.b-x.a)} (${rcSize(x.size)})</a></div>`).join("")}</div>`); say(1,""); }
     rcProjects();
   }catch(e){ say(0,e.message||"La fabrication a échoué. Réessaie, ou choisis « HD 720p »."); }
   finally{ RC.busy=false; $("rc-make").disabled=false; $("rc-stop").hidden=true; } }
 function rcLive(){ if(!RC.id) return; const u=`${location.origin}/direct.html?id=${RC.id}${$("rc-loop").checked?"&boucle=1":""}`; $("rc-live").value=u; $("rc-open").href=u; }
-function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",msg:RC.msg||null}; }
+function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",msg:RC.msg||null}; }
 function rcSaveNow(){ clearTimeout(RC.saveT); if(!RC.id||!RC.an) return Promise.resolve(); const data=rcProjectData(); RC.saveP=(RC.saveP||Promise.resolve()).catch(()=>{}).then(()=>fetch("/api/recit/project",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); })); return RC.saveP; }
 function rcSave(){ clearTimeout(RC.saveT); RC.saveT=setTimeout(()=>{ rcSaveNow().catch(()=>{}); },400); }
 async function rcOpen(id){ if(!id||RC.busy) return; const p=RC.projs.find(x=>x.id===id); if(!p) return;
@@ -3975,6 +3990,7 @@ ${$("rc-pub-d").value}`; try{ await navigator.clipboard.writeText(t); toast("Tit
   $("rc-fx").addEventListener("click",e=>{ const tab=e.target.closest("[data-rc-fxtab]"); if(tab){ rcFxRender(tab.dataset.rcFxtab); return; } const b=e.target.closest("[data-rc-fx]"); if(!b) return; const [cat,id]=b.dataset.rcFx.split(":"); rcFxApply(cat,id); });
   $("rc-fx").addEventListener("pointerover",e=>{ const b=e.target.closest(".rc-fxc"); if(!b||!b._rcStage||(rcFxAnim&&rcFxAnim.b===b)) return; if(rcFxAnim) cancelAnimationFrame(rcFxAnim.raf); const cat=b.dataset.rcFx.split(":")[0], t0=performance.now(), step=()=>{ if(!b.isConnected) return; const s=(performance.now()-t0)/1000, t=cat==="transitions"?2.76+(s%.9)/.9*.24:cat==="animations"?(s%1.4)*.35:(s%4.8)+.1; b._rcStage.draw(t); rcFxAnim.raf=requestAnimationFrame(step); }; rcFxAnim={b,raf:requestAnimationFrame(step)}; });
   $("rc-fx").addEventListener("pointerout",e=>{ const b=e.target.closest(".rc-fxc"); if(!rcFxAnim||b!==rcFxAnim.b||(e.relatedTarget&&b.contains(e.relatedTarget))) return; cancelAnimationFrame(rcFxAnim.raf); if(b._rcStage) b._rcStage.draw(b._rcAt); rcFxAnim=null; });
+  $("rc-font").addEventListener("change", async e=>{ RC.font=e.target.value; await SP_RECIT.loadFont(RC.font); rcRefresh(); });
   $("rc-fmt").addEventListener("change", e=>{ RC.fmt=e.target.value; rcRefresh(); rcEst(); });
   $("rc-reci").addEventListener("input", e=>{ RC.recitant=e.target.value.trim(); rcRefresh(); });
   $("rc-showtr").addEventListener("change", e=>{ RC.showTr=e.target.checked; rcRefresh(); });
@@ -3984,6 +4000,7 @@ ${$("rc-pub-d").value}`; try{ await navigator.clipboard.writeText(t); toast("Tit
   $("rc-amb").addEventListener("change", async e=>{ RC.amb=e.target.value; if(!au.paused) rcAmbPlay(true); try{ await rcAmbUpload(); }catch(err){ toast(err.message); } });
   $("rc-vol").addEventListener("input", e=>{ RC.vol=+e.target.value; if(rcAmbG) rcAmbG.gain.value=RC.vol; rcSave(); });
   $("rc-qual").addEventListener("change", ()=>rcEst());
+  $("rc-split").addEventListener("change", ()=>rcEst());
   $("rc-make").addEventListener("click", rcMake); $("rc-stop").addEventListener("click", ()=>{ RC.stop=true; });
   $("rc-loop").addEventListener("change", rcLive);
   $("rc-open").addEventListener("click",async e=>{ e.preventDefault(); const w=window.open("about:blank","_blank"); try{ await rcSaveNow(); if(w) w.location=$("rc-live").value; else location.href=$("rc-live").value; }catch(err){ if(w) w.close(); toast("Le projet n’a pas pu être enregistré avant le direct."); } });

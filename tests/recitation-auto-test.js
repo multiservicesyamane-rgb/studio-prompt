@@ -16,7 +16,7 @@ const FATIHA = ["بسم الله الرحمن الرحيم", "الحمد لله 
 const FR = ["Bonjour à tous", "aujourd'hui nous parlons de patience", "la patience est une lumière", "elle aide dans les épreuves", "soyons reconnaissants", "merci de votre écoute", "à bientôt"];
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
-  fs.rmSync(GEN, {recursive: true, force: true});
+  fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250});
   const PORT = 3000 + 600 + Math.floor(Math.random() * 90), BASE = `http://127.0.0.1:${PORT}`;
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], {env: Object.assign({}, process.env, {SP_NO_DOTENV: "1", PORT: String(PORT), HOST: "127.0.0.1", GEMINI_API_KEY: "x", GEN_DIR: GEN}), stdio: ["ignore", "pipe", "pipe"]});
   let log = ""; srv.stdout.on("data", d => log += d); srv.stderr.on("data", d => log += d);
@@ -61,5 +61,5 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     check("téléphone (390 px) : aucun défilement horizontal", wide <= 390, `${wide} px`);
     check("aucune erreur dans la console", !errs.length, errs.slice(0, 3).join(" | "));
   }catch(e){ out.push("ERREUR DU TEST : " + e.message); }
-  await b.close(); srv.kill(); fs.rmSync(GEN, {recursive: true, force: true}); console.log(out.join("\n")); process.exit(0);
+  await b.close(); srv.kill(); fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250}); console.log(out.join("\n")); process.exit(0);
 })();

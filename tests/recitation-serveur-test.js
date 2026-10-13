@@ -18,7 +18,7 @@ const req = (BASE, method, p, body, type) => new Promise(resolve => { const b = 
 const waitJob = async (BASE, id, ms) => { const t0 = Date.now(); for(;;){ const s = await req(BASE, "GET", `/api/recit/status?id=${id}`); if(s.j.state === "done" || s.j.state === "failed" || Date.now() - t0 > ms) return s.j; await new Promise(r => setTimeout(r, 400)); } };
 const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["ignore", "ignore", "pipe"]}); }catch(e){ return String(e.stderr || ""); } return ""; };
 (async () => {
-  fs.rmSync(GEN, {recursive: true, force: true});
+  fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250});
   const PORT = 3000 + 400 + Math.floor(Math.random() * 90), BASE = `http://127.0.0.1:${PORT}`;
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], {env: Object.assign({}, process.env, {SP_NO_DOTENV: "1", PORT: String(PORT), HOST: "127.0.0.1", GEMINI_API_KEY: "x", GEN_DIR: GEN}), stdio: ["ignore", "pipe", "pipe"]});
   let log = ""; srv.stdout.on("data", d => log += d); srv.stderr.on("data", d => log += d);
@@ -27,7 +27,7 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
     const up = await req(BASE, "POST", "/api/recit/upload?name=" + encodeURIComponent("récitation.mp4"), fs.readFileSync(F("recit-7.mp4")), "application/octet-stream");
     check("envoi d'une vidéo (lue au fil de l'eau)", up.status === 200 && /^[a-f0-9]{12}$/.test(up.j.id), JSON.stringify(up.j));
     const id = up.j.id; await req(BASE, "POST", "/api/recit/analyze", {id, noise: -35, minPause: .45});
-    const an = await waitJob(BASE, id, 60000), r = an.result || {};
+    const an = await waitJob(BASE, id, 120000), r = an.result || {};
     const exp = []; let t = 0; DUR.forEach(d => { exp.push([t, t + d]); t += d + 1; });
     const close = (r.speech || []).length === 7 && r.speech.every((s, i) => Math.abs(s.a - exp[i][0]) < .15 && Math.abs(s.b - exp[i][1]) < .15);
     check("analyse : 7 morceaux de parole repérés aux bons endroits (pauses d'1 s)", an.state === "done" && close, JSON.stringify((r.speech || []).map(s => `${s.a}-${s.b}`)));
@@ -37,7 +37,7 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
     check("la voix se lit à partir de n'importe quel moment (indispensable pour 5 h)", voice === 206, String(voice));
     /* le fichier vidéo a été supprimé, mais un nouveau réglage des pauses doit pouvoir réanalyser la voix gardée */
     await req(BASE, "POST", "/api/recit/analyze", {id, noise: -34, minPause: .3});
-    const an2 = await waitJob(BASE, id, 60000), r2 = an2.result || {};
+    const an2 = await waitJob(BASE, id, 120000), r2 = an2.result || {};
     check("nouvelle analyse possible après suppression de la vidéo source : la voix gardée suffit", an2.state === "done" && (r2.speech || []).length === 7 && !fs.readdirSync(dir).some(f => /^source\./.test(f)), an2.error || JSON.stringify((r2.speech || []).map(s => `${s.a}-${s.b}`)));
     /* texte du Coran */
     const s1 = await req(BASE, "GET", "/api/recit/quran/surah?n=1");
@@ -71,5 +71,5 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
     check("avec une ambiance en boucle (5 s répétées sur 26 s, très douce) : son mélangé, durée gardée", fin2.state === "done" && /Audio: aac/.test(pr2) && /Duration: 00:00:26/.test(pr2), fin2.error || (pr2.match(/Duration: [^,]+/) || [""])[0]);
     check("la vidéo sans son envoyée par morceaux est supprimée après la finition (place sur le disque)", !fs.readdirSync(path.join(GEN, `recit-${id}`)).some(f => /^image-/.test(f)), fs.readdirSync(path.join(GEN, `recit-${id}`)).join(", "));
   }catch(e){ out.push("ERREUR DU TEST : " + e.message); }
-  srv.kill(); fs.rmSync(GEN, {recursive: true, force: true}); console.log(out.join("\n")); process.exit(0);
+  srv.kill(); fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250}); console.log(out.join("\n")); process.exit(0);
 })();

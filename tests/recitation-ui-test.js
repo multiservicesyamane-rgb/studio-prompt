@@ -13,7 +13,7 @@ if(!fs.existsSync(F("recit-7.mp4"))){ const parts = []; DUR.forEach((d, i) => { 
 const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["ignore", "ignore", "pipe"]}); }catch(e){ return String(e.stderr || ""); } return ""; };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
-  fs.rmSync(GEN, {recursive: true, force: true});
+  fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250});
   const PORT = 3000 + 500 + Math.floor(Math.random() * 90), BASE = `http://127.0.0.1:${PORT}`;
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], {env: Object.assign({}, process.env, {SP_NO_DOTENV: "1", PORT: String(PORT), HOST: "127.0.0.1", GEMINI_API_KEY: "x", GEN_DIR: GEN}), stdio: ["ignore", "pipe", "pipe"]});
   let log = ""; srv.stdout.on("data", d => log += d); srv.stderr.on("data", d => log += d);
@@ -78,11 +78,16 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     for(let k = 0; k < 120; k++){ const f=path.join(GEN, `recit-${id}`, "ambiance.wav"); if(fs.existsSync(f) && fs.statSync(f).size > 3e6) break; await wait(250); }
     const amb = path.join(GEN, `recit-${id}`, "ambiance.wav");
     check("ambiance « pluie douce » fabriquée sur l'ordinateur (60 s qui bouclent) et envoyée au serveur", fs.existsSync(amb) && fs.statSync(amb).size > 3e6 && /Duration: 00:01:00/.test(probe(amb)), fs.existsSync(amb) ? (probe(amb).match(/Duration: [^,]+/) || [""])[0] : "absent");
-    await pg.evaluate(() => { const q = document.getElementById("rc-qual"); q.value = "hd24"; q.dispatchEvent(new Event("change", {bubbles: true})); document.getElementById("rc-make").click(); });
+    /* découpage pour TikTok et Shorts : parties de 10 s au plus (valeur d'essai), pour la vidéo de 26 s */
+    await pg.evaluate(() => { const q = document.getElementById("rc-qual"); q.value = "hd24"; q.dispatchEvent(new Event("change", {bubbles: true})); const sp = document.getElementById("rc-split"); sp.add(new Option("essai 10 s", "10")); sp.value = "10"; sp.dispatchEvent(new Event("change", {bubbles: true})); document.getElementById("rc-make").click(); });
     await pg.waitForFunction(() => document.querySelector("#rc-out video") || /échoué|impossible|refuse|Pas assez/.test(document.getElementById("rc-mprog-t").textContent), {timeout: 300000});
     const res = await pg.evaluate(() => ({src: (document.querySelector("#rc-out video") || {}).getAttribute && document.querySelector("#rc-out video").getAttribute("src"), msg: document.getElementById("rc-mprog-t").textContent, note: (document.querySelector("#rc-out .hint") || {}).textContent || ""}));
     const vf = res.src ? path.join(GEN, res.src.replace(/^\/generated\//, "")) : "", pr = vf ? probe(vf) : "";
     check("vidéo fabriquée : image refaite (H.264, 720 × 1280) + voix d'origine (AAC), même durée", /Video: h264/.test(pr) && /720x1280/.test(pr) && /Audio: aac/.test(pr) && /Duration: 00:00:2[67]/.test(pr), res.msg || (pr.match(/Duration: [^,]+|Video: [^\n]{0,60}/g) || []).join(" · "));
+    await pg.waitForFunction(() => document.querySelectorAll("#rc-out .rc-parts a").length > 0 || /échoué|impossible/.test(document.getElementById("rc-mprog-t").textContent), {timeout: 60000}).catch(() => null);
+    const parts = await pg.evaluate(() => [...document.querySelectorAll("#rc-out .rc-parts a")].map(a => a.getAttribute("href")));
+    const durs = parts.map(u => { const m = /Duration: 00:00:(\d+\.\d+)/.exec(probe(path.join(GEN, u.replace(/^\/generated\//, "")))); return m ? +m[1] : 0; });
+    check("TikTok et Shorts : 3 parties coupées juste avant un verset (6,75 s · 8,5 s · 11,25 s), sans réencodage, « Partie k/3 » sur l'image", parts.length === 3 && Math.abs(durs[0] - 6.75) < .15 && Math.abs(durs[1] - 8.5) < .15 && Math.abs(durs[2] - 11.25) < .2 && parts.every(u => /partie-\d-sur-3\.mp4$/.test(u)), durs.join(" s · ") + " s");
     /* contrôle visuel : une image du milieu de la vidéo */
     if(vf){ execFileSync(FF, ["-hide_banner", "-loglevel", "error", "-y", "-ss", "10", "-i", vf, "-frames:v", "1", F("recitation-livre-9x16.png")]); out.push(`(image de contrôle : ${F("recitation-livre-9x16.png")})`); }
     /* 6. écran de direct */
@@ -100,7 +105,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.evaluate(id => { const s = document.getElementById("rc-old"); s.value = id; s.dispatchEvent(new Event("change", {bubbles: true})); }, id);
     await pg.waitForFunction(() => document.querySelectorAll("#rc-list li").length === 7, {timeout: 20000});
     const back = await pg.evaluate(async id => { const p=await fetch(`/api/recit/project?id=${id}`).then(r=>r.json()); return {theme: (document.querySelector("#rc-themes [aria-checked='true']") || {dataset: {}}).dataset.rcTheme, fmt: document.getElementById("rc-fmt").value, amb: document.getElementById("rc-amb").value, fx:[p.subtitle,p.transition,p.palette,p.animation,p.effect], sync:p.syncOffset, vids: (document.getElementById("rc-out").textContent.match(/\.mp4/g) || []).length}; }, id);
-    check("projet repris après fermeture : calage, habillage, studio d'effets, synchronisation, ambiance et vidéo retrouvés", back.theme === "livre" && back.fmt === "9:16" && back.amb === "pluie" && back.fx.join("|") === "emerald|light|black_gold|glow|anneaux_neon" && back.sync === .25 && back.vids === 1, JSON.stringify(back));
+    check("projet repris après fermeture : calage, habillage, studio d'effets, synchronisation, ambiance, vidéo et ses 3 parties retrouvées", back.theme === "livre" && back.fmt === "9:16" && back.amb === "pluie" && back.fx.join("|") === "emerald|light|black_gold|glow|anneaux_neon" && back.sync === .25 && back.vids === 4, JSON.stringify(back));
     const wide = await pg.evaluate(() => document.documentElement.scrollWidth);
     check("téléphone (390 px) : aucun défilement horizontal", wide <= 390, `${wide} px`);
     pg.on("dialog", d => d.accept()); await pg.click("#rc-del");
@@ -108,5 +113,5 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     check("projet supprimé de l'ordinateur (place libérée)", !fs.existsSync(path.join(GEN, `recit-${id}`)), "");
     check("aucune erreur dans la console", !errs.length, errs.slice(0, 3).join(" | "));
   }catch(e){ out.push("ERREUR DU TEST : " + e.message); }
-  await b.close(); srv.kill(); fs.rmSync(GEN, {recursive: true, force: true}); console.log(out.join("\n")); process.exit(0);
+  await b.close(); srv.kill(); fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250}); console.log(out.join("\n")); process.exit(0);
 })();
