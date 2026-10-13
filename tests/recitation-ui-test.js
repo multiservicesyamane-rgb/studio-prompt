@@ -26,7 +26,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await pg.goto(BASE + "/#recitation", {waitUntil: "networkidle0"});
     const tabs = await pg.evaluate(() => [...document.querySelectorAll(".grp-tabs button")].map(x => x.textContent));
     check("« Créer » : nouvel onglet « Garder la voix », juste après le Constructeur", tabs[1] === "🎙 Garder la voix", tabs.join(" | "));
-    /* 1. envoi + analyse */
+    /* 1. envoi + analyse (parcours à la main : l'analyse automatique est testée dans recitation-auto-test.js) */
+    await pg.evaluate(() => { document.getElementById("rc-autoon").checked = false; });
     await (await pg.$("#rc-file")).uploadFile(F("recit-7.mp4"));
     await pg.waitForFunction(() => /Voix gardée/.test(document.getElementById("rc-info").textContent), {timeout: 90000});
     const info = await pg.evaluate(() => document.getElementById("rc-info").textContent);

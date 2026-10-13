@@ -45,7 +45,15 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
       const s67 = await req(BASE, "GET", "/api/recit/quran/surah?n=67");
       check("Coran : la basmala est séparée du premier verset (sourate 67), pour l'afficher comme ouverture", s67.j.versets.length === 30 && !/^بِسْمِ/.test(s67.j.versets[0].ar) && /^بِسْمِ/.test(s67.j.basmala || ""), (s67.j.versets[0] || {}).ar);
       const s1b = await req(BASE, "GET", "/api/recit/quran/surah?n=1"); check("Coran : gardé en cache sur l'ordinateur", s1b.status === 200 && fs.existsSync(path.join(GEN, "_textes", "coran", "1-fr.hamidullah.json")), "");
+      /* reconnaissance des versets entendus (texte simple, mots mal entendus) sur le Coran complet */
+      const fd = async texte => (await req(BASE, "POST", "/api/recit/quran/find", {texte})).j;
+      const y = await fd("اعوذ بالله من الشيطان الرجيم بسم الله الرحمن الرحيم يس والقران الحكيم انك لمن المرسلين على صراط مستقيم"), k = await fd("الله لا اله الا هو الحي القيوم لا تاخذه سنة ولا نوم له ما في السماوات وما في الارض من ذا الذي يشفع"), fr = await fd("bonjour la patience est une lumiere");
+      check("reconnaissance : Yâ-Sîn 36:1 à 36:4 (avec « A‘ûdhu » et basmala repérées), Ayat al-Kursi 2:255 malgré des mots déformés, le français rejeté", y.ok && y.debut.s === 36 && y.debut.v === 1 && y.fin.v === 4 && y.isti && y.basm && k.ok && k.debut.s === 2 && k.debut.v === 255 && !fr.ok, `${y.ok ? `${y.debut.s}:${y.debut.v}-${y.fin.v}` : "?"} · ${k.ok ? `${k.debut.s}:${k.debut.v}` : "?"} · fr ${fr.ok}`);
     } else out.push(`(pas d'Internet : texte du Coran non testé — ${s1.j.message || s1.status})`);
+    /* extrait de la voix pour l'écoute (Gemini ou moteur gratuit) : WAV 16 kHz mono, tailles justes */
+    const ex = await new Promise(res => http.get(`${BASE}/api/recit/extrait?id=${id}&a=4&b=6.5`, x => { const c = []; x.on("data", d => c.push(d)); x.on("end", () => res({s: x.statusCode, b: Buffer.concat(c)})); }));
+    const wav = ex.b, okWav = ex.s === 200 && wav.toString("ascii", 0, 4) === "RIFF" && wav.readUInt32LE(4) === wav.length - 8 && wav.readUInt16LE(22) === 1 && wav.readUInt32LE(24) === 16000 && Math.abs((wav.length - 44) / 32000 - 2.5) < .05;
+    check("extrait de la voix (4 s → 6,5 s) : WAV 16 kHz mono de 2,5 s, prêt pour l'écoute", okWav, `${ex.s} · ${wav.length} octets`);
     /* vidéo refaite : 2 morceaux écrits à leur position, puis la voix remise */
     const st = await req(BASE, "POST", "/api/recit/render/start", {id}), rid = st.j.rid, img = fs.readFileSync(F("recit-image.mp4")), half = Math.floor(img.length / 2);
     const c2 = await req(BASE, "PUT", `/api/recit/render/chunk?id=${id}&rid=${rid}&pos=${half}`, img.subarray(half), "application/octet-stream");
