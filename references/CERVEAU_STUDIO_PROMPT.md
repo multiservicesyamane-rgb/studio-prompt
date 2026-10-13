@@ -748,6 +748,37 @@ Demande de l'utilisateur : « je te donne une vidéo de récitation du Coran tr�
   - **Réglage du son** (`generation.js`, champ `fx` d'une voix, FFmpeg) : hauteur (`asetrate` puis `atempo` pour garder le rythme), rythme, chaleur (graves +, aigus −), clarté, écho de salle (`aecho` à 3 retours), limiteur. Il s'applique après Gemini, Chatterbox ou ElevenLabs ; le modèle est noté « · voix signature ». Essai réel : une voix Gemini réglée (plus grave, chaude, écho de mosquée) fabriquée en 7 s.
   - **Page** : panneau « 🎙 Voix signature » (étape 4 de « Garder la voix ») : analyser la voix, type (homme, femme, enfant), voix de départ, réglages (hauteur, chaleur, écho, rythme), phrase d'essai à écouter, « Garder cette voix ». Les voix gardées (`prefs.sigs`, 20 au plus) apparaissent **dans tous les choix de voix** (`spVoiceOptions`, groupe « Mes voix signature ») et se fabriquent par `spSay` (`sig:`) ; si Gemini est épuisé, la meilleure voix gratuite prend le relais.
   - Tests : `gen-api-test.js` (+ réglage appliqué : 1 s ralentie à 0,8, plus la traîne de l'écho, WAV marqué « voix signature ») ; page 25 (analyse, proposition, voix gardée).
+- **Comprendre avant d'agir (14 octobre)** : remarque de l'utilisateur sur une vidéo d'alphabet arabe (« le son dit alifun, c'est juste une lettre ; toi, tu écris tout ce que tu as entendu ; il faut d'abord analyser et comprendre la vidéo ou le son avant d'agir »). Règle générale : **on n'écrit pas forcément ce qu'on entend, on écrit ce qu'il faut montrer.**
+  - **Nouvelle étape « Compréhension »**, entre l'écoute et la reconnaissance (`rcUnderstand`). L'agent reçoit 4 images de la vidéo d'origine et les phrases entendues (numérotées, avec leurs temps). Il rend :
+    - le genre : récitation, alphabet, chiffres, syllabes, mots, chant, récit, discours ;
+    - un résumé ;
+    - l'affichage, « texte » ou « unités » ;
+    - les unités : ce qui est entendu, ce qu'on montre, et son nom en lettres latines ;
+    - les numéros des **annonces de la chaîne d'origine** (présentation, salutations, appel à s'abonner, marques) ;
+    - les traductions françaises des phrases de contenu.
+  - **Sans agent** (relais gratuit) :
+    - un lexique (`AR_LETTERS`, `RC_UNITS`) reconnaît les noms des 28 lettres arabes (avec ou sans tanwin, « لام ألف », hamza) et les chiffres en arabe, français et anglais ;
+    - une leçon d'unités est retenue si au moins 50 % des mots en sont (70 % pour contredire l'agent) ;
+    - les annonces de chaîne sont repérées au début et à la fin (« welcome to », « abonne-toi », « قناة »…).
+  - **Ce qu'on montre** (`rcUnderstoodLines`) : chaque phrase reste à son moment exact.
+    - Les noms d'unités deviennent les unités elles-mêmes : « أَلِفٌ بَاءٌ » → « ا ب », avec « alif · bā » sur la ligne de phonétique ; « ثلاثة » → « ٣ ».
+    - Une phrase mêlée est coupée en morceaux : « نون هاء هذه حروف الهجاء » → « ن ه », puis la phrase.
+    - Un morceau dit deux fois de suite devient deux passages, dont une répétition : dans la Daara, les talibés répètent.
+    - Une phrase qui revient garde sa traduction. Les annonces ne sont jamais affichées.
+    - Une leçon d'unités ne passe pas par la recherche du Coran : des noms de lettres ne sont pas des versets, ni des lettres isolées d'ouverture.
+  - **Affichage** (`recitation-fx.js`) : un passage fait seulement d'unités (chaque mot a 2 lettres au plus) s'écrit en **très grand**, comme au tableau ; la lettre récitée s'allume.
+  - **Publication** (`rcMessage`) : l'agent reçoit le genre et le résumé compris. **Le nom d'une chaîne ou d'une marque de la vidéo d'origine n'est jamais repris** : c'est dans la consigne, et `rcBrands` retire ces noms du titre, de la description et des mots-clés. Sans agent, une leçon d'unités prend l'habillage de la tablette (enseignant).
+  - **« 🧠 Comprendre à nouveau (sans réécouter) »** : un projet déjà écouté est compris de nouveau en quelques secondes, sans nouvelle écoute ni quota d'écoute. La compréhension et les lignes montrées sont gardées dans le projet (`und`, `lines`).
+  - **Essai réel** sur une copie du projet « Alifun Baa » de l'utilisateur (27 phrases déjà écoutées, supprimée ensuite), en 20 s :
+    - l'agent a reconnu une leçon d'alphabet et les 28 lettres ;
+    - il a écarté 2 annonces (« Welcome to Kids Safari… », « Salut. ») ;
+    - 41 passages, dont 24 répétitions ;
+    - « هذه حروف الهجاء » est traduit « Ce sont les lettres de l'alphabet » ;
+    - titre sans le nom de la chaîne d'origine.
+  - Tests : `recitation-auto-test.js` (17) ajoute :
+    - une vidéo d'alphabet avec agent : lettres, chiffres, « لا », phrase mêlée, répétitions, annonce retirée, traduction, titre sans marque, habillage enseignant ;
+    - la même sans IA, avec le lexique ;
+    - « Comprendre à nouveau » sans nouvelle écoute.
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -1049,6 +1080,7 @@ Les commits sont en français. Étapes majeures :
 34. Voix et texte ensemble pour n'importe quel son : écoute par minutes, suivi du récitant phrase par phrase (ordre libre, répétitions, paroles hors Coran), relais Whisper large Groq, filtre arabe réparé (13 octobre, §4.3 terdecies).
 35. Avatar 3D version 2 (regard, sourcils, bouche selon les syllabes, hochements, gestes, caméra, ombres) et habillage « Daara » : jeune oustaz et talibés qui répètent (13 octobre, §4.3 terdecies).
 36. Voix signature : voix nouvelle aux qualités d'une voix importée (hauteur, rythme, timbre, écho), jamais une copie ; disponible dans tous les choix de voix (13 octobre, §4.3 terdecies).
+37. Comprendre avant d'agir : l'agent comprend la vidéo (genre, unités, annonces, traductions) avant d'afficher ; une leçon d'alphabet montre les lettres, pas les noms entendus ; jamais le nom de la chaîne d'origine (14 octobre, §4.3 terdecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

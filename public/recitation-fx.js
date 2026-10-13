@@ -264,7 +264,9 @@ function stage(o){
     const isT=it.kind==="titre", rtl=isRtl(it.ar), maxLines=isT?3:(V?(showTr&&it.tr?5:7):(showTr&&it.tr?3:5)), trH=showTr&&it.tr&&!isT?box.h*(V?.28:.3):0, phH=o.showPh!==false&&it.ph&&!isT?box.h*(V?.13:.15):0, arH=box.h-trH-phH, base=isT?(V?82:76):rtl?(V?62:56):(V?54:48), LH=rtl?1.75:1.32;
     const font=sz=>rtl?(isT?`700 ${Math.round(sz)}px ${AR_T}`:`${AF.w?AF.w+" ":""}${Math.round(sz*AF.k)}px ${AF.css},${AR}`):T==="enfants"?`700 ${Math.round(sz)}px ${KID}`:`${isT?"700":"600"} ${Math.round(sz)}px ${LAT}`;
     const txt=String(it.ar).replace(/\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED])/g,"$1"), floor=isT?24:Math.round(base*.72);
-    let size=base, lines=[]; for(;size>=floor;size-=2){ tx.font=font(size); lines=wrapAr(tx,txt,box.w*.94); if(lines.length<=maxLines&&lines.length*size*LH<=arH) break; }
+    /* unités seules (lettres, chiffres, syllabes : chaque mot a 2 lettres au plus) : en très grand, comme au tableau */
+    const unit=!isT&&txt.trim().split(/\s+/).every(w=>w.replace(/[ؐ-ًؚ-ٰٟۖ-ۭـ]/g,"").length<=2);
+    let size=unit?Math.round(base*3.2):base, lines=[]; for(;size>=floor;size-=2){ tx.font=font(size); lines=wrapAr(tx,txt,box.w*.94); if(lines.length<=maxLines&&lines.length*size*LH<=arH) break; }
     size=Math.max(size,floor); tx.font=font(size); lines=wrapAr(tx,txt,box.w*.94);
     /* verset très long : en grandes lettres sur plusieurs pages, qui se suivent au fil de la récitation ; la traduction est répartie avec */
     const per=Math.max(1,Math.min(maxLines,Math.floor(arH/(size*LH)))), pages=[]; for(let i=0;i<lines.length;i+=per) pages.push(lines.slice(i,i+per));
