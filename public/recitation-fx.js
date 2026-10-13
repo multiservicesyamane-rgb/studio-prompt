@@ -6,7 +6,7 @@
 "use strict";
 const PI=Math.PI, cl=(v,a,b)=>Math.max(a==null?0:a,Math.min(b==null?1:b,v)), ease=p=>1-Math.pow(1-cl(p),3), easeIO=p=>{ p=cl(p); return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2; };
 const rnd=i=>{ const x=Math.sin(i*127.1+311.7)*43758.5453; return x-Math.floor(x); };
-const AR='"Amiri Quran","Amiri","Scheherazade New","Noto Naskh Arabic","Traditional Arabic",serif', AR_T='"Aref Ruqaa","Amiri","Noto Naskh Arabic",serif', LAT='"Cormorant Garamond",Georgia,"Times New Roman",serif', KID='"Baloo 2","Trebuchet MS","Segoe UI",sans-serif';
+const AR='"Amiri Quran","Amiri","Scheherazade New","Noto Naskh Arabic","Traditional Arabic",serif', AR_T='"Aref Ruqaa","Amiri","Noto Naskh Arabic",serif', LAT='"Cormorant Garamond",Georgia,"Times New Roman",serif', KID='"Baloo 2","Trebuchet MS","Segoe UI",sans-serif', SANS='"Hanken Grotesk","Segoe UI",Arial,sans-serif';   /* chiffres bien droits (miniatures) */
 const DIG="٠١٢٣٤٥٦٧٨٩", arNum=n=>String(n).replace(/\d/g,d=>DIG[d]);
 const rgba=(hex,a)=>{ const m=/^#?([0-9a-f]{6})$/i.exec(hex); if(!m) return hex; const n=parseInt(m[1],16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
 /* polices du texte coranique (libres, Google Fonts), essayées sur l'écriture uthmani complète (13 octobre) : toutes affichent
@@ -365,9 +365,9 @@ function stage(o){
     if(p.titre){ const t=String(p.titre).toUpperCase(); let fs=(V?118:112)*L; g.font=`700 ${Math.round(fs)}px ${kid?KID:LAT}`; while(g.measureText(t).width>W*.9&&fs>28*L){ fs-=4*L; g.font=`700 ${Math.round(fs)}px ${kid?KID:LAT}`; }
       const gr=g.createLinearGradient(0,y-fs*.5,0,y+fs*.5); gr.addColorStop(0,kid?"#FF9F1C":"#FFF7DA"); gr.addColorStop(.55,kid?"#FF6B00":P.gold); gr.addColorStop(1,kid?"#E85D04":"#B8860B");
       g.save(); g.lineJoin="round"; g.lineWidth=fs*(kid?.14:.07); g.strokeStyle=kid?"#FFFFFF":"rgba(20,12,0,.85)"; g.strokeText(t,cx,y); g.shadowColor="rgba(0,0,0,.5)"; g.shadowBlur=kid?0:18*L; g.fillStyle=gr; g.fillText(t,cx,y); g.restore(); y+=fs*.92; }
-    if(p.sous){ g.save(); g.direction="ltr"; let fs=(V?50:42)*L; g.font=`${kid?"700":"italic 700"} ${Math.round(fs)}px ${kid?KID:LAT}`; while(g.measureText(p.sous).width>W*.9&&fs>20*L){ fs-=2*L; g.font=`${kid?"700":"italic 700"} ${Math.round(fs)}px ${kid?KID:LAT}`; }
+    if(p.sous){ g.save(); g.direction="ltr"; let fs=(V?46:38)*L; g.font=`${kid?"700":"600"} ${Math.round(fs)}px ${kid?KID:SANS}`; while(g.measureText(p.sous).width>W*.9&&fs>20*L){ fs-=2*L; g.font=`${kid?"700":"600"} ${Math.round(fs)}px ${kid?KID:SANS}`; }
       if(kid){ g.lineJoin="round"; g.lineWidth=8*L; g.strokeStyle="#fff"; g.strokeText(p.sous,cx,y); g.fillStyle="#1E3A8A"; } else { g.shadowColor="rgba(0,0,0,.8)"; g.shadowBlur=12*L; g.fillStyle="#FFFFFF"; } g.fillText(p.sous,cx,y); g.restore(); }
-    if(p.badge){ g.save(); g.direction="ltr"; g.font=`700 ${Math.round(38*L)}px ${kid?KID:LAT}`; const bw=g.measureText(p.badge).width+44*L, bx=28*L, by=28*L; rrect(g,bx,by,bw,60*L,30*L); g.fillStyle=kid?"#FF6B00":P.gold; g.fill(); g.fillStyle=kid?"#fff":"#1A1204"; g.textAlign="left"; g.fillText(p.badge,bx+22*L,by+32*L); g.restore(); }
+    if(p.badge){ g.save(); g.direction="ltr"; g.font=`700 ${Math.round(34*L)}px ${kid?KID:SANS}`; const bw=g.measureText(p.badge).width+44*L, bx=28*L, by=28*L; rrect(g,bx,by,bw,60*L,30*L); g.fillStyle=kid?"#FF6B00":P.gold; g.fill(); g.fillStyle=kid?"#fff":"#1A1204"; g.textAlign="left"; g.fillText(p.badge,bx+22*L,by+32*L); g.restore(); }
     vignette(g); return c; }
   return {canvas:c,W,H,K,draw,poster,total,fmt:V?"9:16":Q?"1:1":"16:9",activeAt:t=>itemAt(Math.max(0,(Number(t)||0)+SYNC))};
 }

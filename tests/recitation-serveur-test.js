@@ -44,6 +44,8 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
     if(s1.status === 200){ check("Coran : Al-Fatiha, 7 versets en écriture uthmani + traduction, source citée", s1.j.versets.length === 7 && /^بِسْمِ/.test(s1.j.versets[0].ar) && /Allah/.test(s1.j.versets[0].tr) && /Tanzil|alquran/.test(s1.j.source), `${s1.j.nom} · ${s1.j.versets.length} versets`);
       const s67 = await req(BASE, "GET", "/api/recit/quran/surah?n=67");
       check("Coran : la basmala est séparée du premier verset (sourate 67), pour l'afficher comme ouverture", s67.j.versets.length === 30 && !/^بِسْمِ/.test(s67.j.versets[0].ar) && /^بِسْمِ/.test(s67.j.basmala || ""), (s67.j.versets[0] || {}).ar);
+      const s67p = await req(BASE, "GET", "/api/recit/quran/surah?n=67&ph=1");
+      check("phonétique (pour apprendre à lire) : chaque verset a sa lecture en lettres latines, sans la basmala", s67p.status === 200 && /^Tabaarakal/.test((s67p.j.versets || [{}])[0].ph || "") && s67p.j.versets.every(v => v.ph), ((s67p.j.versets || [{}])[0].ph || "").slice(0, 40));
       const s1b = await req(BASE, "GET", "/api/recit/quran/surah?n=1"); check("Coran : gardé en cache sur l'ordinateur", s1b.status === 200 && fs.existsSync(path.join(GEN, "_textes", "coran", "1-fr.hamidullah.json")), "");
       /* reconnaissance des versets entendus (texte simple, mots mal entendus) sur le Coran complet */
       const fd = async texte => (await req(BASE, "POST", "/api/recit/quran/find", {texte})).j;
@@ -70,6 +72,12 @@ const probe = f => { try{ execFileSync(FF, ["-hide_banner", "-i", f], {stdio: ["
     const fin2 = await waitJob(BASE, rid2, 60000), pr2 = fin2.result ? probe(path.join(GEN, `recit-${id}`, fin2.result.name)) : "";
     check("avec une ambiance en boucle (5 s répétées sur 26 s, très douce) : son mélangé, durée gardée", fin2.state === "done" && /Audio: aac/.test(pr2) && /Duration: 00:00:26/.test(pr2), fin2.error || (pr2.match(/Duration: [^,]+/) || [""])[0]);
     check("la vidéo sans son envoyée par morceaux est supprimée après la finition (place sur le disque)", !fs.readdirSync(path.join(GEN, `recit-${id}`)).some(f => /^image-/.test(f)), fs.readdirSync(path.join(GEN, `recit-${id}`)).join(", "));
+    /* répétée 3 fois (vidéos d'écoute) : l'image fabriquée une seule fois, image et voix répétées par FFmpeg */
+    const st3 = await req(BASE, "POST", "/api/recit/render/start", {id}), rid3 = st3.j.rid;
+    await req(BASE, "PUT", `/api/recit/render/chunk?id=${id}&rid=${rid3}&pos=0`, img, "application/octet-stream");
+    await req(BASE, "POST", "/api/recit/render/finish", {id, rid: rid3, duration: 26.5, repeat: 3, nom: "x3"});
+    const fin3 = await waitJob(BASE, rid3, 90000), pr3 = fin3.result ? probe(path.join(GEN, `recit-${id}`, fin3.result.name)) : "";
+    check("répétition 3 fois : vidéo de 79,5 s (image et voix répétées), sans refaire l'image", fin3.state === "done" && /Duration: 00:01:19\.[4-6]/.test(pr3) && /Audio: aac/.test(pr3) && /-x3-/.test(fin3.result.name), fin3.error || (pr3.match(/Duration: [^,]+/) || [""])[0]);
   }catch(e){ out.push("ERREUR DU TEST : " + e.message); }
   srv.kill(); fs.rmSync(GEN, {recursive: true, force: true, maxRetries: 20, retryDelay: 250}); console.log(out.join("\n")); process.exit(0);
 })();

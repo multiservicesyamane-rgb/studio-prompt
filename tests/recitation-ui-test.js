@@ -34,7 +34,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     check("envoi puis analyse sur l'ordinateur : voix gardée, 7 moments de parole", /7 moments de parole/.test(info) && /2[67] s/.test(info), info);
     /* 2. paroles : Coran officiel (Al-Fatiha) si Internet, sinon « Mon texte » */
     const net = await pg.waitForFunction(() => document.querySelector("#rc-pass option[value='114']") || /pas pu être chargée/.test(document.getElementById("rc-src").textContent), {timeout: 30000}).then(() => pg.evaluate(() => !!document.querySelector("#rc-pass option[value='114']")));
-    if(net){ await pg.evaluate(() => { const s = document.querySelector("[data-rc-p='0:n']"); s.value = "1"; s.dispatchEvent(new Event("change", {bubbles: true})); }); }
+    if(net){ await pg.evaluate(() => { document.getElementById("rc-ph").checked = true; const s = document.querySelector("[data-rc-p='0:n']"); s.value = "1"; s.dispatchEvent(new Event("change", {bubbles: true})); }); }
     else{ await pg.evaluate(() => { document.querySelector("[data-rc-mode='texte']").click(); document.getElementById("rc-txt").value = ["Première ligne", "Deuxième", "Troisième ligne plus longue", "Quatre", "Cinquième ligne", "Six", "Septième ligne"].join("\n"); }); out.push("(pas d'Internet : texte libre au lieu du Coran)"); }
     await pg.click("#rc-align");
     await pg.waitForFunction(() => document.querySelectorAll("#rc-list li").length > 0, {timeout: 30000});
@@ -67,6 +67,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await wait(900);
     const pv = await pg.evaluate(() => { const c = document.querySelector("#rc-prev canvas"); return {w: c.width, h: c.height, on: document.querySelector("[data-rc-theme='livre']").getAttribute("aria-checked")}; });
     check("habillage « Livre ancien » choisi, aperçu au format téléphone (vertical)", pv.on === "true" && pv.h > pv.w, JSON.stringify(pv));
+    /* miniature YouTube (couverture TikTok en format téléphone) : même décor, grand titre */
+    await pg.evaluate(() => { document.getElementById("rc-th-t").value = "Al-Fatiha"; document.getElementById("rc-th-b").value = "1 H"; document.getElementById("rc-th-go").click(); });
+    await pg.waitForFunction(() => { const i = document.querySelector("#rc-th-img img"); return i && i.complete && i.naturalWidth > 0; }, {timeout: 20000});
+    const thumb = await pg.evaluate(() => { const i = document.querySelector("#rc-th-img img"), a = document.getElementById("rc-th-dl"); return {w: i.naturalWidth, h: i.naturalHeight, dl: !a.hidden && /\.png$/.test(a.download), ph: (__spRecit.items.find(x => x.kind === "verset") || {}).ph || ""}; });
+    check("miniature créée (1080 × 1920 pour le format téléphone), prête à télécharger en PNG", thumb.w === 1080 && thumb.h === 1920 && thumb.dl, `${thumb.w} × ${thumb.h}`);
+    if(net) check("phonétique cochée : chaque verset reçoit sa lecture en lettres latines (Al-Fatiha 1 = la basmala)", /^Bismillaahir Rahmaanir Raheem$/.test(thumb.ph), thumb.ph.slice(0, 40));
     /* le texte du verset est bien dessiné : l'aperçu change quand le verset change */
     const sig = await pg.evaluate(async () => { const a = document.getElementById("rc-audio"), c = document.querySelector("#rc-prev canvas"), g = c.getContext("2d"), sum = () => { const d = g.getImageData(0, Math.round(c.height * .3), c.width, Math.round(c.height * .4)).data; let s = 0; for(let i = 0; i < d.length; i += 16) s += d[i]; return s; };
       const at = async t => { a.currentTime = t; await new Promise(r => a.addEventListener("seeked", r, {once: true})); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return sum(); };

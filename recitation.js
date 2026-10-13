@@ -75,13 +75,14 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     const j = await getJson("https://api.alquran.cloud/v1/surah"), list = (j.data || []).map(s => ({n:s.number, ar:s.name, nom:s.englishName, sens:s.englishNameTranslation, versets:s.numberOfAyahs}));
     fs.mkdirSync(CACHE, {recursive:true}); fs.writeFileSync(f, JSON.stringify(list)); return list;
   }
-  async function quranSurah(n, tr){
-    const ed = /^[a-z]{2}\.[a-z0-9-]{2,30}$/.test(tr || "") ? tr : "fr.hamidullah", f = path.join(CACHE, `${n}-${ed}.json`); if(fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, "utf8"));
-    const j = await getJson(`https://api.alquran.cloud/v1/surah/${n}/editions/quran-uthmani,${ed}`), [a, t] = j.data || [];
+  async function quranSurah(n, tr, ph){
+    const ed = /^[a-z]{2}\.[a-z0-9-]{2,30}$/.test(tr || "") ? tr : "fr.hamidullah", f = path.join(CACHE, `${n}-${ed}${ph ? "-ph" : ""}.json`); if(fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, "utf8"));
+    /* phonétique (lecture en lettres latines, pour apprendre) : édition en.transliteration, sans la basmala */
+    const j = await getJson(`https://api.alquran.cloud/v1/surah/${n}/editions/quran-uthmani,${ed}${ph ? ",en.transliteration" : ""}`), [a, t, pt] = j.data || [];
     if(!a || !a.ayahs) throw new Error("Sourate introuvable.");
     const strip = s => String(s || "").replace(/﻿/g, "").trim();
     const out = {n, ar:a.name, nom:a.englishName, sens:a.englishNameTranslation, traduction:ed, source:"Texte : Tanzil / alquran.cloud (écriture uthmani)" + (t ? ` · Traduction : ${t.edition ? t.edition.name : ed}` : ""),
-      versets:a.ayahs.map((v, i) => ({n:v.numberInSurah, ar:strip(v.text), tr:t && t.ayahs[i] ? strip(t.ayahs[i].text) : ""}))};
+      versets:a.ayahs.map((v, i) => Object.assign({n:v.numberInSurah, ar:strip(v.text), tr:t && t.ayahs[i] ? strip(t.ayahs[i].text) : ""}, pt && pt.ayahs[i] ? {ph:strip(pt.ayahs[i].text).replace(/<[^>]+>/g, "")} : {}))};
     /* sauf Al-Fatiha (où elle est le verset 1) et At-Tawba, la basmala ouvre le premier verset dans ce texte : on la sépare pour l'afficher comme ouverture */
     if(n !== 1 && n !== 9 && out.versets[0]){ const b = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", bare = x => String(x).replace(/[ؐ-ًؚ-ٰٟۖ-ۭـ]/g, "").replace(/[ٱآأإ]/g, "ا"), w = out.versets[0].ar.split(/\s+/);
       /* comparaison sans les signes de lecture (leur ordre varie selon les textes) : les 4 premiers mots sont-ils la basmala ? */
@@ -171,15 +172,17 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       deep:"highpass=f=45,bass=g=4:f=120:w=0.6,equalizer=f=250:t=q:w=1:g=2,treble=g=-1:f=5000,acompressor=threshold=-19dB:ratio=2.3:attack=18:release=240:makeup=1.4",
       airy:"highpass=f=85,equalizer=f=250:t=q:w=0.9:g=-1.5,treble=g=3.5:f=6500,acompressor=threshold=-18dB:ratio=1.8:attack=12:release=160:makeup=1.3"
     }[voice] || "";
-    const name = `${String(o.nom || "recitation").replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 60) || "recitation"}-${rid}.mp4`, out = path.join(dir, name);
-    const args = ["-y", "-i", img, "-i", voix]; if(amb) args.push("-stream_loop", "-1", "-i", path.join(dir, "ambiance.wav"));
+    const N = Math.max(1, Math.min(500, Math.round(Number(o.repeat) || 1))), T = D * N;
+    const name = `${String(o.nom || "recitation").replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 60) || "recitation"}${N > 1 ? `-x${N}` : ""}-${rid}.mp4`, out = path.join(dir, name);
+    const loop = N > 1 ? ["-stream_loop", String(N - 1)] : [];
+    const args = ["-y", ...loop, "-i", img, ...loop, "-i", voix]; if(amb) args.push("-stream_loop", "-1", "-i", path.join(dir, "ambiance.wav"));
     const vf = voiceFx ? `[1:a]${voiceFx}[v];` : "";
     const vin = voiceFx ? "[v]" : "[1:a]";
     if(amb) args.push("-filter_complex", `${vf}[2:a]volume=${vol},afade=t=in:d=3[b];${vin}[b]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`, "-map", "0:v", "-map", "[a]", "-c:a", "aac", "-b:a", "192k");
     else if(voiceFx) args.push("-filter_complex", `${vf.slice(0,-1)}`, "-map", "0:v", "-map", "[v]", "-c:a", "aac", "-b:a", "192k");
-    else args.push("-map", "0:v", "-map", "1:a", "-c:a", "copy");
-    args.push("-c:v", "copy", "-shortest"); if(!D || D <= 3600) args.push("-movflags", "+faststart"); args.push(out);
-    await ffmpeg(args, t => { J.progress = D ? Math.min(.99, t / D) : 0; });
+    else args.push("-map", "0:v", "-map", "1:a", ...(N > 1 ? ["-c:a", "aac", "-b:a", "192k"] : ["-c:a", "copy"]));
+    args.push("-c:v", "copy", "-shortest"); if(N > 1 && T) args.push("-t", String(+T.toFixed(3))); if(!T || T <= 3600) args.push("-movflags", "+faststart"); args.push(out);
+    await ffmpeg(args, t => { J.progress = T ? Math.min(.99, t / T) : 0; });
     try{ fs.rmSync(img, {force:true}); }catch(e){}
     Object.assign(J, {state:"done", step:"", progress:1, result:{url:urlOf(id, name), name, size:fs.statSync(out).size}});
   }
@@ -206,7 +209,7 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
       if(req.method === "GET" && r === "quran/list") return json(res, 200, {sourates:await quranList()});
       if(req.method === "POST" && r === "quran/find"){ const b = await body(); if(!b || typeof b.texte !== "string") return json(res, 400, {code:"bad_request", message:"Texte manquant."}); return json(res, 200, await quranFind(b.texte.slice(0, 20000))); }
       if(req.method === "GET" && r === "extrait") return extrait(req, res, u);
-      if(req.method === "GET" && r === "quran/surah"){ const n = Math.round(Number(u.searchParams.get("n"))); if(!(n >= 1 && n <= 114)) return json(res, 400, {code:"bad_request", message:"Numéro de sourate : de 1 à 114."}); return json(res, 200, await quranSurah(n, u.searchParams.get("tr"))); }
+      if(req.method === "GET" && r === "quran/surah"){ const n = Math.round(Number(u.searchParams.get("n"))); if(!(n >= 1 && n <= 114)) return json(res, 400, {code:"bad_request", message:"Numéro de sourate : de 1 à 114."}); return json(res, 200, await quranSurah(n, u.searchParams.get("tr"), u.searchParams.get("ph") === "1")); }
       if(req.method === "POST" && r === "project"){ const b = await body(40e6); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); saveProject(b.id, b); return json(res, 200, {ok:true}); }
       if(req.method === "GET" && r === "project"){ const id = u.searchParams.get("id"), f = okId(id) && path.join(dirOf(id), "projet.json"); if(!f || !fs.existsSync(f)) return json(res, 404, {code:"not_found", message:"Projet introuvable."}); return json(res, 200, JSON.parse(fs.readFileSync(f, "utf8"))); }
       if(req.method === "POST" && r === "render/start"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."}); return json(res, 200, {rid:crypto.randomBytes(5).toString("hex"), libre:freeBytes()}); }

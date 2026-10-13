@@ -923,6 +923,8 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 .rc-how{display:grid;gap:8px;padding-left:20px;margin:0;font-size:14px;line-height:1.5}
 .rc-vid{margin:0;display:flex;flex-direction:column;gap:10px}
 .rc-parts{display:grid;gap:8px}
+.rc-thumb{display:grid;gap:12px;padding:12px;border-radius:14px;background:var(--sunken)}.rc-thumb .sub-h{margin:0;font-size:16px}
+.rc-th-img img{display:block;max-width:100%;max-height:60vh;border-radius:12px;margin:auto}
 .rc-vid video{width:100%;max-height:70vh;border-radius:14px;background:#000}
 </style>
 
@@ -1480,6 +1482,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
               <div class="actions"><button type="button" class="btn" id="rc-addp">+ Ajouter une sourate</button></div>
               <label class="check"><input type="checkbox" id="rc-isti"><span>La récitation commence par « A‘ûdhu billâhi… » (demande de protection)</span></label>
               <label class="check"><input type="checkbox" id="rc-basm" checked><span>« Bismillâh » récité avant chaque sourate (sauf At-Tawba)</span></label>
+              <label class="check"><input type="checkbox" id="rc-ph"><span>Phonétique sous l’arabe (lecture en lettres latines, pour apprendre à lire)</span></label>
               <div class="field"><label for="rc-tr">Traduction sous le texte arabe</label><div class="sel"><select id="rc-tr"><option value="fr.hamidullah">Français (Hamidullah)</option><option value="en.sahih">Anglais (Saheeh International)</option><option value="">Sans traduction</option></select></div></div>
               <p class="hint">Le texte vient du Coran officiel en écriture uthmani (Tanzil, alquran.cloud) : il n’est jamais écrit par une IA, ni modifié.</p>
             </div>
@@ -1529,6 +1532,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
             </div>
             <p class="hint">Sons de la nature fabriqués sur ton ordinateur, sans instrument de musique. La voix reste toujours devant.</p>
             <div class="field"><label for="rc-qual">Qualité</label><div class="sel"><select id="rc-qual"></select></div></div>
+            <div class="field"><label for="rc-rep">Répéter la récitation <span class="hint">(vidéos d’écoute, d’apprentissage ou pour dormir)</span></label><div class="sel"><select id="rc-rep"><option value="1">Une seule fois</option><option value="3">3 fois</option><option value="7">7 fois</option><option value="10">10 fois</option><option value="33">33 fois</option><option value="100">100 fois</option><option value="h1">Pendant environ 1 heure</option><option value="h3">Pendant environ 3 heures</option></select></div><p class="hint">L’image n’est fabriquée qu’une seule fois, puis image et voix sont répétées : c’est rapide.</p></div>
             <div class="field"><label for="rc-split">Découper pour TikTok et Shorts</label><div class="sel"><select id="rc-split"><option value="0">Non : une seule vidéo</option><option value="60">Parties de 1 min au plus (Shorts, statut WhatsApp)</option><option value="180">Parties de 3 min au plus (Shorts, TikTok)</option><option value="600">Parties de 10 min au plus (TikTok)</option></select></div><p class="hint">Chaque partie commence au début d’un verset et affiche « Partie 1/4 ». La vidéo complète est gardée aussi.</p></div>
             <p class="hint" id="rc-est"></p>
             <div class="actions"><button type="button" class="btn primary" id="rc-make">🎬 Fabriquer la vidéo</button><button type="button" class="btn" id="rc-stop" hidden>Arrêter et garder le début</button></div>
@@ -1537,6 +1541,16 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
           </div>
           <div class="panel rc-step" id="rc-s6" hidden>
             <h2 class="sub-h">6 · En direct sur YouTube ou TikTok</h2>
+            <div class="rc-thumb" id="rc-thumb">
+              <h3 class="sub-h">🖼 Miniature YouTube <span class="hint">(ou couverture TikTok en format téléphone)</span></h3>
+              <div class="rc-row">
+                <div class="field"><label for="rc-th-t">Grand titre</label><input type="text" id="rc-th-t" class="plain-in" maxlength="40"></div>
+                <div class="field"><label for="rc-th-s">Sous-titre</label><input type="text" id="rc-th-s" class="plain-in" maxlength="60"></div>
+                <div class="field"><label for="rc-th-b">Pastille <span class="hint">(facultatif : 1 H, 100×…)</span></label><input type="text" id="rc-th-b" class="plain-in" maxlength="12"></div>
+              </div>
+              <div class="actions"><button type="button" class="btn" id="rc-th-go">Créer la miniature</button><a class="btn primary" id="rc-th-dl" hidden download="miniature.png" href="#">⬇ Télécharger la miniature</a></div>
+              <div class="rc-th-img" id="rc-th-img"></div>
+            </div>
             <div class="rc-pub" id="rc-pub" hidden>
               <div class="field"><label for="rc-pub-t">Titre proposé pour la publication</label><input type="text" id="rc-pub-t" class="plain-in" maxlength="100"></div>
               <div class="field"><label for="rc-pub-d">Description et mots-clés</label><textarea id="rc-pub-d" rows="4"></textarea></div>
@@ -3659,10 +3673,11 @@ function rcLoaded(an, pj){
   const few=(an.speech||[]).length<3;
   $("rc-info").textContent=`✅ Voix gardée : ${rcDur(an.duration)}, ${(an.speech||[]).length} moments de parole repérés entre les pauses.${few?" Très peu de pauses : ouvre « Réglage des pauses » si la voix est sur un fond bruyant.":""}`;
   const au=$("rc-audio"); if(au.getAttribute("src")!==an.audio){ au.src=an.audio; } $("rc-seek").max=String(an.duration||1);
-  if(pj){ $("rc-isti").checked=!!pj.isti; $("rc-basm").checked=pj.basm!==false; $("rc-tr").value=pj.tr==null?"fr.hamidullah":pj.tr; $("rc-txt").value=pj.txt||""; $("rc-titre").value=pj.titre||""; }
+  if(pj){ $("rc-isti").checked=!!pj.isti; $("rc-basm").checked=pj.basm!==false; $("rc-ph").checked=!!pj.ph; $("rc-tr").value=pj.tr==null?"fr.hamidullah":pj.tr; $("rc-txt").value=pj.txt||""; $("rc-titre").value=pj.titre||""; }
   if(pj) RC.font=SP_RECIT.fonts[pj.font]?pj.font:"amiri"; rcFontSel(); $("rc-fmt").value=RC.fmt; $("rc-reci").value=RC.recitant; $("rc-showtr").checked=RC.showTr; $("rc-voice").value=RC.voice; $("rc-sync").value=String(RC.syncOffset); rcSyncLabel(); $("rc-amb").value=RC.amb; $("rc-vol").value=String(RC.vol);
   if(pj){ RC.heard=pj.heard||null; RC.heardTxt=pj.heardTxt||""; RC.msg=pj.msg||null; } rcOrig(); rcPub();
   rcMode(RC.mode); rcPassRender(); $("rc-out").innerHTML=rcVideosHtml();
+  rcThumbDefaults(false);
   if(RC.items.length){ rcSteps(6); rcListRender(); rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); } else rcSteps(2);
 }
 function rcVideosHtml(){ const p=RC.projs.find(x=>x.id===RC.id); if(!p||!p.videos.length) return "";
@@ -3683,13 +3698,13 @@ async function rcBuild(){
   if(RC.mode==="aucun") return out;
   if(RC.mode==="texte"){ String($("rc-txt").value||"").split(/\n/).map(x=>x.trim()).filter(Boolean).forEach((x,i)=>out.push({kind:"verset", ar:x, tr:""})); if(!out.length) throw {message:"Écris tes paroles (un passage par ligne), ou choisis « Sans texte »."}; return out; }
   if(!(await rcSurahList())) throw {message:"Le texte du Coran n’a pas pu être chargé (pas d’Internet ?). Réessaie, ou choisis « Mon texte »."};
-  const get=async n=>{ const k=`${n}|${tr}`; if(!RC.cache[k]) RC.cache[k]=await rcApi(`/api/recit/quran/surah?n=${n}${tr?`&tr=${encodeURIComponent(tr)}`:""}`); return RC.cache[k]; };
+  const ph=$("rc-ph").checked, get=async n=>{ const k=`${n}|${tr}|${ph}`; if(!RC.cache[k]) RC.cache[k]=await rcApi(`/api/recit/quran/surah?n=${n}${tr?`&tr=${encodeURIComponent(tr)}`:""}${ph?"&ph=1":""}`); return RC.cache[k]; };
   const word=!tr||/^fr\./.test(tr)?"Sourate":"Surah", basm=$("rc-basm").checked; let basmTr="";
-  if(basm&&tr) try{ basmTr=((await get(1)).versets[0]||{}).tr||""; }catch(e){}
+  let basmPh=""; if(basm&&(tr||ph)) try{ const v1=(await get(1)).versets[0]||{}; basmTr=tr?v1.tr||"":""; basmPh=v1.ph||""; }catch(e){}
   for(const p of RC.pass){ const s=await get(p.n), so={ar:s.ar, nom:`${word} ${s.nom} · ${s.n}`}, from=Math.max(1,Math.min(p.from,s.versets.length)), to=Math.max(from,Math.min(p.to,s.versets.length));
-    if(!out.length&&$("rc-isti").checked) out.push({kind:"ouverture", ar:RC_ISTI.ar, tr:tr?(RC_ISTI.tr[tr]||""):"", sourate:so});
-    if(basm&&from===1&&s.n!==1&&s.n!==9&&s.basmala) out.push({kind:"ouverture", ar:s.basmala, tr:basmTr, sourate:so});
-    s.versets.slice(from-1,to).forEach(v=>out.push({kind:"verset", n:v.n, ar:v.ar, tr:tr?v.tr:"", sourate:so}));
+    if(!out.length&&$("rc-isti").checked) out.push(Object.assign({kind:"ouverture", ar:RC_ISTI.ar, tr:tr?(RC_ISTI.tr[tr]||""):"", sourate:so}, ph?{ph:"A'oozu billaahi minash shaitaanir rajeem"}:{}));
+    if(basm&&from===1&&s.n!==1&&s.n!==9&&s.basmala) out.push(Object.assign({kind:"ouverture", ar:s.basmala, tr:basmTr, sourate:so}, ph&&basmPh?{ph:basmPh}:{}));
+    s.versets.slice(from-1,to).forEach(v=>out.push(Object.assign({kind:"verset", n:v.n, ar:v.ar, tr:tr?v.tr:"", sourate:so}, ph&&v.ph?{ph:v.ph}:{})));
     RC.srcNote=s.source||""; }
   return out; }
 async function rcAlignRun(){
@@ -3792,18 +3807,20 @@ function rcParts(maxLen){ const D=RC.an?RC.an.duration:0, fps=(RC_QUAL[$("rc-qua
     if(c!=null){ const before=S.filter(z=>z.b<=c).pop(); c=Math.max(before?before.b+.05:s+1, c-.25); } else { const g=S.filter(z=>z.b>s+maxLen*.4&&z.b<lim).pop(); c=g?g.b+.1:lim; }
     c=Math.round(c*fps)/fps; out.push([+s.toFixed(3),+c.toFixed(3)]); s=c; }
   out.push([+s.toFixed(3),+D.toFixed(3)]); return out; }
+const rcRep = () => { const v=$("rc-rep").value, d=RC.an?RC.an.duration:0; return v==="h1"?Math.max(1,Math.round(3600/Math.max(1,d))):v==="h3"?Math.max(1,Math.round(10800/Math.max(1,d))):Math.max(1,+v||1); };
 function rcQual(reset){ const sel=$("rc-qual"), d=RC.an?RC.an.duration:0; if(reset) $("rc-split").value=RC.fmt==="9:16"&&d>185?"180":"0"; if(!sel.options.length) sel.innerHTML=Object.entries(RC_QUAL).map(([k,q])=>`<option value="${k}">${esc(q.nom)}</option>`).join(""); if(reset) sel.value=d<=2400?"fhd30":d<=7200?"fhd24":"hd24"; rcEst(); }
 async function rcEst(){ const q=RC_QUAL[$("rc-qual").value], d=RC.an?RC.an.duration:0; if(!q||!d) return; const size=(q.br+192e3)*d/8;
   let msg=`Vidéo de ${rcDur(d)} · fichier d’environ ${rcSize(size)} (garde ${rcSize(size*2.05)} de libre pendant la fabrication).`;
   try{ await SP_RECIT.ready(); const st=rcStageMk(q.K), n=10, t0=performance.now(); for(let i=0;i<n;i++) st.draw(30+i/q.fps); const ms=(performance.now()-t0)/n; msg+=` Fabrication : environ ${rcDur(Math.max(10,d*q.fps*(ms*1.4+4)/1000))} sur cet ordinateur, l’onglet ouvert.`; }catch(e){}
-  const np=rcParts(+$("rc-split").value).length; if(np>1) msg+=` Découpée ensuite en ${np} parties pour TikTok et Shorts (même place en plus).`;
+  const N=rcRep(); if(N>1) msg+=` Répétée ${N} fois : vidéo finale de ${rcDur(d*N)} (fichier d’environ ${rcSize(size*N)}).`;
+  const np=N>1?0:rcParts(+$("rc-split").value).length; if(np>1) msg+=` Découpée ensuite en ${np} parties pour TikTok et Shorts (même place en plus).`; else if(N>1&&+$("rc-split").value) msg+=" (Pas de découpage pour une vidéo répétée.)";
   $("rc-est").textContent=msg; }
 async function rcMake(){
   if(RC.busy||!RC.an) return; const Q=RC_QUAL[$("rc-qual").value]||RC_QUAL.fhd24, dur=RC.an.duration, say=(p,t)=>rcProg("rc-mprog",p,t);
   if(typeof VideoEncoder!=="function"||typeof VideoFrame!=="function"){ say(0,"Ce navigateur ne sait pas fabriquer la vidéo : ouvre Studio Prompt dans Edge ou Chrome à jour, sur ordinateur. Gratuit aussi : l’écran de direct (étape 6), enregistré avec OBS Studio (« Démarrer l’enregistrement »)."); return; }
   RC.busy=true; RC.stop=false; $("rc-make").disabled=true; $("rc-stop").hidden=false; $("rc-out").innerHTML=""; $("rc-audio").pause();
   try{
-    say(0,"Préparation…"); await SP_RECIT.ready(); await SP_RECIT.loadFont(RC.font); const parts=rcParts(+$("rc-split").value), st=SP_RECIT.stage(rcStageOptions(Q.K,{parts})), W=st.canvas.width, H=st.canvas.height, keyAt=new Set(parts.slice(1).map(([a])=>Math.round(a*Q.fps))); let codec="";
+    say(0,"Préparation…"); await SP_RECIT.ready(); await SP_RECIT.loadFont(RC.font); const N=rcRep(), parts=N>1?[]:rcParts(+$("rc-split").value), st=SP_RECIT.stage(rcStageOptions(Q.K,{parts})), W=st.canvas.width, H=st.canvas.height, keyAt=new Set(parts.slice(1).map(([a])=>Math.round(a*Q.fps))); let codec="";
     for(const c of ["avc1.640028","avc1.4d0028","avc1.42e028"]){ try{ if((await VideoEncoder.isConfigSupported({codec:c, width:W, height:H, bitrate:Q.br, framerate:Q.fps, avc:{format:"avc"}})).supported){ codec=c; break; } }catch(e){} }
     if(!codec) throw {message:"L’encodeur vidéo de ce navigateur refuse cette taille : choisis « HD 720p »."};
     const M=await spMuxer(), s0=await rcApi("/api/recit/render/start",{method:"POST", body:{id:RC.id}}), rid=s0.rid, need=(Q.br+192e3)*dur/8*2.05;
@@ -3826,7 +3843,7 @@ async function rcMake(){
     } finally{ try{ ve.close(); }catch(e){} }
     const secs=f/Q.fps; if(secs<1) throw {message:"Arrêtée avant la première seconde : rien à garder."};
     say(.97,"La voix d’origine est remise sur l’image…");
-    await rcApi("/api/recit/render/finish",{method:"POST", body:{id:RC.id, rid, duration:secs, nom:rcNom(), voix:RC.voice, ambiance:RC.amb!=="aucune", volume:RC.vol}});
+    await rcApi("/api/recit/render/finish",{method:"POST", body:{id:RC.id, rid, duration:secs, repeat:RC.stop?1:N, nom:rcNom(), voix:RC.voice, ambiance:RC.amb!=="aucune", volume:RC.vol}});
     let r=null; for(;;){ await new Promise(z=>setTimeout(z,700)); const s=await rcApi(`/api/recit/status?id=${rid}`); if(s.state==="done"){ r=s.result; break; } if(s.state==="failed") throw {message:s.error||"La voix n’a pas pu être remise."}; say(.97+.03*(s.progress||0),`La voix d’origine est remise : ${Math.round((s.progress||0)*100)} %…`); }
     say(1,""); const voiceLabel=RC.voice==="original"?"voix originale intacte":`voix avec finition « ${$("rc-voice").selectedOptions[0].textContent} »`; $("rc-out").innerHTML=`<figure class="rc-vid"><video controls playsinline preload="metadata" src="${esc(r.url)}"></video><figcaption class="actions"><a class="btn primary" href="${esc(r.url)}" download="${esc(r.name)}">⬇ Télécharger (${rcSize(r.size)})</a></figcaption></figure><p class="hint">✅ ${RC.stop?`Début gardé : ${rcDur(secs)}.`:`Vidéo complète : ${rcDur(secs)}.`} MP4 H.264, ${W} × ${H}, ${Q.fps} images/s, ${voiceLabel}${RC.amb!=="aucune"?" avec l’ambiance très douce":""}.</p>`;
     if(parts.length>1&&!RC.stop){ say(.99,`Découpage en ${parts.length} parties pour TikTok et Shorts…`); const j=await rcApi("/api/recit/split",{method:"POST", body:{id:RC.id, file:r.name, parts}});
@@ -3835,8 +3852,17 @@ async function rcMake(){
     rcProjects();
   }catch(e){ say(0,e.message||"La fabrication a échoué. Réessaie, ou choisis « HD 720p »."); }
   finally{ RC.busy=false; $("rc-make").disabled=false; $("rc-stop").hidden=true; } }
+function rcThumbDefaults(force){ const so=rcHead()||{}, base=(RC.msg&&RC.msg.titre)||String(so.nom||rcNom()).replace(/\s*·\s*\d+$/,""), N=rcRep(), d=RC.an?RC.an.duration*N:0;
+  if(force||!$("rc-th-t").value) $("rc-th-t").value=base.slice(0,40);
+  if(force||!$("rc-th-s").value) $("rc-th-s").value=N>1?`Récitation apaisante · ${d>=3300?`${Math.round(d/3600)} heure${Math.round(d/3600)>1?"s":""}`:`${N} fois`}`:"Récitation apaisante";
+  if(force||!$("rc-th-b").value) $("rc-th-b").value=N>1?(d>=3300?`${Math.round(d/3600)} H`:`${N}×`):""; }
+async function rcThumb(){ await SP_RECIT.ready(); await SP_RECIT.loadFont(RC.font); const so=rcHead()||{}, V=RC.fmt==="9:16", st=SP_RECIT.stage(rcStageOptions(V?1.5:1,{parts:null}));
+  st.poster({ar:SP_RECIT.isRtl(so.ar)?so.ar:"", titre:$("rc-th-t").value.trim(), sous:$("rc-th-s").value.trim(), badge:$("rc-th-b").value.trim()});
+  const blob=await new Promise(r=>st.canvas.toBlob(r,"image/png")); if(!blob){ toast("Miniature impossible."); return; } const url=URL.createObjectURL(blob), a=$("rc-th-dl");
+  if(a.dataset.url) URL.revokeObjectURL(a.dataset.url); a.dataset.url=url; a.href=url; a.download=`miniature-${rcNom().replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,40)||"recitation"}-${st.canvas.width}x${st.canvas.height}.png`; a.hidden=false;
+  $("rc-th-img").innerHTML=`<img src="${url}" alt="Miniature : ${esc($("rc-th-t").value)}">`; }
 function rcLive(){ if(!RC.id) return; const u=`${location.origin}/direct.html?id=${RC.id}${$("rc-loop").checked?"&boucle=1":""}`; $("rc-live").value=u; $("rc-open").href=u; }
-function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",msg:RC.msg||null}; }
+function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,ph:$("rc-ph").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",msg:RC.msg||null}; }
 function rcSaveNow(){ clearTimeout(RC.saveT); if(!RC.id||!RC.an) return Promise.resolve(); const data=rcProjectData(); RC.saveP=(RC.saveP||Promise.resolve()).catch(()=>{}).then(()=>fetch("/api/recit/project",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); })); return RC.saveP; }
 function rcSave(){ clearTimeout(RC.saveT); RC.saveT=setTimeout(()=>{ rcSaveNow().catch(()=>{}); },400); }
 async function rcOpen(id){ if(!id||RC.busy) return; const p=RC.projs.find(x=>x.id===id); if(!p) return;
@@ -3948,7 +3974,7 @@ async function rcAuto(){
     rcCheck("calage", RC.mode==="texte"?`${nv} phrases placées à leur moment exact`:`${nv} versets calés sur la voix${RC.nAnchors?` avec ${RC.nAnchors} repères d’écoute : sans décalage`:" (sur les pauses)"}`, RC.nAnchors||RC.mode==="texte"?"ok":"warn");
     rcCheck("design","Message et design…","run"); const m=await rcMessage(signal); RC.msg=m; RC.fmt=m.fmt; RC.theme=m.theme; $("rc-fmt").value=RC.fmt;
     rcCheck("design",`${m.message?m.message+" ":""}Habillage proposé : ${SP_RECIT.themes[m.theme].nom}${m.pourquoi?` (${m.pourquoi.replace(/\.$/,"")})`:""}. Format ${m.fmt==="9:16"?"téléphone 9:16 (TikTok, Shorts)":m.fmt==="1:1"?"carré 1:1":"PC 16:9 (YouTube)"}, comme l’original.`,"ok");
-    rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); rcPub(); rcSave();
+    rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); rcPub(); rcThumbDefaults(true); rcSave();
     rcCheck("pret","Tout est prêt : regarde le résultat, change ce que tu veux, puis fabrique la vidéo.","ok"); $("rc-see").hidden=false; $("rc-gomake").hidden=false;
   }catch(e){ rcCheck("err", e&&e.code==="cancelled"?"Analyse arrêtée : continue à la main à l’étape 2.":(e&&e.message)||"Analyse automatique interrompue : continue à la main à l’étape 2.","warn"); rcSteps(Math.max(2,RC.items.length?6:2)); }
   finally{ RC.autoRun=false; $("rc-stopauto").hidden=true; $("rc-reauto").hidden=false; } }
@@ -4001,6 +4027,8 @@ ${$("rc-pub-d").value}`; try{ await navigator.clipboard.writeText(t); toast("Tit
   $("rc-vol").addEventListener("input", e=>{ RC.vol=+e.target.value; if(rcAmbG) rcAmbG.gain.value=RC.vol; rcSave(); });
   $("rc-qual").addEventListener("change", ()=>rcEst());
   $("rc-split").addEventListener("change", ()=>rcEst());
+  $("rc-rep").addEventListener("change", ()=>{ rcEst(); rcThumbDefaults(true); });
+  $("rc-th-go").addEventListener("click", rcThumb);
   $("rc-make").addEventListener("click", rcMake); $("rc-stop").addEventListener("click", ()=>{ RC.stop=true; });
   $("rc-loop").addEventListener("change", rcLive);
   $("rc-open").addEventListener("click",async e=>{ e.preventDefault(); const w=window.open("about:blank","_blank"); try{ await rcSaveNow(); if(w) w.location=$("rc-live").value; else location.href=$("rc-live").value; }catch(err){ if(w) w.close(); toast("Le projet n’a pas pu être enregistré avant le direct."); } });
