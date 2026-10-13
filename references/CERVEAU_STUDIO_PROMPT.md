@@ -768,6 +768,11 @@ Demande de l'utilisateur : « je te donne une vidéo de récitation du Coran tr�
     - Une leçon d'unités ne passe pas par la recherche du Coran : des noms de lettres ne sont pas des versets, ni des lettres isolées d'ouverture.
   - **Affichage** (`recitation-fx.js`) : un passage fait seulement d'unités (chaque mot a 2 lettres au plus) s'écrit en **très grand**, comme au tableau ; la lettre récitée s'allume.
   - **Publication** (`rcMessage`) : l'agent reçoit le genre et le résumé compris. **Le nom d'une chaîne ou d'une marque de la vidéo d'origine n'est jamais repris** : c'est dans la consigne, et `rcBrands` retire ces noms du titre, de la description et des mots-clés. Sans agent, une leçon d'unités prend l'habillage de la tablette (enseignant).
+  - **Chant par morceaux répétés** (`rcRepeatChunks`) : « أ ب أ ب ت ث ت ث ج ح خ د ج ح خ د » devient [أ ب] [أ ب] [ت ث] [ت ث] [ج ح خ د] [ج ح خ د], chaque morceau puis sa répétition. Le plus long morceau répété tout de suite est pris d'abord. Une suite d'unités sans répétition est coupée par 4, une phrase jamais. Essai sur le 2e projet « Alifun Baa » de l'utilisateur : 49 passages de 2 à 4 lettres, 33 répétitions (avant : 16 lettres sur une ligne).
+  - **« Écriture plus grande »** (demande de l'utilisateur, 14 octobre) : réglage « Taille de l'écriture » à l'étape 4 (normale, **grande par défaut**, très grande, immense). Il s'applique au texte, à la phonétique et à la traduction, est gardé dans le projet (`textScale`) et vaut aussi dans l'écran de direct.
+    - Pour des unités seules, la ligne des noms est plus grande et l'interligne prévu pour les voyelles est retiré quand il n'y en a pas.
+    - Dans le rouleau, les lignes voisines s'écartent pour ne plus mordre sur la ligne récitée.
+    - « Comprendre à nouveau » garde l'habillage et le format choisis par l'utilisateur.
   - **« 🧠 Comprendre à nouveau (sans réécouter) »** : un projet déjà écouté est compris de nouveau en quelques secondes, sans nouvelle écoute ni quota d'écoute. La compréhension et les lignes montrées sont gardées dans le projet (`und`, `lines`).
   - **Essai réel** sur une copie du projet « Alifun Baa » de l'utilisateur (27 phrases déjà écoutées, supprimée ensuite), en 20 s :
     - l'agent a reconnu une leçon d'alphabet et les 28 lettres ;

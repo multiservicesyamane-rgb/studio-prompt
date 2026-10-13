@@ -261,7 +261,9 @@ function stage(o){
   const cache=new Map(), meas=document.createElement("canvas").getContext("2d"), isRtl=txt=>/[\u0590-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(String(txt||""));
   const wrapAr=(x,txt,maxw)=>{ const ws=String(txt).split(/\s+/).filter(Boolean), lines=[]; let line=""; ws.forEach(w=>{ const q=line?line+" "+w:w; if(line&&x.measureText(q).width>maxw){ lines.push(line); line=w; } else line=q; }); if(line) lines.push(line); return lines; };
   function layout(it){ const key=it; if(cache.has(key)){ const v=cache.get(key); cache.delete(key); cache.set(key,v); return v; } const tx=meas;
-    const isT=it.kind==="titre", rtl=isRtl(it.ar), maxLines=isT?3:(V?(showTr&&it.tr?5:7):(showTr&&it.tr?3:5)), trH=showTr&&it.tr&&!isT?box.h*(V?.28:.3):0, phH=o.showPh!==false&&it.ph&&!isT?box.h*(V?.13:.15):0, arH=box.h-trH-phH, base=isT?(V?82:76):rtl?(V?62:56):(V?54:48), LH=rtl?1.75:1.32;
+    /* taille de l'écriture choisie (normale, grande, très grande) ; unités seules (lettres, chiffres) : leur nom aussi en grand */
+    const isT=it.kind==="titre", ZS=cl(+o.textScale||1,.8,1.8), unit0=!isT&&String(it.ar).trim().split(/\s+/).every(w=>w.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,"").length<=2);
+    const rtl=isRtl(it.ar), maxLines=isT?3:(V?(showTr&&it.tr?5:7):(showTr&&it.tr?3:5)), trH=showTr&&it.tr&&!isT?box.h*(V?.28:.3):0, phH=o.showPh!==false&&it.ph&&!isT?box.h*(unit0?(V?.18:.2):(V?.13:.15)):0, arH=box.h-trH-phH, base=(isT?(V?82:76):rtl?(V?62:56):(V?54:48))*ZS, LH=unit0&&!/[ً-ْ]/.test(it.ar)?1.25:rtl?1.75:1.32;
     const font=sz=>rtl?(isT?`700 ${Math.round(sz)}px ${AR_T}`:`${AF.w?AF.w+" ":""}${Math.round(sz*AF.k)}px ${AF.css},${AR}`):T==="enfants"?`700 ${Math.round(sz)}px ${KID}`:`${isT?"700":"600"} ${Math.round(sz)}px ${LAT}`;
     const txt=String(it.ar).replace(/\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED])/g,"$1"), floor=isT?24:Math.round(base*.72);
     /* unités seules (lettres, chiffres, syllabes : chaque mot a 2 lettres au plus) : en très grand, comme au tableau */
@@ -277,9 +279,9 @@ function stage(o){
       const y0=(arH-pl.length*lh)/2+lh/2; if(!hi) bys.push(y0+(pl.length-1)*lh+size*.95); if(P.glow!=="rgba(0,0,0,0)"&&P.glow!=="rgba(255,230,170,.0)"){ x.shadowColor=P.glow; x.shadowBlur=size*(hi?.58:.34); } x.fillStyle=hi?P.active:(isT?P.gold:P.ink);
       x.lineJoin="round"; x.lineWidth=Math.max(1,size*.045); x.strokeStyle=P.stroke; const dim=!hi&&!isT&&(SUB_STYLE[SUB]||{}).karaoke; if(dim) x.globalAlpha=PAPER?.42:.5;   /* mots pas encore récités : plus pâles */
       pl.forEach((ln,i)=>{ if(!hi&&SUB!=="mushaf") x.strokeText(ln,box.w/2,y0+i*lh); x.fillText(ln,box.w/2,y0+i*lh); }); x.globalAlpha=1; x.shadowColor="transparent"; x.shadowBlur=0;
-      if(!hi&&phH&&phTxt){ x.direction="ltr"; let ps=V?28:24, pl2=[]; for(;ps>=15;ps-=1){ x.font=T==="enfants"?`600 ${ps}px ${KID}`:`italic 600 ${ps}px ${LAT}`; pl2=wrapAr(x,phTxt,box.w*.92); if(pl2.length*ps*1.25<=phH*.92) break; }
+      if(!hi&&phH&&phTxt){ x.direction="ltr"; let ps=Math.round((unit0?(V?42:36):(V?28:24))*ZS), pl2=[]; for(;ps>=15;ps-=1){ x.font=T==="enfants"?`600 ${ps}px ${KID}`:`italic 600 ${ps}px ${LAT}`; pl2=wrapAr(x,phTxt,box.w*.92); if(pl2.length*ps*1.25<=phH*.92) break; }
         x.fillStyle=P.gold; if(P.glow!=="rgba(0,0,0,0)"&&!PAPER){ x.shadowColor=P.glow; x.shadowBlur=ps*.4; } const py=arH+(phH-pl2.length*ps*1.25)/2+ps*.62; pl2.forEach((ln,i)=>x.fillText(ln,box.w/2,py+i*ps*1.25)); x.shadowColor="transparent"; x.shadowBlur=0; }
-      if(!hi&&trH){ x.direction="ltr"; const t0=arH+phH; let ts=V?30:26, tl=[]; for(;ts>=16;ts-=1){ x.font=T==="enfants"?`600 ${ts}px ${KID}`:`italic 500 ${ts}px ${LAT}`; tl=wrapAr(x,trTxt,box.w*.92); if(tl.length*ts*1.3<=trH*.9) break; }
+      if(!hi&&trH){ x.direction="ltr"; const t0=arH+phH; let ts=Math.round((V?30:26)*ZS), tl=[]; for(;ts>=16;ts-=1){ x.font=T==="enfants"?`600 ${ts}px ${KID}`:`italic 500 ${ts}px ${LAT}`; tl=wrapAr(x,trTxt,box.w*.92); if(tl.length*ts*1.3<=trH*.9) break; }
         x.fillStyle=P.ink2; if(P.glow!=="rgba(0,0,0,0)"&&!PAPER&&T!=="nuit"&&T!=="arabesque"&&T!=="neon"){ x.shadowColor=P.glow; x.shadowBlur=ts*.4; } const ty=t0+(trH-tl.length*ts*1.3)/2+ts*.65; tl.forEach((ln,i)=>x.fillText(ln,box.w/2,ty+i*ts*1.3)); x.shadowColor="transparent"; x.shadowBlur=0;
         x.strokeStyle=rgba(P.gold.length===7?P.gold:"#C9A24A",.6); x.lineWidth=1.2; x.beginPath(); x.moveTo(box.w*.3,t0+4); x.lineTo(box.w*.7,t0+4); x.stroke(); } };
     /* position de chaque mot, page par page, ligne après ligne, dans le sens de lecture : le surlignage suit vraiment la récitation */
@@ -366,7 +368,7 @@ function stage(o){
     const current=(z,tt)=>{ if(!z) return; const age=Math.max(0,vt-z.a), aq=cl(age/.22), cx=box.x+box.w/2, cy=box.y+box.h/2; g.save();
       if(AN==="rise") g.translate(0,(1-ease(aq))*9*L); else if(AN==="focus"&&age<.22) g.filter=`blur(${((1-aq)*1.2*L).toFixed(1)}px)`; else if(AN==="breathe"){ const s=.992+.008*ease(aq); g.translate(cx,cy); g.scale(s,s); g.translate(-cx,-cy); }
       drawText(g,z,tt,1,0,0); g.restore(); if(AN==="glow"&&age<.55){ const a=(1-age/.55)*.2, gr=g.createRadialGradient(cx,cy,0,cx,cy,box.w*.48); gr.addColorStop(0,rgba(P.gold,a)); gr.addColorStop(1,rgba(P.gold,0)); g.save(); g.globalCompositeOperation="screen"; g.fillStyle=gr; g.fillRect(box.x,box.y,box.w,box.h); g.restore(); } };
-    if(T==="rouleau"){ const step=box.h*.86; g.save(); g.beginPath(); g.rect(V?W*.08:W*.18,H*.1,V?W*.84:W*.64,H*.8); g.clip(); for(let j=Math.max(0,k-2);j<=Math.min(items.length-1,k+2);j++){ const d=j-k, a=j===k?1:Math.max(0,.38-.14*Math.abs(d)); if(a<=0) continue; g.save(); g.translate(0,d*step); drawText(g,items[j],vt,a,0,0); g.restore(); } g.restore(); }
+    if(T==="rouleau"){ const step=box.h*(o.textScale>1.1?1:.86); g.save(); g.beginPath(); g.rect(V?W*.08:W*.18,H*.1,V?W*.84:W*.64,H*.8); g.clip(); for(let j=Math.max(0,k-2);j<=Math.min(items.length-1,k+2);j++){ const d=j-k, a=j===k?1:Math.max(0,.38-.14*Math.abs(d)); if(a<=0) continue; g.save(); g.translate(0,d*step); drawText(g,items[j],vt,a,0,0); g.restore(); } g.restore(); }
     else if(pre){
       /* Avant la limite, seul le passage encore prononcé reste affiché. La transition est un ornement non
          bloquant ; le texte suivant ne remplace celui-ci qu'à son timecode exact, déjà entièrement lisible. */

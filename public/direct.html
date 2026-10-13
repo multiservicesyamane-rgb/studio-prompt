@@ -38,7 +38,7 @@ let P=null, st=null, raf=0, ENV=null;
 const say=t=>{ msg.textContent=t; };
 /* le moteur dessine en 720p logique, multiplié selon la taille de la fenêtre (net dans OBS en 1080p) */
 function build(){ if(!P) return; const V=P.fmt==="9:16", Q=P.fmt==="1:1", W=V?720:Q?720:1280, H=V?1280:720, dpr=window.devicePixelRatio||1, K=Math.min(3,Math.max(.5,Math.min(innerWidth/W,innerHeight/H)*dpr));
-  st=SP_RECIT.stage({fmt:P.fmt, K, theme:(q.get("theme")||P.theme), items:P.items||[], sourate:P.sourate, fixe:P.fixe, recitant:P.recitant, showTr:P.showTr, total:loop?0:P.duration, font:P.font, avatar:{style:P.avStyle, skin:P.avSkin}, env:ENV, roles:P.roles, subtitle:P.subtitle, transition:P.transition, palette:P.palette, animation:P.animation, effect:P.effect, syncOffset:P.syncOffset});
+  st=SP_RECIT.stage({fmt:P.fmt, K, theme:(q.get("theme")||P.theme), items:P.items||[], sourate:P.sourate, fixe:P.fixe, recitant:P.recitant, showTr:P.showTr, total:loop?0:P.duration, font:P.font, textScale:+P.textScale||1.25, avatar:{style:P.avStyle, skin:P.avSkin}, env:ENV, roles:P.roles, subtitle:P.subtitle, transition:P.transition, palette:P.palette, animation:P.animation, effect:P.effect, syncOffset:P.syncOffset});
   cv.width=st.canvas.width; cv.height=st.canvas.height; const sc=Math.min(innerWidth/W,innerHeight/H); cv.style.width=Math.round(W*sc)+"px"; cv.style.height=Math.round(H*sc)+"px"; draw(); }
 function draw(){ if(!st) return; st.draw(voix.currentTime||0); g.drawImage(st.canvas,0,0); }
 function tick(){ draw(); raf=requestAnimationFrame(tick); }

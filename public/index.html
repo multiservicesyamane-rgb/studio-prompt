@@ -12,7 +12,7 @@
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Amiri+Quran&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Baloo+2:wght@600;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Noto+Kufi+Arabic:wght@500&family=Harmattan&family=Markazi+Text:wght@500&family=Lateef&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Amiri+Quran&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Baloo+2:wght@600;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Noto+Kufi+Arabic:wght@500&family=Harmattan&family=Markazi+Text:wght@500&family=Lateef&family=Cinzel:wght@700;900&family=Baloo+Bhaijaan+2:wght@600;800&display=swap">
 <style>
 [hidden]{display:none !important}
 /* Layout: app shell. Desktop = left sidebar (232px) + one centred content column (max 760px).
@@ -1516,6 +1516,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
             <div class="rc-row">
               <div class="field"><label for="rc-fmt">Format</label><div class="sel"><select id="rc-fmt"><option value="16:9">💻 PC · 16:9 · YouTube</option><option value="9:16">📱 Téléphone · 9:16 · TikTok, Shorts, Reels</option><option value="1:1">◻️ Carré · 1:1</option></select></div></div>
               <div class="field"><label for="rc-font">Police du texte arabe</label><div class="sel"><select id="rc-font"></select></div></div>
+              <div class="field"><label for="rc-size">Taille de l’écriture</label><div class="sel"><select id="rc-size"><option value="1">Normale</option><option value="1.25" selected>Grande</option><option value="1.5">Très grande</option><option value="1.75">Immense</option></select></div></div>
               <div class="field"><label for="rc-reci">Nom du récitant <span class="hint">(facultatif)</span></label><input type="text" id="rc-reci" class="plain-in" maxlength="60"></div>
             </div>
             <div class="rc-row" id="rc-avopts" hidden>
@@ -1898,6 +1899,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 <script src="studio-fx.js"></script>
 <script src="recitation-fx.js"></script>
 <script src="avatar-3d.js"></script>
+<script src="lecon-fx.js"></script>
 <script src="/document-memory.js"></script>
 <script>
 (function(){
@@ -3673,7 +3675,7 @@ window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(VI
    4. Habillage premium dessiné image par image (public/recitation-fx.js), même moteur pour l'aperçu, la vidéo et le direct.
    5. Vidéo encodée ici (H.264) et envoyée par morceaux au serveur, qui remet la voix d'origine (+ ambiance de la nature, très douce).
    6. Écran de direct (direct.html) pour OBS Studio et TikTok LIVE Studio. Tout est gratuit. */
-const RC = {ready:false, server:null, id:"", an:null, mode:"coran", pass:[{n:1, from:1, to:7}], items:[], theme:"nuit", fmt:"16:9", showTr:true, recitant:"", voice:"original", subtitle:"mushaf", transition:"precise", palette:"theme", animation:"rise", effect:"poussiere_doree", syncOffset:0, fxTab:"subtitles", font:"amiri", avStyle:"indigo", avSkin:"fonce", env:null, amb:"aucune", vol:.08, ambUp:"", sur:null, cache:{}, projs:[], st:null, raf:0, tap:-1, busy:false, stop:false, fileName:"", ambBufs:{}};
+const RC = {ready:false, server:null, id:"", an:null, mode:"coran", pass:[{n:1, from:1, to:7}], items:[], theme:"nuit", fmt:"16:9", showTr:true, recitant:"", voice:"original", subtitle:"mushaf", transition:"precise", palette:"theme", animation:"rise", effect:"poussiere_doree", syncOffset:0, fxTab:"subtitles", font:"amiri", textScale:1.25, avStyle:"indigo", avSkin:"fonce", env:null, amb:"aucune", vol:.08, ambUp:"", sur:null, cache:{}, projs:[], st:null, raf:0, tap:-1, busy:false, stop:false, fileName:"", ambBufs:{}};
 window.__spRecit = RC;   /* état lu par les tests automatiques (lecture seulement) */
 const RC_ISTI = {ar:"أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ", tr:{"fr.hamidullah":"Je cherche refuge auprès d’Allah contre le Diable banni.", "en.sahih":"I seek refuge in Allah from Satan, the expelled."}};
 const RC_QUAL = {fhd30:{nom:"Full HD · 30 images/s (le plus beau)", K:1.5, fps:30, br:4.5e6}, fhd24:{nom:"Full HD · 24 images/s (plus rapide, plus léger)", K:1.5, fps:24, br:3e6}, hd24:{nom:"HD 720p · 24 images/s (très longues vidéos : le plus rapide et le plus léger)", K:1, fps:24, br:1.4e6}};
@@ -3706,6 +3708,7 @@ function rcLoaded(an, pj){
   $("rc-info").textContent=`✅ Voix gardée : ${rcDur(an.duration)}, ${(an.speech||[]).length} moments de parole repérés entre les pauses.${few?" Très peu de pauses : ouvre « Réglage des pauses » si la voix est sur un fond bruyant.":""}`;
   const au=$("rc-audio"); if(au.getAttribute("src")!==an.audio){ au.src=an.audio; } $("rc-seek").max=String(an.duration||1);
   if(pj){ $("rc-isti").checked=!!pj.isti; $("rc-basm").checked=pj.basm!==false; $("rc-ph").checked=!!pj.ph; $("rc-tr").value=pj.tr==null?"fr.hamidullah":pj.tr; $("rc-txt").value=pj.txt||""; $("rc-titre").value=pj.titre||""; }
+  if(pj){ RC.textScale=+pj.textScale||1.25; } $("rc-size").value=String(RC.textScale||1.25);
   if(pj){ RC.font=SP_RECIT.fonts[pj.font]?pj.font:"amiri"; RC.avStyle=pj.avStyle||"indigo"; RC.avSkin=pj.avSkin||"fonce"; RC.roles=pj.roles||"alterne"; $("rc-roles").value=RC.roles; } rcFontSel(); $("rc-fmt").value=RC.fmt; $("rc-reci").value=RC.recitant; $("rc-showtr").checked=RC.showTr; $("rc-voice").value=RC.voice; $("rc-sync").value=String(RC.syncOffset); rcSyncLabel(); $("rc-amb").value=RC.amb; $("rc-vol").value=String(RC.vol);
   if(pj){ RC.heard=pj.heard||null; RC.heardTxt=pj.heardTxt||""; RC.und=pj.und||null; RC.lines=pj.lines||null; RC.msg=pj.msg||null; RC.follow=!!pj.follow; RC.followRes=pj.followRes||null; } $("rc-reund").hidden=!!RC.autoRun||!(RC.heard&&RC.heard.length); rcOrig(); rcPub();
   rcMode(RC.mode); rcPassRender(); $("rc-out").innerHTML=rcVideosHtml();
@@ -3782,7 +3785,7 @@ function rcTapEnd(){ RC.tap=-1; $("rc-tapbox").hidden=true; $("rc-audio").pause(
 /* habillage : le même moteur dessine les vignettes, l'aperçu, la vidéo et le direct */
 const RC_FX_TABS=[["subtitles","Sous-titres"],["transitions","Transitions"],["palettes","Couleurs"],["animations","Animations"],["effects","Effets"]], RC_FX_KEY={subtitles:"subtitle",transitions:"transition",palettes:"palette",animations:"animation",effects:"effect"};
 const RC_FX_HINT={subtitles:"Styles conçus pour l’arabe et l’écriture uthmani : ligatures et signes restent intacts. La lumière suit le passage sans masquer les mots.",transitions:"La transition se termine avant le début du passage suivant : le nouveau texte est entièrement lisible dès que la voix commence.",palettes:"Couleurs du texte, des ornements et des effets. Le contraste reste renforcé pour YouTube et les téléphones.",animations:"Animations calmes qui ne séparent jamais les lettres arabes et ne retardent jamais la lecture.",effects:"Ambiances visuelles rendues à partir du même temps audio dans l’aperçu, le MP4 et le direct."};
-function rcStageOptions(K,extra){ return Object.assign({fmt:RC.fmt,K,theme:RC.theme,items:RC.items,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),recitant:RC.recitant,showTr:RC.showTr,total:RC.an?RC.an.duration:0,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,avatar:{style:RC.avStyle,skin:RC.avSkin},env:RC.env||null,roles:RC.roles||"alterne"},extra||{}); }
+function rcStageOptions(K,extra){ return Object.assign({fmt:RC.fmt,K,theme:RC.theme,items:RC.items,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),recitant:RC.recitant,showTr:RC.showTr,total:RC.an?RC.an.duration:0,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,textScale:RC.textScale||1.25,avatar:{style:RC.avStyle,skin:RC.avSkin},env:RC.env||null,roles:RC.roles||"alterne"},extra||{}); }
 /* avatar 3D « Enseignant » : three.js chargé à la demande (relais : silhouette simple si la 3D ne se charge pas) ; énergie de la voix pour ses lèvres */
 async function rcAvatarPrep(withEnv){ if(window.SP_AVATAR) await Promise.race([SP_AVATAR.load().catch(()=>null), new Promise(r=>setTimeout(r,8000))]);
   if(withEnv&&RC.id&&(!RC.env||RC.envId!==RC.id)){ try{ RC.env=await rcApi(`/api/recit/env?id=${RC.id}`); RC.envId=RC.id; }catch(e){ RC.env=null; } } }
@@ -3903,7 +3906,7 @@ async function rcThumb(){ await SP_RECIT.ready(); await SP_RECIT.loadFont(RC.fon
   if(a.dataset.url) URL.revokeObjectURL(a.dataset.url); a.dataset.url=url; a.href=url; a.download=`miniature-${rcNom().replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,40)||"recitation"}-${st.canvas.width}x${st.canvas.height}.png`; a.hidden=false;
   $("rc-th-img").innerHTML=`<img src="${url}" alt="Miniature : ${esc($("rc-th-t").value)}">`; }
 function rcLive(){ if(!RC.id) return; const u=`${location.origin}/direct.html?id=${RC.id}${$("rc-loop").checked?"&boucle=1":""}`; $("rc-live").value=u; $("rc-open").href=u; }
-function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,ph:$("rc-ph").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,avStyle:RC.avStyle,avSkin:RC.avSkin,roles:RC.roles||"alterne",amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",und:RC.und||null,lines:RC.lines||null,msg:RC.msg||null,follow:!!RC.follow,followRes:RC.follow?RC.followRes||null:null}; }
+function rcProjectData(){ return {id:RC.id,v:2,updated:Date.now(),nom:rcNom(),mode:RC.mode,pass:RC.pass,isti:$("rc-isti").checked,basm:$("rc-basm").checked,ph:$("rc-ph").checked,tr:$("rc-tr").value,txt:$("rc-txt").value,titre:$("rc-titre").value.trim(),items:RC.items,theme:RC.theme,fmt:RC.fmt,showTr:RC.showTr,recitant:RC.recitant,sourate:rcHead(),fixe:!!$("rc-titre").value.trim(),voice:RC.voice,subtitle:RC.subtitle,transition:RC.transition,palette:RC.palette,animation:RC.animation,effect:RC.effect,syncOffset:RC.syncOffset,font:RC.font,textScale:RC.textScale||1.25,avStyle:RC.avStyle,avSkin:RC.avSkin,roles:RC.roles||"alterne",amb:RC.ambUp,vol:RC.vol,audio:RC.an.audio,duration:RC.an.duration,heard:RC.heard||null,heardTxt:RC.heardTxt||"",und:RC.und||null,lines:RC.lines||null,msg:RC.msg||null,follow:!!RC.follow,followRes:RC.follow?RC.followRes||null:null}; }
 function rcSaveNow(){ clearTimeout(RC.saveT); if(!RC.id||!RC.an) return Promise.resolve(); const data=rcProjectData(); RC.saveP=(RC.saveP||Promise.resolve()).catch(()=>{}).then(()=>fetch("/api/recit/project",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); })); return RC.saveP; }
 function rcSave(){ clearTimeout(RC.saveT); RC.saveT=setTimeout(()=>{ rcSaveNow().catch(()=>{}); },400); }
 async function rcOpen(id){ if(!id||RC.busy) return; const p=RC.projs.find(x=>x.id===id); if(!p) return;
@@ -3970,6 +3973,13 @@ async function rcUnderstand(heard, signal){
   U.annonces.sort((a,b)=>a-b); U.ratio=+ratio.toFixed(2); return U; }
 /* ce qu'il faut montrer, phrase par phrase, à son moment exact : unités nommées → l'unité elle-même (et son nom dessous) ;
    « ألف باء ألف باء » → deux passages, le second est une répétition (les talibés répètent) ; annonces de chaîne retirées */
+/* une suite chantée par morceaux répétés : « أ ب أ ب ت ث ت ث ج ح خ د ج ح خ د » → [أ ب] [أ ب] [ت ث] [ت ث] [ج ح خ د] [ج ح خ د] ;
+   le plus long morceau qui se répète tout de suite est pris d'abord ; ce qui ne se répète pas forme des morceaux de 4 au plus */
+function rcRepeatChunks(arr, keys, maxFree){ const out=[], mf=maxFree||1e9; let i=0, free=[]; const flush=()=>{ for(let k=0;k<free.length;k+=mf) out.push(free.slice(k,k+mf)); free=[]; };
+  if(keys.length<=(maxFree||4)&&!(keys.length%2===0&&keys.length&&keys.slice(0,keys.length/2).join(" ")===keys.slice(keys.length/2).join(" "))) return [arr];
+  while(i<keys.length){ let found=0; for(let k=Math.min(8,Math.floor((keys.length-i)/2));k>=1;k--){ if(keys.slice(i,i+k).join(" ")===keys.slice(i+k,i+2*k).join(" ")){ found=k; break; } }
+    if(found){ flush(); out.push(arr.slice(i,i+found), arr.slice(i+found,i+2*found)); i+=2*found; } else { free.push(arr[i]); i++; } }
+  flush(); return out; }
 function rcUnderstoodLines(heard, U){ const ex=rcExMap(U), skip=new Set(U.annonces||[]), out=[], seen={};
   heard.forEach((h,i)=>{ if(skip.has(i)) return; const T0=+h.t0, T1=Math.max(T0+.3,+h.t1), raw=String(h.texte).replace(/\s+/g," ").trim().split(" ").filter(Boolean), toks=[], own=[];
     raw.forEach((w,k)=>rcTok(w).forEach(t=>{ toks.push(t); own.push(k); }));
@@ -3979,8 +3989,8 @@ function rcUnderstoodLines(heard, U){ const ex=rcExMap(U), skip=new Set(U.annonc
     /* morceaux : suites d'unités, suites de mots (un petit mot seul entre deux unités, comme « و », est laissé de côté) */
     const runs=[]; rcUnitsOf(toks,ex).forEach(e=>{ const k=e.u?"u":"w", l=runs[runs.length-1]; if(l&&l.k===k) l.e.push(e); else runs.push({k, e:[e]}); });
     const kept=runs.filter(r=>r.k==="u"||r.e.some(e=>toks[e.i0].length>1)), wt=r=>r.e.length*(r.k==="u"?1.2:1), tot=kept.reduce((q,r)=>q+wt(r),0)||1, nText=kept.filter(r=>r.k==="w").length; let t=T0;
-    kept.forEach(r=>{ const d=(T1-T0)*wt(r)/tot, keys=r.k==="u"?r.e.map(e=>e.u.a):r.e.map(e=>toks[e.i0]), n=keys.length, half=n%2===0&&n>=2&&keys.slice(0,n/2).join(" ")===keys.slice(n/2).join(" "), parts=half?[r.e.slice(0,n/2),r.e.slice(n/2)]:[r.e];
-      parts.forEach((p,k)=>{ const a=t+d*k/parts.length, b=t+d*(k+1)/parts.length;
+    kept.forEach(r=>{ const d=(T1-T0)*wt(r)/tot, keys=r.k==="u"?r.e.map(e=>e.u.a):r.e.map(e=>toks[e.i0]), parts=rcRepeatChunks(r.e,keys,r.k==="u"?4:0), cum=[0]; parts.forEach(p=>cum.push(cum[cum.length-1]+p.length)); const tl=cum[cum.length-1]||1;
+      parts.forEach((p,k)=>{ const a=t+d*cum[k]/tl, b=t+d*cum[k+1]/tl;
         if(r.k==="u") push(p.map(e=>e.u.a).join(" "), p.map(e=>e.u.n).filter(Boolean).join(" · "), a, b);
         else push(raw.slice(own[p[0].i0], own[p[p.length-1].i1-1]+1).join(" "), "", a, b, nText===1&&U.tr&&U.tr[i]); }); t+=d; }); });
   /* une phrase qui revient garde sa traduction */
@@ -4152,12 +4162,12 @@ async function rcAuto(reuse){
     else { if(rec.arabe&&rec.err) rcCheck("coranko",`Texte du Coran indisponible (${rec.err}) : les paroles entendues sont gardées telles quelles.`,"warn");
       const lines=rcUnderstoodLines(heard, U); RC.lines=lines; RC.mode="texte"; rcMode("texte"); $("rc-txt").value=lines.map(x=>x.texte).join("\n"); RC.heardTxt=$("rc-txt").value;
       if(U.unites){ $("rc-ph").checked=true; const ex=lines.find(x=>x.ph), reps=lines.filter(x=>x.rep>1).length, kinds=new Set(lines.filter(x=>x.ph).flatMap(x=>x.texte.split(" ")));
-        rcCheck("paroles",`Leçon comprise : ${lines.length} passages, ${kinds.size} ${U.genre==="chiffres"?"chiffres":"lettres"} différent${U.genre==="chiffres"?"s":"es"}${reps?`, ${reps} répétitions`:""}. On montre ce que les noms désignent${ex?` (« ${heard[ex.src].texte} » → « ${ex.texte} », nom dessous : ${ex.ph})`:""}, pas les sons entendus.`,"ok"); }
+        rcCheck("paroles",`Leçon comprise : ${lines.length} passages, ${kinds.size} ${U.genre==="chiffres"?"chiffres":"lettres"} différent${U.genre==="chiffres"?"s":"es"}${reps?`, ${reps} répétitions`:""}. On montre ce que les noms désignent${ex?` (« ${String(heard[ex.src].texte).split(/\s+/).slice(0,ex.texte.split(" ").length).join(" ").replace(/[،,.]+$/,"")} » → « ${ex.texte} », nom dessous : ${ex.ph})`:""}, pas les sons entendus.`,"ok"); }
       else rcCheck("paroles",`Paroles gardées telles qu’entendues : ${lines.length} phrases${RC.lang?` (${LANG_FR[RC.lang]||RC.lang})`:""}${Object.keys(U.tr||{}).length?`, avec leur traduction`:""}. Corrige un mot à l’étape 2 si besoin.`,"ok"); }
     rcCheck("calage","Calage des paroles sur la voix…","run"); await rcAlignRun(); const nv=RC.items.filter(x=>x.kind==="verset").length;
     rcCheck("calage", RC.mode==="texte"?`${nv} phrases placées à leur moment exact`:`${nv} versets calés sur la voix${RC.nAnchors?` avec ${RC.nAnchors} repères d’écoute : sans décalage`:" (sur les pauses)"}`, RC.nAnchors||RC.mode==="texte"?"ok":"warn"); };
-    rcCheck("design","Message et design…","run"); const m=await rcMessage(signal); RC.msg=m; RC.fmt=m.fmt; RC.theme=m.theme; $("rc-fmt").value=RC.fmt;
-    rcCheck("design",`${m.message?m.message+" ":""}Habillage proposé : ${SP_RECIT.themes[m.theme].nom}${m.pourquoi?` (${m.pourquoi.replace(/\.$/,"")})`:""}. Format ${m.fmt==="9:16"?"téléphone 9:16 (TikTok, Shorts)":m.fmt==="1:1"?"carré 1:1":"PC 16:9 (YouTube)"}, comme l’original.`,"ok");
+    rcCheck("design","Message et design…","run"); const m=await rcMessage(signal), keep=!!old&&SP_RECIT.themes[RC.theme]; RC.msg=m; if(!keep){ RC.fmt=m.fmt; RC.theme=m.theme; } $("rc-fmt").value=RC.fmt;
+    rcCheck("design",keep?`${m.message?m.message+" ":""}Ton habillage est gardé : ${SP_RECIT.themes[RC.theme].nom}, format ${RC.fmt} (l’agent proposait ${SP_RECIT.themes[m.theme].nom}).`:`${m.message?m.message+" ":""}Habillage proposé : ${SP_RECIT.themes[m.theme].nom}${m.pourquoi?` (${m.pourquoi.replace(/\.$/,"")})`:""}. Format ${m.fmt==="9:16"?"téléphone 9:16 (TikTok, Shorts)":m.fmt==="1:1"?"carré 1:1":"PC 16:9 (YouTube)"}, comme l’original.`,"ok");
     rcThemes(); rcFxRender(RC.fxTab); rcPreview(); rcQual(true); rcLive(); rcPub(); rcThumbDefaults(true); rcSave();
     rcCheck("pret","Tout est prêt : regarde le résultat, change ce que tu veux, puis fabrique la vidéo.","ok"); $("rc-see").hidden=false; $("rc-gomake").hidden=false;
   }catch(e){ rcCheck("err", e&&e.code==="cancelled"?"Analyse arrêtée : continue à la main à l’étape 2.":(e&&e.message)||"Analyse automatique interrompue : continue à la main à l’étape 2.","warn"); rcSteps(Math.max(2,RC.items.length?6:2)); }
@@ -4231,6 +4241,7 @@ ${$("rc-pub-d").value}`; try{ await navigator.clipboard.writeText(t); toast("Tit
   $("rc-av-skin").addEventListener("change", e=>{ RC.avSkin=e.target.value; rcRefresh(); });
   $("rc-roles").addEventListener("change", e=>{ RC.roles=e.target.value; rcPreview(); rcSave(); });
   $("rc-font").addEventListener("change", async e=>{ RC.font=e.target.value; await SP_RECIT.loadFont(RC.font); rcRefresh(); });
+  $("rc-size").addEventListener("change", e=>{ RC.textScale=+e.target.value||1.25; rcRefresh(); rcLive(); });
   $("rc-fmt").addEventListener("change", e=>{ RC.fmt=e.target.value; rcRefresh(); rcEst(); });
   $("rc-reci").addEventListener("input", e=>{ RC.recitant=e.target.value.trim(); rcRefresh(); });
   $("rc-showtr").addEventListener("change", e=>{ RC.showTr=e.target.checked; rcRefresh(); });
