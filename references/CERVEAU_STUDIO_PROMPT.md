@@ -866,6 +866,10 @@ Demande de l'utilisateur, avec 7 nouvelles vidéos de référence (`references/*
   - `poseCharacter` : nouveau réglage `p.up` (0 sur le côté, 1 vers le haut) ; le bras se lève et le regard suit.
   - Au format téléphone, la tablette est au-dessus, donc le geste se fait vers le haut ; en 16:9, vers le haut à droite. Cela vaut pour « Garder la voix » (Daara, enseignant) et pour la leçon Daara.
 - **Suppression d'un projet** : si Windows garde un fichier ouvert (code `busy`), la page réessaie deux fois après 1,5 s.
+- **Voix Gemini : format refusé (erreur réelle de l'utilisateur, 14 octobre)**. Le 1er modèle de voix était épuisé et le relais `gemini-3.1-flash-tts-preview` répondait 400 (« Audio MIME type AUDIO_WAV is not supported »), donc la voix signature échouait. Désormais (`runGeminiVoice`) :
+  - la voix est redemandée sans format imposé, puis par l'ancienne méthode `generateContent` ;
+  - un modèle qui refuse encore passe la main au modèle suivant, au lieu d'abandonner.
+  - Test : `gen-api-test.js` (format WAV refusé, puis voix signature fabriquée).
 - Test : `lecon-test.js` (9 vérifications) :
   - onglet ; 3 modèles dessinés et tous différents ;
   - alphabet arabe sans IA (28 lettres) ; changement de modèle ;

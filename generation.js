@@ -303,12 +303,15 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
   const QUOTA_DAY_MSG = () => `Quota du jour des voix Gemini atteint sur les ${TTS_MODELS.length} modèles de voix : elles reviennent demain matin. En attendant, la voix naturelle gratuite (Hugging Face) ou la voix de l'ordinateur prend le relais.`;
   async function runGeminiVoice(j){
     const content = {type:"text", text:j.text}; if(j.style) content.annotations = [{type:"speech_metadata", style:j.style}];
-    const ready = TTS_MODELS.filter(m => !(ttsBlocked.get(m) > Date.now()));
+    const ready = TTS_MODELS.filter(m => !(ttsBlocked.get(m) > Date.now())); let lastErr = null;
+    const fmtRefused = r => r.status === 400 && /mime|AUDIO_WAV|response_format|sample_rate|audio format/i.test(JSON.stringify(r.json || ""));
     for(const [k, model] of ready.entries()){
       let r, tries = 0, next = false;
       for(;;){
         r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model, input:[{type:"user_input", content:[content]}], response_format:{type:"audio", mime_type:"audio/wav", sample_rate:24000}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 300000);   /* une revue entière peut tenir en une seule demande */
-        if(r.status === 404){   /* ancien format, si l'API interactions n'est pas ouverte pour ce modèle */
+        /* format WAV refusé par ce modèle (erreur réelle du 14 octobre : « Audio MIME type AUDIO_WAV is not supported for models/gemini-3.1-flash-tts-preview ») : on redemande sans imposer le format */
+        if(fmtRefused(r)) r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model, input:[{type:"user_input", content:[content]}], response_format:{type:"audio"}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 300000);
+        if(r.status === 404 || fmtRefused(r)){   /* ancien format, si l'API interactions n'est pas ouverte pour ce modèle (ou refuse encore la demande) */
           r = await call(`${GEMINI_BASE}/models/${model}:generateContent`, post(gHead(), {contents:[{parts:[{text:j.style ? `Say in a ${j.style} way: ${j.text}` : j.text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:j.voice || "Kore"}}}}}), 120000);
         }
         if(r.status === 404){ ttsBlocked.set(model, Date.now() + 6 * 3600e3); next = true; break; }   /* modèle absent de ce compte */
@@ -321,13 +324,14 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
         update(j, {step:`attente de Google (${Math.round(wait / 1000)} s)`}); await sleep(wait);
       }
       if(next){ if(ready[k + 1]) update(j, {step:`quota de ${model} atteint : modèle de voix suivant`}); continue; }
-      if(!r.ok) throw errOf("tts", r);
-      const a = findMedia(r.json, "audio"); if(!a) throw {code:"server_error", message:"La voix Gemini n'a pas rendu d'audio : réessaie."};
+      /* ce modèle refuse la demande : le modèle de voix suivant essaie, au lieu d'abandonner */
+      if(!r.ok){ lastErr = errOf("tts", r); if(r.status >= 400 && r.status < 500 && ![401, 403].includes(r.status) && ready[k + 1]){ update(j, {step:`${model} refuse la demande : modèle de voix suivant`}); continue; } throw lastErr; }
+      const a = findMedia(r.json, "audio"); if(!a){ lastErr = {code:"server_error", message:"La voix Gemini n'a pas rendu d'audio : réessaie."}; if(ready[k + 1]) continue; throw lastErr; }
       let buf = Buffer.from(a.data, "base64"); if(buf.slice(0, 4).toString() !== "RIFF") buf = wav(buf, Number((String(a.mime).match(/rate=(\d+)/) || [])[1]) || 24000);
       const o = await voiceOut(j, buf, "audio/wav");
       return finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:wavSeconds(o.buf), model:j.fx ? `${model} · voix signature` : model}));
     }
-    throw {code:"quota_day", message:QUOTA_DAY_MSG()};
+    throw lastErr || {code:"quota_day", message:QUOTA_DAY_MSG()};
   }
   /* ---------- Voix naturelle gratuite : Chatterbox Multilingual (Resemble AI, licence MIT) sur Hugging Face ----------
      Espace public avec file d'attente GPU gratuite ; HF_TOKEN (compte Hugging Face gratuit) donne plus de minutes par jour.

@@ -16,6 +16,7 @@ const fake = http.createServer(async (req, res) => {
   const u = new URL(req.url, "http://x"), b = req.method === "POST" ? await body(req) : "";
   if(u.pathname === "/v1beta/interactions"){ const o = JSON.parse(b); seen.keys.push(["tts", req.headers["x-goog-api-key"], o.generation_config && o.generation_config.speech_config[0].voice]);
     if(ttsMode === "day") return json(res, 429, {error: {code: 429, status: "RESOURCE_EXHAUSTED", message: "Quota exceeded for metric: generate_content_free_tier_requests, limit: 15", details: [{"@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]}]}});
+    if(ttsMode === "mime400" && o.response_format && o.response_format.mime_type === "audio/wav") return json(res, 400, {error: {code: 400, status: "INVALID_ARGUMENT", message: `Audio MIME type AUDIO_WAV is not supported for models/${o.model}`}});
     if(ttsMode === "minute-once"){ ttsMode = "ok"; return json(res, 429, {error: {code: 429, status: "RESOURCE_EXHAUSTED", message: "Quota exceeded", details: [{"@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}]}, {"@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "3s"}]}}); }
     seen.ttsActive++; seen.ttsMax = Math.max(seen.ttsMax, seen.ttsActive); await new Promise(r => setTimeout(r, 80)); seen.ttsActive--;
     return json(res, 200, {steps: [{type: "thought"}, {type: "model_output", content: [{type: "audio", data: Buffer.alloc(48000).toString("base64")}]}]}); }   // 1 s de PCM 24 kHz
@@ -77,6 +78,11 @@ const PNG = "data:image/png;base64," + Buffer.alloc(300, 9).toString("base64");
   const vdone = []; for(const id of vj) vdone.push(await waitJob(port, id));
   check("voix : une seule demande à la fois chez Google", seen.ttsMax === 1, `max simultané ${seen.ttsMax}`);
   check("limite par minute : attente puis réussite automatique (aucune voix perdue)", vdone.every(x => x && x.status === "done"), vdone.map(x => x && x.status).join(","));
+  /* format WAV refusé par un modèle de voix (erreur réelle du 14 octobre) : la voix est redemandée sans imposer le format, et elle arrive */
+  ttsMode = "mime400";
+  r = await postJ(port, "/api/gen/start", {kind: "voice", service: "gemini", project: "proj1", plan: 19, text: "Format refusé", voice: "Iapetus", fx: {pitch: 2, speed: 1.05, warm: .3, echo: 0}});
+  j = r.status === 200 && await waitJob(port, r.body.job.id); ttsMode = "ok";
+  check("format WAV refusé par le modèle de voix (erreur 400) : nouvelle demande sans format imposé, voix signature fabriquée", j && j.status === "done" && /voix signature/.test(j.model || ""), j ? `${j.status} · ${j.model || ""} · ${j.error || ""}` : r.body.message);
   ttsMode = "day";
   r = await postJ(port, "/api/gen/start", {kind: "voice", service: "gemini", project: "proj1", plan: 20, text: "Encore une", voice: "Kore"});
   j = await waitJob(port, r.body.job.id); ttsMode = "ok";
