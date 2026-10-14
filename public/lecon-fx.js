@@ -43,7 +43,7 @@ function norm(L){ L=L||{}; const langue=LANGS[L.langue]?L.langue:"fr", modele=MO
   const items=(Array.isArray(L.items)?L.items:[]).slice(0,40).map(x=>{ x=x||{}; const r=parseInt(x.repete,10);
     return {cle:str(x.cle,24), nom:str(x.nom,40), mot:str(x.mot,40), image:emoji1(x.image), sens:str(x.sens,80), phon:str(x.phon,40), texte:str(x.texte,260), voix:str(x.voix,320), repete:isFinite(r)?cl(r,0,3):1}; }).filter(x=>x.cle||x.texte);
   return {titre:str(L.titre,80)||LANGS[langue].lecon, sous_titre:str(L.sous_titre,90), langue, modele, intro:str(L.intro,320), fin:str(L.fin,320), quiz:L.quiz!==false&&items.length>=3,
-    chorus:L.chorus==null?MODELS[modele].chorus:!!L.chorus, personnage:L.personnage!==false, sous_titres:L.sous_titres!==false, items, chanson:songNorm(L.chanson), muet:Array.isArray(L.muet)?L.muet.filter(k=>typeof k==="string"):[]}; }
+    chorus:L.chorus==null?MODELS[modele].chorus:!!L.chorus, personnage:L.personnage!==false, sous_titres:L.sous_titres!==false, items, chanson:songNorm(L.chanson), methode:(Array.isArray(L.methode)?L.methode:[]).slice(0,8).map(x=>str(x,160)).filter(Boolean), angle:str(L.angle,120), muet:Array.isArray(L.muet)?L.muet.filter(k=>typeof k==="string"):[]}; }
 
 /* ---------- la chanson de la leçon (14 octobre) : paroles, style, voix, place dans la vidéo, et la chanson fabriquée (adresse + temps des lignes) ---------- */
 const SONG_STYLES={comptine:"Comptine joyeuse", nasheed:"Nasheed (voix et daf, sans instrument)", berceuse:"Berceuse douce", pop:"Pop pour enfants"};

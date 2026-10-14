@@ -905,6 +905,17 @@ Demande de l'utilisateur, avec 7 nouvelles vidéos de référence (`references/*
     - image « Avion » ;
     - chanson de l'application (12 lignes, 35,6 s) ;
     - 390 px ; console propre.
+- **Fichiers de la leçon et angles (14 octobre)**. Demande de l'utilisateur : « ajouter un audio, une vidéo, un texte, une image ou un document ; il les analyse, propose des angles bien utiles et crée la méthode ».
+  - **Étape 2**, « Tes fichiers » (`lcAdd`) :
+    - images réduites à 1024 px ;
+    - vidéos : 4 images, plus le son des 150 premières secondes en WAV 16 kHz mono ;
+    - audios : 150 premières secondes ;
+    - PDF : texte lu par le serveur (`/api/pdf/text`) ; textes (12 000 caractères au plus).
+    - Ce sont les outils du Constructeur (`cbThumb`, `cbSeek`).
+  - **« 🧭 L'agent propose des angles »** (`lcAnglesPrompt`) : l'agent voit 6 images au plus et écoute 1 audio, avec les textes. Il rend le résumé des fichiers et 3 angles : titre, pour qui, idée, méthode en 4 à 6 étapes, modèle conseillé et pourquoi, nombre d'éléments.
+  - « Choisir cet angle » prend le modèle conseillé, puis écrit la leçon. La consigne reçoit l'angle choisi et le contenu des fichiers, présentés comme la source à ne pas contredire ; les médias sont joints.
+  - **Méthode** (`L.methode`) : écrite par l'agent pour chaque leçon, affichée à l'étape 3 et ajoutée au texte de publication.
+  - Test : `lecon-fichiers-test.js` (5 vérifications : 4 fichiers lus, angles avec médias joints, angle suivi et méthode, 390 px, console).
 - Test : `lecon-test.js` (9 vérifications) :
   - onglet ; 3 modèles dessinés et tous différents ;
   - alphabet arabe sans IA (28 lettres) ; changement de modèle ;
@@ -1121,6 +1132,7 @@ Ce que le code corrige :
 | `recitation-sans-fichier-test.js` | « Garder la voix » sans fichier : sans voix, voix qui lit mes textes (verset refusé), micro (§4.3 terdecies) |
 | `lecon-test.js` | Leçons animées (§4.3 quaterdecies) : 3 modèles, exemple sans IA, leçon de l'agent, garde du Coran, voix arabe gratuite, vraie vidéo Full HD 9:16 vérifiée par FFmpeg |
 | `lecon-chanson-test.js` | Chanson de la leçon : paroles, compte Hugging Face relié, voix chantée ACE-Step (simulée) avec temps des lignes, chanson de l'application, clip musical Full HD |
+| `lecon-fichiers-test.js` | Leçon animée à partir de fichiers (image, audio, vidéo, texte) : analyse, 3 angles avec méthode, angle suivi par la leçon |
 | `ui-test.js`, `menu-test.js` | Vues, menu simplifié (5 entrées + Réglages, onglets des groupes, dernier onglet retenu, anciennes adresses), mobile, mode sombre, console sans erreur |
 | `presse-test.js` | Revue de presse avec un vrai `server.js` face à de faux Google Actualités, Google voix et site d'actualité : infos cochées, règles de vérité, voix d'or, audio complet, textes et liens, reprise, vidéo |
 | `gen-api-test.js` | `generation.js` face à de faux Google, Runway et ElevenLabs : clé gratuite pour les voix, clé payante pour Veo, budget, facturation absente, voix une à la fois, limites par minute et par jour, imports, Range, sécurité des chemins, reprise |
@@ -1220,6 +1232,7 @@ Les commits sont en français. Étapes majeures :
 38. Entrer sans fichier dans « Garder la voix » : micro, voix qui lit mes textes (jamais le Coran), ou projet sans voix avec ambiance ; relais gratuit anglais et arabe (14 octobre, §4.3 terdecies).
 39. Leçons animées : 3 modèles cinématiques (Grand Théâtre, Daara de lumière, Grande Aventure) pour n'importe quelle leçon en français, arabe et anglais ; bâton du maître et geste vers le haut (14 octobre, §4.3 quaterdecies).
 40. Chanson de la leçon : paroles avant la vidéo, voix chantée par l'IA (ACE-Step, compte Hugging Face gratuit relié depuis la page) ou chanson de l'application ; clip musical où chaque unité apparaît quand elle est chantée (14 octobre, §4.3 quaterdecies).
+41. Leçon animée à partir de tes fichiers (audio, vidéo, image, texte, PDF) : l'agent analyse, propose 3 angles avec leur méthode, la leçon suit l'angle choisi (14 octobre, §4.3 quaterdecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

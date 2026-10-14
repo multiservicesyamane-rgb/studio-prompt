@@ -867,6 +867,11 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 .lc-prev{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.lc-prev img{width:100%;height:auto;border-radius:10px;display:block;background:#000}
 .lc-prev.v{grid-template-columns:repeat(3,minmax(0,160px))}
 #lc-song-audio{width:100%}
+.lc-angles{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.lc-angle{display:flex;flex-direction:column;gap:8px;padding:12px;border:2px solid var(--line);border-radius:14px;background:var(--surface);min-width:0}
+.lc-angle[aria-pressed="true"]{border-color:var(--view-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--view-accent) 20%,transparent)}
+.lc-angle h3{margin:0;font-size:16px}.lc-angle p{margin:0;font-size:14px;line-height:1.45}.lc-angle ol,.lc-methode ol{margin:0;padding-left:20px;font-size:14px;line-height:1.5}
+.lc-methode{padding:10px 12px;border-radius:12px;background:var(--sunken);font-size:14px}
 .lc-live{width:100%;max-width:720px;border-radius:12px;background:#000;display:block}
 /* Garder la voix, refaire l'image (récitations, lectures, conférences) */
 .rc-home{max-width:1000px}
@@ -1476,12 +1481,15 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
           <div class="panel rc-step">
             <h2 class="sub-h">2 · La leçon</h2>
             <div class="field"><label for="lc-sujet">Sujet de la leçon</label><textarea id="lc-sujet" rows="3" placeholder="Ex. : les lettres arabes de Alif à Kha avec un mot pour chacune ; les couleurs en anglais ; les chiffres de 1 à 10"></textarea></div>
+            <div class="field"><label for="lc-files">Tes fichiers <span class="hint">(facultatif : audio, vidéo, image, texte ou PDF ; l’agent les analyse et te propose des angles)</span></label><input type="file" id="lc-files" multiple accept="image/*,video/*,audio/*,.pdf,.txt,.md,text/plain,application/pdf"></div>
+            <div class="cb-assets" id="lc-assets" aria-live="polite"></div>
             <div class="rc-row">
               <div class="field"><label for="lc-langue">Langue de la leçon</label><div class="sel"><select id="lc-langue"><option value="fr">Français</option><option value="ar">Arabe</option><option value="en">Anglais</option></select></div></div>
               <div class="field"><label for="lc-age">Pour qui ?</label><div class="sel"><select id="lc-age"><option value="petits">Petits (3 à 5 ans)</option><option value="enfants" selected>Enfants (6 à 9 ans)</option><option value="tous">Tout le monde</option></select></div></div>
               <div class="field"><label for="lc-nb">Nombre d’éléments</label><div class="sel"><select id="lc-nb"><option value="auto">Automatique</option><option value="4">4</option><option value="6">6</option><option value="8">8</option><option value="12">12</option><option value="28">Jusqu’à 28</option></select></div></div>
             </div>
-            <div class="actions"><button type="button" class="btn primary" id="lc-go">✨ L’agent écrit la leçon</button><button type="button" class="btn" id="lc-free">⚡ Sans IA</button><button type="button" class="btn" id="lc-stop" hidden>Arrêter</button></div>
+            <div class="actions"><button type="button" class="btn" id="lc-angles-go">🧭 L’agent propose des angles</button><button type="button" class="btn primary" id="lc-go">✨ L’agent écrit la leçon</button><button type="button" class="btn" id="lc-free">⚡ Sans IA</button><button type="button" class="btn" id="lc-stop" hidden>Arrêter</button></div>
+            <div class="lc-angles" id="lc-angles" hidden></div>
             <details class="rc-more" id="lc-more"><summary>Écrire la leçon moi-même, ou partir d’un exemple</summary>
               <p class="hint">Une ligne par élément : <b>ce qu’on montre | son nom | un mot exemple | un emoji | sa traduction</b>. Exemple : <span dir="ltr">B | bé | Bateau | ⛵ | boat</span></p>
               <div class="field"><label for="lc-lignes">Mes éléments</label><textarea id="lc-lignes" rows="6"></textarea></div>
@@ -1496,6 +1504,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
               <div class="field rc-grow"><label for="lc-titre">Titre</label><input type="text" id="lc-titre" class="plain-in" maxlength="80"></div>
               <div class="field rc-grow"><label for="lc-stitre">Sous-titre</label><input type="text" id="lc-stitre" class="plain-in" maxlength="90"></div>
             </div>
+            <div class="lc-methode" id="lc-methode" hidden></div>
             <ol class="lc-items" id="lc-items"></ol>
             <div class="actions"><button type="button" class="btn" id="lc-add">+ Ajouter un élément</button></div>
             <div class="rc-row">
@@ -11922,7 +11931,7 @@ const lcOpts = () => ({sujet:$("lc-sujet").value.trim(), langue:$("lc-langue").v
 function lcPrompt(o, lines){ const M=SP_LECON.models[o.model], LN={fr:"français", ar:"arabe (avec toutes les voyelles)", en:"anglais"}[o.langue], AGE={petits:"petits de 3 à 5 ans (phrases très courtes)", enfants:"enfants de 6 à 9 ans", tous:"tout le monde (enfants et adultes débutants)"}[o.age];
   let pub=""; try{ pub=activeLessons({outil:""},"strategie").filter(l=>l.domaine==="publication").map(l=>l.regle).slice(0,3).join(" ; "); }catch(e){}
   return `Tu es pédagogue pour enfants et réalisateur de vidéos éducatives (YouTube, TikTok). Écris une LEÇON ANIMÉE.
-Sujet : « ${o.sujet||"d’après les éléments donnés"} ».${lines?`\nÉléments donnés par l’utilisateur (à garder, à compléter) :\n${lines.slice(0,2000)}`:""}
+Sujet : « ${o.sujet||"d’après les éléments donnés"} ».${lines?`\nÉléments donnés par l’utilisateur (à garder, à compléter) :\n${lines.slice(0,2000)}`:""}${o.angle?`\nANGLE CHOISI par l’utilisateur (à suivre) : « ${o.angle.titre} » — ${o.angle.idee} Pour : ${o.angle.pour_qui}. Méthode : ${(o.angle.methode||[]).join(" ; ")}.`:""}${o.src?`\nCONTENU DES FICHIERS DE L’UTILISATEUR (la source : la leçon s’appuie dessus, sans rien inventer contre elle ; images, captures et audio joints) :\n${o.src}`:""}
 Langue de la leçon : ${LN}. Tout ce qui est dit et écrit est dans cette langue, sauf « sens » (traduction française courte, pour les parents). Public : ${AGE}. Nombre d’éléments : ${o.nb==="auto"?"5 à 10 selon le sujet":o.nb}.
 Modèle visuel : ${M.nom} (${M.desc}).
 GRAMMAIRE DES MEILLEURES LEÇONS (apprise des vidéos de référence de l’utilisateur) :
@@ -11933,12 +11942,13 @@ GRAMMAIRE DES MEILLEURES LEÇONS (apprise des vidéos de référence de l’util
 - « repete » : combien de fois l’enfant répète (0 à 3 ; 1 par défaut ; 2 pour un son difficile) ;
 - une phrase à apprendre (invocation, règle, bon comportement) va dans « texte » (240 caractères au plus), avec « cle » court ou vide ;
 - un accueil (« intro ») et une fin (« fin » : bravo et à bientôt) chaleureux ;
+- « methode » : la méthode pédagogique de la leçon en 4 à 6 étapes courtes (ce que l’enfant fait à chaque étape) ;
 - CHANSON (« chanson.paroles ») : une vraie chanson de la leçon, dans la langue de la leçon, comme les meilleures chansons d’alphabet pour enfants : chaque élément chanté une fois, dans l’ordre, avec son mot exemple (« B, B, comme Ballon ! ») ; un refrain de 2 à 4 lignes, entraînant, répété au début, au milieu et à la fin ; lignes courtes (3 à 8 mots), rythmées, faciles à chanter, avec des rimes si possible ; les repères [chorus], [verse], [bridge], [outro] seuls sur leur ligne.
 RÈGLES :
 - Jamais de verset du Coran dans « voix », « texte », « intro » ni dans la chanson : le Coran n’est jamais lu par une voix de synthèse. Pour une sourate, enseigne les mots, le sens ou les règles, et écris dans « avertissement » d’utiliser une vraie récitation.
 - Un hadith seulement s’il est authentique, avec sa source exacte (recueil et numéro) dans « sources » ; sinon aucun.
 - Aucun prophète, compagnon ni personne réelle représenté ; aucune marque ; aucun texte protégé. Exactitude : alphabet, orthographe, voyelles arabes complètes sur « cle » et « mot » en arabe.${pub?`\n- Publication, d’après les statistiques de l’utilisateur : ${pub}.`:""}
-RÉPONDS UNIQUEMENT avec ce JSON : {"titre":"","sous_titre":"","intro":"","fin":"","items":[{"cle":"","nom":"","phon":"","mot":"","image":"","sens":"","voix":"","repete":1,"texte":""}],"quiz":true,"chanson":{"paroles":"[chorus]\\n…\\n[verse]\\n…"},"avertissement":"","sources":[],"publication":{"titre":"","description":"","hashtags":["#…"]}}`; }
+RÉPONDS UNIQUEMENT avec ce JSON : {"titre":"","sous_titre":"","intro":"","fin":"","items":[{"cle":"","nom":"","phon":"","mot":"","image":"","sens":"","voix":"","repete":1,"texte":""}],"quiz":true,"methode":["…"],"chanson":{"paroles":"[chorus]\\n…\\n[verse]\\n…"},"avertissement":"","sources":[],"publication":{"titre":"","description":"","hashtags":["#…"]}}`; }
 /* les trois cartes des modèles : un vrai moment de leçon dessiné par le moteur */
 const LC_DEMO={theatre:{titre:"Les fruits",langue:"fr",modele:"theatre",items:[{cle:"A",mot:"Ananas",image:"🍍"},{cle:"B",mot:"Banane",image:"🍌"},{cle:"C",mot:"Cerise",image:"🍒"}]},
   daara:{titre:"حُرُوفُ الهِجَاءِ",langue:"ar",modele:"daara",items:[{cle:"بَ",nom:"باء",phon:"ba",mot:"بَطَّةٌ",image:"🦆",sens:"canard"},{cle:"تُ",nom:"تاء",phon:"tu",mot:"تُفَّاحَةٌ",image:"🍎"},{cle:"ثِ",nom:"ثاء",phon:"thi",mot:"ثَعْلَبٌ",image:"🦊"}]},
@@ -11956,9 +11966,10 @@ function lcShow(){ if(LC.shown) return; LC.shown=true; LC.model=SP_LECON.models[
 /* la leçon : par l'agent, sinon sans IA (lignes écrites, exemple prêt d'après le sujet) */
 function lcPresetFor(o){ const t=o.sujet.toLowerCase(); if(/chiffre|nombre|compter|number|count|أرقام|عدد/.test(t)) return LC_PRESETS.num.L(o.langue); if(/alphab|lettre|letter|abc|حروف|هجاء/.test(t)) return (o.langue==="ar"||/arab|عرب/.test(t)?LC_PRESETS.ar_abc:o.langue==="en"?LC_PRESETS.en_abc:LC_PRESETS.fr_abc).L(); return null; }
 async function lcGo(free){ const o=lcOpts(), m=$("lc-msg"), lines=$("lc-lignes").value.trim(); let L=null;
-  if(!free&&sample){ if(o.sujet.length<3&&!lines){ m.textContent="Décris la leçon (ex. : « les lettres arabes de Alif à Kha »), ou touche « Sans IA »."; return; }
+  if(!free&&sample){ if(o.sujet.length<3&&!lines&&!LC.files.length&&!LC.angle){ m.textContent="Décris la leçon (ex. : « les lettres arabes de Alif à Kha »), ou touche « Sans IA »."; return; }
     LC.ctl=new AbortController(); $("lc-go").disabled=true; $("lc-stop").hidden=false; const t0=Date.now(), iv=setInterval(()=>{ m.textContent=`L’agent écrit la leçon… ${Math.round((Date.now()-t0)/1000)} s`; },1000);
-    try{ const r=await sample.json(lcPrompt(o,lines),{modelTier:"complex", engine:"best", cache:false, signal:LC.ctl.signal}); if(r&&Array.isArray(r.items)&&r.items.length){ L=r; L.chanson={paroles:String(r.chanson&&r.chanson.paroles||"").trim()}; LC.pub=r.publication||null; if(r.avertissement) toast(String(r.avertissement).slice(0,200)); } }
+    try{ const src=LC.files.length?lcSources():null; o.angle=LC.angle||null; o.src=src?src.text:"";
+      const r=await sample.json(lcPrompt(o,lines),{images:src?src.media:[], modelTier:"complex", engine:"best", cache:false, signal:LC.ctl.signal}); if(r&&Array.isArray(r.items)&&r.items.length){ L=r; L.chanson={paroles:String(r.chanson&&r.chanson.paroles||"").trim()}; L.methode=Array.isArray(r.methode)&&r.methode.length?r.methode:(o.angle?o.angle.methode:[]); L.angle=o.angle?o.angle.titre:""; LC.pub=r.publication||null; if(r.avertissement) toast(String(r.avertissement).slice(0,200)); } }
     catch(e){ if(e&&e.code==="cancelled"){ clearInterval(iv); m.textContent="Arrêté."; $("lc-go").disabled=false; $("lc-stop").hidden=true; LC.ctl=null; return; } toast(`Agent indisponible (${errText(e)}) : leçon composée sans IA.`); }
     finally{ clearInterval(iv); $("lc-go").disabled=false; $("lc-stop").hidden=true; LC.ctl=null; } }
   if(!L){ LC.pub=null; if(lines) L={titre:o.sujet.slice(0,70)||SP_LECON.langs[o.langue].lecon, items:lcParse(lines)}; else L=lcPresetFor(o); }
@@ -11971,7 +11982,7 @@ function lcSet(L, msg){ const sav=loadPrefs(); LC.L=SP_LECON.norm(L); if(SP_LECO
 function lcOptsRender(){ const L=LC.L; $("lc-titre").value=L.titre; $("lc-stitre").value=L.sous_titre||""; $("lc-rep").value=String(L.items.length?L.items[0].repete:1); $("lc-quiz").checked=L.quiz; $("lc-chorus").checked=L.chorus; $("lc-perso").checked=L.personnage; $("lc-subs").checked=L.sous_titres; }
 function lcItemsRender(){ const L=LC.L, rtl=L.langue==="ar";
   $("lc-items").innerHTML=L.items.map((x,i)=>`<li class="lc-item"><span class="lc-n">${i+1}</span><input class="lc-cle" data-lc-f="${i}:cle" value="${esc(x.cle)}" dir="auto" aria-label="Élément ${i+1} : ce qu’on montre" placeholder="Ce qu’on montre"><input class="lc-nom" data-lc-f="${i}:nom" value="${esc(x.nom)}" dir="auto" aria-label="Élément ${i+1} : son nom" placeholder="Son nom"><input class="lc-mot" data-lc-f="${i}:mot" value="${esc(x.mot)}" dir="auto" aria-label="Élément ${i+1} : mot exemple" placeholder="Mot exemple"><input class="lc-emo" data-lc-f="${i}:image" value="${esc(x.image)}" aria-label="Élément ${i+1} : image (emoji)" placeholder="🙂"><button type="button" class="lc-del" data-lc-del="${i}" aria-label="Supprimer l’élément ${i+1}">✕</button><input class="lc-v" data-lc-f="${i}:voix" value="${esc(x.voix)}" dir="${rtl?"rtl":"auto"}" aria-label="Élément ${i+1} : phrase du maître" placeholder="Phrase du maître (automatique si vide)${x.texte?" · texte : "+esc(x.texte.slice(0,40)):""}"></li>`).join(""); }
-function lcRender(){ if(!LC.L) return; if(SP_LECON.songLines(LC.L.chanson.paroles).length<2) LC.L.chanson.paroles=lcSongTpl(LC.L); $("lc-s3").hidden=false; $("lc-s4").hidden=false; lcOptsRender(); lcItemsRender(); lcSongRender(); lcPreview(); lcPubRender(); }
+function lcRender(){ if(!LC.L) return; if(SP_LECON.songLines(LC.L.chanson.paroles).length<2) LC.L.chanson.paroles=lcSongTpl(LC.L); $("lc-s3").hidden=false; $("lc-s4").hidden=false; lcOptsRender(); lcMethodRender(); lcItemsRender(); lcSongRender(); lcPreview(); lcPubRender(); }
 let lcPrevT=0; function lcPreview(){ clearTimeout(lcPrevT); lcPrevT=setTimeout(async()=>{ const L=LC.L, box=$("lc-prev"); if(!L||!L.items.length){ box.innerHTML=""; return; }
   try{ await SP_LECON.ready(L); if(L.personnage&&window.SP_AVATAR) await Promise.race([SP_AVATAR.load().catch(()=>null), new Promise(r=>setTimeout(r,8000))]);
     const fmt=spFmts($("lc-fmt").value)[0], C=L.chanson, sg=C.audio&&C.place!=="aucune"?{seconds:C.audio.seconds, lines:C.audio.lines, bpm:C.audio.bpm}:null, P=SP_LECON.plan(L,null,sg), it=P.parts.find(x=>x.k==="item"), rc=P.parts.find(x=>x.k==="recap"), so=P.parts.find(x=>x.k==="song"), cv=document.createElement("canvas"), st=SP_LECON.stage(cv,L,P,{fmt,K:fmt==="9:16"?.35:.3});
@@ -11982,6 +11993,54 @@ async function lcPlay(){ const cv=$("lc-live"), b=$("lc-play"); if(LC.playing){ 
   const L=LC.L; if(!L) return; await SP_LECON.ready(L); const C=L.chanson, fmt=spFmts($("lc-fmt").value)[0], P=SP_LECON.plan(L,null,C.audio&&C.place!=="aucune"?{seconds:C.audio.seconds, lines:C.audio.lines, bpm:C.audio.bpm}:null), st=SP_LECON.stage(cv,L,P,{fmt,K:fmt==="9:16"?.5:.5}); cv.hidden=false; b.textContent="⏹ Arrêter l’aperçu"; const t0=performance.now();
   const tick=()=>{ const t=(performance.now()-t0)/1000; if(t>=P.total){ LC.playing=0; cv.hidden=true; b.textContent="▶ Aperçu animé (sans le son)"; return; } st.draw(t); LC.playing=requestAnimationFrame(tick); }; tick(); }
 function lcSave(){ if(!LC.L) return; LC.key=LC.key||`lc:${Date.now()}`; creationSave("lecon", LC.key, LC.L.titre, {L:LC.L, pub:LC.pub||null}); }
+/* ---------- fichiers de la leçon (14 octobre) : « ajouter un audio, une vidéo, un texte, une image ou un document ; il les analyse, propose des angles utiles et crée la méthode » ----------
+   Images (réduites), vidéos (4 images + le son des 150 premières secondes), audios (150 s en WAV 16 kHz), PDF (texte lu par le serveur), textes.
+   L'agent voit et écoute tout, résume, propose 3 angles (pour qui, idée, méthode en étapes, modèle conseillé) ; l'angle choisi guide la leçon. */
+LC.files=[];
+async function lcWav16(file, maxS){ if(file.size>150e6) return null; const ac=new (window.AudioContext||window.webkitAudioContext)();
+  try{ const b=await ac.decodeAudioData(await file.arrayBuffer()), d=Math.min(maxS||150,b.duration), off=new OfflineAudioContext(1,Math.ceil(d*16000),16000), s=off.createBufferSource(); s.buffer=b; s.connect(off.destination); s.start(0); const out=await off.startRendering(); return {wav:prWav(out), dur:b.duration}; }
+  catch(e){ return null; } finally{ try{ ac.close(); }catch(e){} } }
+async function lcAdd(files){ const m=$("lc-msg");
+  for(const f of files){ const type=f.type||"", name=f.name||"fichier", x={name, file:f, kind:"", blobs:[], text:"", note:""}; LC.files.push(x); lcFilesRender(); m.textContent=`Lecture de « ${name} »…`;
+    try{
+      if(/^image\//.test(type)){ x.kind="image"; const url=URL.createObjectURL(f), img=new Image(); img.src=url; await img.decode(); x.thumb=await cbThumb(img,240); x.blobs=[await cbThumb(img,1024)]; URL.revokeObjectURL(url); }
+      else if(/^video\//.test(type)){ x.kind="video"; const url=URL.createObjectURL(f), v=document.createElement("video"); v.muted=true; v.playsInline=true; v.preload="auto"; v.src=url; await new Promise((ok,ko)=>{ v.onloadeddata=ok; v.onerror=ko; setTimeout(ok,8000); });
+        for(const q of [.1,.35,.6,.85]){ await cbSeek(v,(v.duration||1)*q); x.blobs.push(await cbThumb(v,640)); } x.thumb=x.blobs[0]; x.dur=v.duration||0; v.removeAttribute("src"); v.load(); URL.revokeObjectURL(url);
+        const a=await lcWav16(f,150); if(a){ x.blobs.push(a.wav); x.note="son écouté (150 premières secondes)"; } else x.note=f.size>150e6?"son trop lourd pour être écouté ici":"sans son lisible"; }
+      else if(/^audio\//.test(type)){ x.kind="audio"; const a=await lcWav16(f,150); if(a){ x.blobs.push(a.wav); x.dur=a.dur; x.note=a.dur>150?"150 premières secondes écoutées":"écouté en entier"; } else x.note="son illisible ici"; }
+      else if(/pdf$/i.test(type)||/\.pdf$/i.test(name)){ x.kind="pdf"; try{ const r=await fetch("/api/pdf/text",{method:"POST",headers:{"Content-Type":"application/pdf"},body:f}), j=await r.json().catch(()=>({})); if(r.ok) x.text=String(j.text||"").slice(0,12000); else x.note=j.message||"PDF illisible"; }catch(e){ x.note="PDF illisible ici : colle son texte dans le sujet"; } }
+      else if(/^text\//.test(type)||/\.(txt|md)$/i.test(name)){ x.kind="texte"; x.text=(await f.text()).slice(0,12000); }
+      else { LC.files.pop(); toast(`« ${name} » : type de fichier non pris en charge.`); }
+    }catch(e){ x.note="n’a pas pu être lu"; }
+    lcFilesRender(); }
+  m.textContent=LC.files.length?`${LC.files.length} fichier${LC.files.length>1?"s":""} prêt${LC.files.length>1?"s":""} : touche « 🧭 L’agent propose des angles », ou directement « ✨ L’agent écrit la leçon ».`:""; }
+function lcFilesRender(){ const ic={image:"🖼",video:"🎬",audio:"🎵",pdf:"📄",texte:"📝"};
+  $("lc-assets").innerHTML=LC.files.map((x,i)=>`<div class="cb-chip">${x.thumb?`<img src="${x.thumbUrl||(x.thumbUrl=URL.createObjectURL(x.thumb))}" alt="">`:`<span class="cb-ic" aria-hidden="true">${ic[x.kind]||"⏳"}</span>`}<span><b>${esc(x.name.slice(0,28))}</b><br>${esc(x.kind?`${x.kind}${x.dur?` · ${Math.round(x.dur)} s`:""}${x.text?` · ${x.text.length.toLocaleString("fr-FR")} caractères`:""}${x.note?` · ${x.note}`:""}`:"lecture…")}</span><button type="button" class="btn small" data-lc-fdel="${i}" aria-label="Retirer ${esc(x.name)}">✕</button></div>`).join(""); }
+/* ce que l'agent reçoit des fichiers : le texte (extraits) et les médias joints (6 images au plus, 1 audio) */
+function lcSources(){ const media=[], parts=[]; let imgs=0, aud=0;
+  LC.files.forEach(x=>{ parts.push(`- « ${x.name} » (${x.kind}${x.dur?`, ${Math.round(x.dur)} s`:""})${x.text?` : ${x.text.slice(0,Math.floor(9000/Math.max(1,LC.files.length)))}`:x.blobs.length?" : voir les médias joints":""}`);
+    x.blobs.forEach(bl=>{ if(/^audio/.test(bl.type||"")){ if(aud<1){ media.push(bl); aud++; } } else if(imgs<6){ media.push(bl); imgs++; } }); });
+  return {text:parts.join("\n").slice(0,10000), media}; }
+function lcAnglesPrompt(o, src){ const AGE={petits:"petits de 3 à 5 ans", enfants:"enfants de 6 à 9 ans", tous:"tout le monde"}[o.age], LN={fr:"français", ar:"arabe", en:"anglais"}[o.langue];
+  return `Tu es conseiller pédagogique et réalisateur de vidéos éducatives pour enfants (YouTube, TikTok). L’utilisateur a ajouté des fichiers : analyse-les (texte ci-dessous ; images, captures de vidéo et audio joints), comprends ce qu’ils contiennent et ce qu’ils enseignent, puis propose 3 ANGLES de leçon animée vraiment utiles et différents les uns des autres.
+Sujet donné (facultatif) : « ${o.sujet||"—"} ». Langue de la leçon : ${LN}. Public : ${AGE}.
+FICHIERS :
+${src.text||"(médias joints seulement)"}
+Pour chaque angle : un titre accrocheur, pour qui exactement, l’idée en une ou deux phrases, la MÉTHODE pédagogique en 4 à 6 étapes courtes (ce que l’enfant fait), le modèle visuel conseillé (theatre = Grand Théâtre, daara = Daara de lumière, aventure = Grande Aventure) et pourquoi, le nombre d’éléments.
+Règles : rien d’inventé contre les fichiers ; jamais de verset du Coran lu par une voix de synthèse ; hadith seulement authentique avec sa source ; aucune personne réelle ; français simple.
+RÉPONDS UNIQUEMENT avec ce JSON : {"resume":"ce que contiennent les fichiers, en une ou deux phrases simples","angles":[{"titre":"","pour_qui":"","idee":"","methode":["",""],"modele":"theatre|daara|aventure","pourquoi":"","nb":6}]}`; }
+async function lcAngles(){ const o=lcOpts(), m=$("lc-msg"), box=$("lc-angles");
+  if(!LC.files.length&&o.sujet.length<3){ m.textContent="Ajoute un fichier ou décris le sujet, puis touche « 🧭 L’agent propose des angles »."; return; }
+  if(LC.files.some(x=>!x.kind)){ m.textContent="Lecture des fichiers en cours : réessaie dans un instant."; return; }
+  if(!sample){ m.textContent="Sans agent, écris tes éléments dans « Écrire la leçon moi-même », puis touche « ⚡ Sans IA »."; return; }
+  const b=$("lc-angles-go"); b.disabled=true; const t0=Date.now(), iv=setInterval(()=>{ m.textContent=`L’agent analyse tes fichiers et cherche les meilleurs angles… ${Math.round((Date.now()-t0)/1000)} s`; },1000);
+  try{ const src=lcSources(), r=await sample.json(lcAnglesPrompt(o,src),{images:src.media, modelTier:"complex", engine:"best", cache:false}); const A=(Array.isArray(r&&r.angles)?r.angles:[]).slice(0,4).filter(a=>a&&a.titre);
+    if(!A.length) throw {message:"aucun angle"}; LC.angles=A.map(a=>({titre:String(a.titre).slice(0,120), pour_qui:String(a.pour_qui||"").slice(0,120), idee:String(a.idee||"").slice(0,400), methode:(Array.isArray(a.methode)?a.methode:[]).slice(0,6).map(x=>String(x).slice(0,160)), modele:SP_LECON.models[a.modele]?a.modele:LC.model, pourquoi:String(a.pourquoi||"").slice(0,200), nb:Math.max(3,Math.min(28,parseInt(a.nb,10)||6))})); LC.angle=null; LC.resume=String(r.resume||"").slice(0,400);
+    box.hidden=false; box.innerHTML=(LC.resume?`<p class="hint" style="grid-column:1/-1"><b>Dans tes fichiers :</b> ${esc(LC.resume)}</p>`:"")+LC.angles.map((a,i)=>`<div class="lc-angle" aria-pressed="false" data-lc-ai="${i}"><h3>${esc(a.titre)}</h3><p><b>Pour :</b> ${esc(a.pour_qui)}</p><p>${esc(a.idee)}</p>${a.methode.length?`<p><b>Méthode :</b></p><ol>${a.methode.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:""}<p class="hint">Modèle conseillé : ${esc(SP_LECON.models[a.modele].nom)}${a.pourquoi?` — ${esc(a.pourquoi)}`:""} · ${a.nb} éléments</p><button type="button" class="btn primary" data-lc-angle="${i}">Choisir cet angle et écrire la leçon</button></div>`).join("");
+    m.textContent=`✅ ${LC.angles.length} angles proposés : choisis celui qui te plaît.`; box.scrollIntoView({behavior:"smooth",block:"start"}); }
+  catch(e){ m.textContent=`Agent indisponible (${errText(e)}) : décris le sujet et touche « ✨ L’agent écrit la leçon », ou « ⚡ Sans IA ».`; }
+  finally{ clearInterval(iv); b.disabled=false; } }
+function lcMethodRender(){ const L=LC.L, box=$("lc-methode"); if(!L||!L.methode.length){ box.hidden=true; return; } box.hidden=false; box.innerHTML=`<b>Méthode de la leçon${L.angle?` · ${esc(L.angle)}`:""}</b><ol>${L.methode.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`; }
 /* ---------- la chanson de la leçon (14 octobre) : « je n'ai pas vu les paroles ni la chanson qui collent avec la leçon » ; « des chansons de qualité avec de sublimes voix » ----------
    Paroles écrites par l'agent (avec la leçon) ou sans IA ; chanson chantée par une IA libre (ACE-Step, Hugging Face, gratuite avec un compte),
    sinon « chanson de l'application » : musique composée ici (mélodie, accords, rythme ; nasheed = voix, daf et mains), voix posée sur les temps. */
@@ -12108,7 +12167,7 @@ async function lcAudio(L, P, vo, amb, song){ const SR=44100, C=window.OfflineAud
 function lcVideosHtml(){ const vs=LC.videos||[]; if(!vs.length) return ""; return `<div class="pr-vids${vs.length>1?" two":""}">${vs.map((v,n)=>spVideoFigure(v,n,`data-lc-dl="${n}"`)).join("")}</div>`; }
 function lcPubRender(vo){ const L=LC.L; if(!L) return; const p=LC.pub||{}, tags={fr:["#apprendre","#enfants","#leçon"], ar:["#تعليم","#أطفال","#حروف"], en:["#learning","#kids","#lesson"]}[L.langue]||[];
   const cred=[...new Set(Object.values(vo||{}).map(v=>(Object.values(SP_LOCAL_LANG).find(x=>x.id===v.voice)||(String(v.voice||"").startsWith("fr_")?localVoice(v.voice):{})).credit).filter(Boolean))];
-  $("lc-pub").value=[p.titre||L.titre, p.description||`${L.sous_titre?L.sous_titre+" · ":""}${L.items.length} éléments, avec « répète après moi », un petit quiz et la révision.`, (Array.isArray(p.hashtags)&&p.hashtags.length?p.hashtags:tags).join(" "), ["Illustrations : Twemoji (CC BY 4.0).", ...cred].join("\n")].filter(Boolean).join("\n\n"); $("lc-pubbox").hidden=false; }
+  $("lc-pub").value=[p.titre||L.titre, p.description||`${L.sous_titre?L.sous_titre+" · ":""}${L.items.length} éléments, avec « répète après moi », un petit quiz et la révision.`, L.methode.length?`Méthode :\n${L.methode.map((x,i)=>`${i+1}. ${x}`).join("\n")}`:"", (Array.isArray(p.hashtags)&&p.hashtags.length?p.hashtags:tags).join(" "), ["Illustrations : Twemoji (CC BY 4.0).", ...cred].join("\n")].filter(Boolean).join("\n\n"); $("lc-pubbox").hidden=false; }
 async function lcMake(){ const L=LC.L; if(!L||!L.items.length) return; const m=$("lc-vmsg"), bt=$("lc-make"), ac=new (window.AudioContext||window.webkitAudioContext)(), sel=$("lc-voix").value, fmts=spFmts($("lc-fmt").value);
   LC.stop=false; bt.disabled=true; $("lc-vstop").hidden=false; LC.videos.forEach(v=>URL.revokeObjectURL(v.url)); LC.videos=[]; $("lc-vids").innerHTML="";
   try{ m.textContent="Préparation (polices, images, personnage 3D)…"; await SP_LECON.ready(L); if(L.personnage&&window.SP_AVATAR) await Promise.race([SP_AVATAR.load().catch(()=>null), new Promise(r=>setTimeout(r,8000))]);
@@ -12129,6 +12188,9 @@ async function lcMake(){ const L=LC.L; if(!L||!L.items.length) return; const m=$
 document.addEventListener("click",async e=>{ const t=e.target.closest&&e.target.closest("button"); if(!t||!t.closest("#view-lecon")) return;
   if(t.dataset.lcModel){ lcPick(t.dataset.lcModel); return; }
   if(t.dataset.lcPreset){ const p=LC_PRESETS[t.dataset.lcPreset]; if(p){ LC.pub=null; const L=p.L($("lc-langue").value); lcSet(L, `✅ Exemple prêt : ${L.items.length} éléments, sans IA. Change ce que tu veux, puis fabrique la vidéo.`); } return; }
+  if(t.id==="lc-angles-go"){ lcAngles(); return; }
+  if(t.dataset.lcFdel!=null){ const x=LC.files.splice(+t.dataset.lcFdel,1)[0]; if(x&&x.thumbUrl) URL.revokeObjectURL(x.thumbUrl); lcFilesRender(); return; }
+  if(t.dataset.lcAngle!=null&&LC.angles){ const a=LC.angles[+t.dataset.lcAngle]; if(!a) return; LC.angle=a; document.querySelectorAll("#lc-angles .lc-angle").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.lcAi===t.dataset.lcAngle))); lcPick(a.modele); const nb=$("lc-nb"); nb.value=[...nb.options].some(op=>+op.value===a.nb)?String(a.nb):"auto"; lcGo(false); return; }
   if(t.id==="lc-go"){ lcGo(false); return; } if(t.id==="lc-free"){ lcGo(true); return; } if(t.id==="lc-stop"){ if(LC.ctl) LC.ctl.abort(); return; }
   if(t.dataset.lcDel!=null&&LC.L){ LC.L.items.splice(+t.dataset.lcDel,1); lcItemsRender(); lcSave(); lcPreview(); return; }
   if(t.id==="lc-add"&&LC.L){ LC.L.items.push({cle:"",nom:"",mot:"",image:"",sens:"",phon:"",texte:"",voix:"",repete:+$("lc-rep").value}); lcItemsRender(); const ins=$("lc-items").querySelectorAll(".lc-cle"); if(ins.length) ins[ins.length-1].focus(); return; }
@@ -12139,6 +12201,7 @@ document.addEventListener("click",async e=>{ const t=e.target.closest&&e.target.
   if(t.id==="lc-copy"){ try{ await navigator.clipboard.writeText($("lc-pub").value); toast("Texte copié."); }catch(err){ toast("Copie impossible : sélectionne le texte à la main."); } return; }
   if(t.dataset.lcDl!=null){ const v=LC.videos[+t.dataset.lcDl]; if(v) await prSaveBlob(v.blob, `${slug(LC.L.titre)}-${spFmtTag(v.fmt)}.${v.ext}`); return; } });
 document.addEventListener("change",e=>{ const t=e.target; if(!t||!t.closest||!t.closest("#view-lecon")) return; const L=LC.L;
+  if(t.id==="lc-files"){ const fs2=[...(t.files||[])]; t.value=""; if(fs2.length) lcAdd(fs2); return; }
   if(t.id==="lc-voix"){ savePrefs({lcVoix:t.value}); return; }
   if(L&&["lc-song-place","lc-song-style","lc-song-voice","lc-song-lyrics"].includes(t.id)){ const C=L.chanson; if(t.id==="lc-song-place") C.place=t.value; else if(t.id==="lc-song-style") C.style=t.value; else if(t.id==="lc-song-voice") C.voix=t.value; else C.paroles=t.value; lcSave(); lcSongRender(); lcPreview(); return; } if(t.id==="lc-fmt"){ savePrefs({lcFmt:t.value}); lcPreview(); return; } if(t.id==="lc-langue"&&!L) return; if(!L) return;
   if(t.dataset.lcF){ const [i,k]=t.dataset.lcF.split(":"), x=L.items[+i]; if(!x) return; x[k]=k==="image"?(String(t.value).match(/\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*/u)||[""])[0]:String(t.value).replace(/\s+/g," ").trim(); if(k==="image") t.value=x.image; lcSave(); lcPreview(); return; }
