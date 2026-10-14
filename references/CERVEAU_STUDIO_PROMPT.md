@@ -784,6 +784,20 @@ Demande de l'utilisateur : « je te donne une vidéo de récitation du Coran tr�
     - une vidéo d'alphabet avec agent : lettres, chiffres, « لا », phrase mêlée, répétitions, annonce retirée, traduction, titre sans marque, habillage enseignant ;
     - la même sans IA, avec le lexique ;
     - « Comprendre à nouveau » sans nouvelle écoute.
+- **Entrer sans fichier (14 octobre)** : remarque de l'utilisateur (« je dois accéder directement sans soumettre de projet ; si on n'ajoute pas d'audio ou de vidéo, ou qu'on ne choisit pas un projet existant, on ne peut pas entrer »). À l'étape 1, le bouton **« ✍️ Commencer sans fichier »** propose trois façons de créer le projet dans la page. Ensuite tout s'ouvre : textes, habillages, enseignant 3D, voix signature, vidéo, direct.
+  - **🎤 J'enregistre ma voix** : MediaRecorder au micro. Le fichier suit le chemin d'un fichier importé (`rcStartFile`), puis l'analyse complète si elle est cochée. Le serveur lit la durée sur la voix extraite, car un WebM du navigateur ne l'écrit pas (avant : 0 s).
+  - **🗣 Une voix lit mes textes** : un passage par ligne, une voix au choix (voix signature comprise), relais gratuit dans la langue du texte. Les voix sont assemblées avec 0,8 s de pause. Les temps sont connus, donc chaque passage est placé à son moment exact, sans écoute. **Un verset du Coran est refusé** (vérifié sur le texte du Coran), avec la solution : micro ou vraie récitation.
+  - **🌿 Sans voix (ambiance)** : `POST /api/recit/blank {seconds}` fabrique une piste silencieuse (30 s à 1 h) et un projet `blank`. Le texte se répartit sur la durée et se règle à l'étape 3. L'ambiance douce s'ajoute à l'étape 5. Une nouvelle analyse ne touche pas ce projet.
+  - **Voix signature d'un projet sans voix importée** : réglage à la main (homme, femme, enfant), sans analyse.
+  - **Voix gratuites de l'ordinateur en anglais et en arabe** (`SP_LOCAL_LANG`, Piper : HFC Female, Kareem) : `spSay(…, lang)` et `spSayAll(…, lang)` passent par elles quand les voix en ligne manquent. Avant, le relais lisait tout avec une voix française.
+  - Test : `recitation-sans-fichier-test.js` (9 vérifications) :
+    - bouton visible dès l'arrivée ;
+    - projet sans voix d'une minute, avec Al-Fatiha répartie ;
+    - voix signature réglée à la main ;
+    - 3 textes lus, placés à 0,4 s, 2,4 s et 4,4 s ;
+    - verset refusé ;
+    - micro de 2,5 s enregistré, analysé, ouvert ;
+    - 390 px, console propre.
 
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
@@ -1086,6 +1100,7 @@ Les commits sont en français. Étapes majeures :
 35. Avatar 3D version 2 (regard, sourcils, bouche selon les syllabes, hochements, gestes, caméra, ombres) et habillage « Daara » : jeune oustaz et talibés qui répètent (13 octobre, §4.3 terdecies).
 36. Voix signature : voix nouvelle aux qualités d'une voix importée (hauteur, rythme, timbre, écho), jamais une copie ; disponible dans tous les choix de voix (13 octobre, §4.3 terdecies).
 37. Comprendre avant d'agir : l'agent comprend la vidéo (genre, unités, annonces, traductions) avant d'afficher ; une leçon d'alphabet montre les lettres, pas les noms entendus ; jamais le nom de la chaîne d'origine (14 octobre, §4.3 terdecies).
+38. Entrer sans fichier dans « Garder la voix » : micro, voix qui lit mes textes (jamais le Coran), ou projet sans voix avec ambiance ; relais gratuit anglais et arabe (14 octobre, §4.3 terdecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

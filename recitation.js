@@ -37,19 +37,31 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     out.on("error", e => { if(!failed){ failed = true; json(res, 500, {code:"disk", message:"Écriture impossible (disque plein ?)."}); } });
   }
 
+  /* ---------- 1 bis. projet sans fichier (demande de l'utilisateur, 14 octobre : « je dois pouvoir entrer sans soumettre de fichier ») :
+     une piste silencieuse de la durée choisie ; le texte s'affiche à son rythme, l'ambiance s'ajoute à la fabrication ---------- */
+  async function blank(seconds){
+    const id = crypto.randomBytes(6).toString("hex"), dir = dirOf(id), D = Math.max(5, Math.min(5 * 3600, Math.round(Number(seconds) || 60)));
+    fs.mkdirSync(dir, {recursive:true});
+    await ffmpeg(["-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", String(D), "-c:a", "aac", "-b:a", "64k", path.join(dir, "voix.m4a")]);
+    const result = {id, duration:D, audio:urlOf(id, "voix.m4a"), speech:[{a:.5, b:+(D - .5).toFixed(2)}], noise:-35, minPause:.45, video:null, apercus:[], blank:true};
+    fs.writeFileSync(path.join(dir, "analyse.json"), JSON.stringify(result)); return result; }
+
   /* ---------- 2. analyse : voix gardée, pauses repérées ---------- */
   async function analyze(id, noise, minPause){
     const dir = dirOf(id), previousFile=path.join(dir,"analyse.json"), previous=fs.existsSync(previousFile)?JSON.parse(fs.readFileSync(previousFile,"utf8")):null;
     const src = fs.readdirSync(dir).find(f => f.startsWith("source.")), kept=path.join(dir,"voix.m4a"), input=src?path.join(dir,src):kept;
+    if(!src&&previous&&previous.blank){ jobs[id] = {state:"done", step:"", progress:1, result:previous}; return previous; }   /* projet sans voix : rien à réanalyser */
     if(!fs.existsSync(input)) throw Object.assign(new Error("Fichier introuvable : envoie-le de nouveau."), {code:"not_found"});
     const J = jobs[id] = {state:"running", step:"lecture du fichier", progress:0};
-    const probe = await ffmpeg(["-i", input, "-f", "null", "-t", "0.1", "-"]).catch(e => e.detail || ""), D = durationOf(String(probe));
+    const probe = await ffmpeg(["-i", input, "-f", "null", "-t", "0.1", "-"]).catch(e => e.detail || ""); let D = durationOf(String(probe));
     if(!/Audio:/.test(String(probe))) throw Object.assign(new Error("Ce fichier n'a pas de son : il faut une vidéo ou un audio avec la voix."), {code:"no_audio"});
     /* format de la vidéo d'origine (rotation des téléphones comprise) */
     const vm = /Video:[^\n]*?\b(\d{2,5})x(\d{2,5})\b/.exec(String(probe)); let vw = vm ? +vm[1] : Number(previous&&previous.video&&previous.video.w)||0, vh = vm ? +vm[2] : Number(previous&&previous.video&&previous.video.h)||0;
     if(/rotation of -?(90|270)|rotate\s*:\s*(90|270|-90)/.test(String(probe))) [vw, vh] = [vh, vw];
     J.step = src?"extraction de la voix":"nouvelle analyse de la voix"; J.duration = D;
     if(src) await ffmpeg(["-y", "-i", input, "-vn", "-map", "0:a:0", "-ac", "2", "-c:a", "aac", "-b:a", "192k", kept], t => { J.progress = D ? Math.min(.5, t / D * .5) : 0; });
+    /* enregistrement du micro (WebM du navigateur) : sa durée n'est pas écrite dans le fichier ; on la lit sur la voix extraite */
+    if(!D){ D = durationOf(String(await ffmpeg(["-i", kept, "-f", "null", "-t", "0.1", "-"]).catch(e => e.detail || ""))); J.duration = D; }
     J.step = "repérage des pauses";
     const log = await ffmpeg(["-i", path.join(dir, "voix.m4a"), "-af", `silencedetect=noise=${noise}dB:d=${minPause}`, "-f", "null", "-"], t => { J.progress = .5 + (D ? Math.min(.5, t / D * .5) : 0); });
     const sil = []; let st = null; String(log).split(/\r?\n/).forEach(l => { const a = /silence_start: (-?\d+(?:\.\d+)?)/.exec(l), b = /silence_end: (\d+(?:\.\d+)?)/.exec(l); if(a) st = Math.max(0, +a[1]); if(b && st != null){ sil.push([st, +b[1]]); st = null; } });
@@ -307,6 +319,7 @@ module.exports = function createRecitation({GENERATED, FFMPEG_PATH, sendJson, re
     const r = p.slice("/api/recit/".length), body = async lim => { try{ return JSON.parse(await readBody(req, lim || 4e6) || "{}"); }catch(e){ return null; } };
     (async () => {
       if(req.method === "POST" && r === "upload") return upload(req, res, u);
+      if(req.method === "POST" && r === "blank"){ const b = await body(); try{ return json(res, 200, await blank(b && b.seconds)); }catch(e){ return json(res, 500, {code:"server_error", message:"Projet sans fichier impossible : " + (e.message || e)}); } }
       if(req.method === "POST" && r === "analyze"){ const b = await body(); if(!b || !okId(b.id) || !fs.existsSync(dirOf(b.id))) return json(res, 400, {code:"bad_request", message:"Projet inconnu."});
         const noise = Math.max(-60, Math.min(-15, Math.round(Number(b.noise) || -35))), minPause = Math.max(.15, Math.min(3, Number(b.minPause) || .45));
         jobs[b.id] = {state:"running", step:"démarrage", progress:0}; start(b.id, () => analyze(b.id, noise, minPause)); return json(res, 200, {job:b.id}); }

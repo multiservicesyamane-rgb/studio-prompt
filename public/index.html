@@ -908,6 +908,8 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 .rc-sync{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
 .rc-sync input{grid-column:1/-1;width:100%;accent-color:var(--view-accent)}
 .rc-sync output{font-family:var(--mono);font-weight:700;color:var(--view-accent)}
+.rc-blankbox{display:grid;gap:12px;padding:12px;border:1px dashed var(--line);border-radius:14px}
+.rc-blankbox>.btn{justify-self:start}
 .rc-sliders>.field{flex:1 1 140px}.rc-sliders input[type=range]{width:100%;min-height:36px;accent-color:var(--view-accent)}
 #rc-sig-audio{width:100%}
 .rc-check{list-style:none;margin:0;padding:12px 14px;display:grid;gap:8px;border-radius:14px;background:var(--sunken);font-size:14px}
@@ -1457,6 +1459,33 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
           <div class="panel rc-step" id="rc-s1">
             <h2 class="sub-h">1 · Ta vidéo ou ton audio</h2>
             <div class="field"><label for="rc-file">Fichier avec la voix <span class="hint">(vidéo ou audio, jusqu’à 20 Go et plusieurs heures ; seule la voix est gardée)</span></label><input type="file" id="rc-file" accept="video/*,audio/*,.mkv,.m4a,.mp3,.wav,.flac,.ogg,.opus,.aac"></div>
+            <div class="rc-blankbox">
+              <button type="button" class="btn" id="rc-blank-open" aria-expanded="false" aria-controls="rc-blank">✍️ Commencer sans fichier</button>
+              <div id="rc-blank" class="rc-col" hidden>
+                <p class="hint">Crée ton projet ici même, sans rien importer. Choisis le son, puis tout s’ouvre : textes, habillages, enseignant 3D, voix signature, vidéo et direct.</p>
+                <div class="rc-seg" role="radiogroup" aria-label="Son du projet" id="rc-blank-mode">
+                  <button type="button" role="radio" data-bm="micro" aria-checked="true">🎤 J’enregistre ma voix</button>
+                  <button type="button" role="radio" data-bm="tts" aria-checked="false">🗣 Une voix lit mes textes</button>
+                  <button type="button" role="radio" data-bm="silence" aria-checked="false">🌿 Sans voix (ambiance)</button>
+                </div>
+                <div data-bp="micro" class="rc-col">
+                  <p class="hint">Récite ou lis à voix haute, puis arrête : ta voix devient le projet, puis l’analyse complète se fait comme pour un fichier. Gratuit, sur ton ordinateur.</p>
+                  <div class="actions"><button type="button" class="btn primary" id="rc-rec">⏺ Commencer l’enregistrement</button><span class="hint" id="rc-rec-t" aria-live="polite"></span></div>
+                </div>
+                <div data-bp="tts" class="rc-col" hidden>
+                  <div class="field"><label for="rc-blank-txt">Tes textes <span class="hint">(un passage par ligne : explication, invocation, hadith avec sa source, poème…)</span></label><textarea id="rc-blank-txt" rows="5" placeholder="Bismillah, on commence la leçon.&#10;Aujourd’hui, nous parlons de la patience."></textarea></div>
+                  <p class="hint">Le Coran n’est jamais lu par une voix de synthèse : pour un verset, enregistre ta voix ou importe une vraie récitation.</p>
+                  <div class="rc-row"><div class="field"><label for="rc-blank-voice">Voix</label><div class="sel"><select id="rc-blank-voice"></select></div></div></div>
+                  <div class="actions"><button type="button" class="btn primary" id="rc-blank-tts">🗣 Fabriquer la voix et ouvrir le projet</button></div>
+                </div>
+                <div data-bp="silence" class="rc-col" hidden>
+                  <div class="rc-row"><div class="field"><label for="rc-blank-dur">Durée de la vidéo</label><div class="sel"><select id="rc-blank-dur"><option value="30">30 s</option><option value="60" selected>1 min</option><option value="180">3 min</option><option value="300">5 min</option><option value="600">10 min</option><option value="1800">30 min</option><option value="3600">1 heure</option></select></div></div></div>
+                  <p class="hint">Le texte s’affiche à son rythme (chaque passage se règle à l’étape 3) ; choisis une ambiance douce à l’étape 5.</p>
+                  <div class="actions"><button type="button" class="btn primary" id="rc-blank-sil">🌿 Ouvrir le projet</button></div>
+                </div>
+                <p class="hint" id="rc-blank-msg" aria-live="polite"></p>
+              </div>
+            </div>
             <label class="check"><input type="checkbox" id="rc-autoon" checked><span>Analyse complète automatique : reconnaître les paroles, les caler sur la voix, proposer le design</span></label>
             <label class="check"><input type="checkbox" id="rc-full" checked><span>Écoute complète, pour un calage exact sans décalage (plus long ; Gemini, sinon un moteur gratuit sur l’ordinateur)</span></label>
             <div class="rc-prog" id="rc-prog" hidden><div class="rc-prog-t" id="rc-prog-t" aria-live="polite"></div><progress id="rc-prog-p" max="1" value="0"></progress></div>
@@ -3704,8 +3733,8 @@ async function rcAnalyze(){ await rcApi("/api/recit/analyze",{method:"POST", bod
 /* fichier analysé (nouveau ou repris) : tout est rempli à partir de RC */
 function rcLoaded(an, pj){
   RC.an=an; rcProg("rc-prog",0,""); $("rc-reanalyze").disabled=false; if(!RC.autoRun){ $("rc-autobar").hidden=false; $("rc-reauto").hidden=false; $("rc-stopauto").hidden=true; }
-  const few=(an.speech||[]).length<3;
-  $("rc-info").textContent=`✅ Voix gardée : ${rcDur(an.duration)}, ${(an.speech||[]).length} moments de parole repérés entre les pauses.${few?" Très peu de pauses : ouvre « Réglage des pauses » si la voix est sur un fond bruyant.":""}`;
+  const few=!an.blank&&(an.speech||[]).length<3;
+  $("rc-info").textContent=an.blank?`✅ Projet sans voix : ${rcDur(an.duration)}. Ajoute le texte à l’étape 2 et une ambiance à l’étape 5.`:`✅ Voix gardée : ${rcDur(an.duration)}, ${(an.speech||[]).length} moments de parole repérés entre les pauses.${few?" Très peu de pauses : ouvre « Réglage des pauses » si la voix est sur un fond bruyant.":""}`;
   const au=$("rc-audio"); if(au.getAttribute("src")!==an.audio){ au.src=an.audio; } $("rc-seek").max=String(an.duration||1);
   if(pj){ $("rc-isti").checked=!!pj.isti; $("rc-basm").checked=pj.basm!==false; $("rc-ph").checked=!!pj.ph; $("rc-tr").value=pj.tr==null?"fr.hamidullah":pj.tr; $("rc-txt").value=pj.txt||""; $("rc-titre").value=pj.titre||""; }
   if(pj){ RC.textScale=+pj.textScale||1.25; } $("rc-size").value=String(RC.textScale||1.25);
@@ -4174,7 +4203,10 @@ async function rcAuto(reuse){
   finally{ RC.autoRun=false; $("rc-stopauto").hidden=true; $("rc-reauto").hidden=false; $("rc-reund").hidden=!(RC.heard&&RC.heard.length); } }
 /* ---------- voix signature : analyse des qualités de la voix importée, proposition (homme, femme, enfant), essai, enregistrement ---------- */
 const SIG_TYPES={homme:"homme", femme:"femme", enfant:"d'enfant"};
-async function rcSigAnalyze(){ const d=$("rc-sig-desc"); if(!RC.id) return; d.textContent="Écoute des qualités de la voix…";
+async function rcSigAnalyze(){ const d=$("rc-sig-desc"); if(!RC.id) return;
+  if(RC.an&&RC.an.blank){ const c={speed:1, warm:.35, bright:0, echo:.1}; RC.sigProfile={type:"homme", style:"a gentle, calm and warm voice, like a kind teacher speaking to children: unhurried, clear, with soft pauses", propositions:{homme:{base:"Iapetus",fx:Object.assign({pitch:0},c)},femme:{base:"Achernar",fx:Object.assign({pitch:0},c)},enfant:{base:"Leda",fx:Object.assign({pitch:3},c)}}};
+    d.textContent="Projet sans voix importée : choisis le type de voix et règle-la à la main (hauteur, chaleur, écho, rythme)."; $("rc-sig-type").value="homme"; rcSigFill("homme"); $("rc-sig-opts").hidden=false; return; }
+  d.textContent="Écoute des qualités de la voix…";
   try{ const p=await rcApi(`/api/recit/voixprofil?id=${RC.id}&chant=${RC.mode==="coran"?1:0}`); RC.sigProfile=p;
     d.textContent=`Voix ${p.mots.hauteur}${p.chant&&p.parle?` (récitation chantée ; voix parlée estimée vers ${p.parle} Hz)`:""}, rythme ${p.mots.rythme}, timbre ${p.mots.chaleur}, écho ${p.mots.echo}. Proposition : une voix ${SIG_TYPES[p.type]} nouvelle, aux mêmes qualités. Tu peux tout changer.`;
     $("rc-sig-type").value=p.type; rcSigFill(p.type); $("rc-sig-opts").hidden=false; }
@@ -4192,13 +4224,53 @@ async function rcSigPlay(){ const m=$("rc-sig-msg"), b=$("rc-sig-play"); if(!gen
 function rcSigSave(){ const sg=rcSigNow(), type=$("rc-sig-type").value, nom=$("rc-sig-name").value.trim()||`Voix ${SIG_TYPES[type]} ${new Date().toLocaleDateString("fr-FR")}`, list=sigList();
   list.push(Object.assign({id:"s"+Date.now().toString(36), nom, type}, sg)); savePrefs({sigs:list.slice(-20)});
   $("rc-sig-msg").textContent=`✅ « ${nom} » est gardée : elle est dans les choix de voix (Constructeur, quiz, publicités…), groupe « Mes voix signature ».`; }
+/* ---------- un projet naît d'un fichier, d'un enregistrement au micro, d'une voix qui lit des textes, ou sans voix ---------- */
+async function rcStartFile(f, known){ if(!f||RC.busy) return; RC.busy=true; RC.fileName=String(f.name||"projet").replace(/\.[^.]+$/,"").slice(0,60); $("rc-info").textContent="";
+  try{ const up=await rcUpload(f); RC.id=up.id; RC.items=[]; RC.ambUp=""; rcProg("rc-prog",.5,"Analyse : démarrage…"); RC.heard=null; RC.heardTxt=""; RC.und=null; RC.lines=null; RC.msg=null; const an=await rcAnalyze(); RC.busy=false; await rcProjects(); rcLoaded(an, null);
+    if(known&&known.length){ RC.mode="texte"; rcMode("texte"); $("rc-txt").value=known.map(x=>x.texte).join("\n"); RC.heard=known; RC.heardTxt=$("rc-txt").value; RC.follow=false; await rcAlignRun(); $("rc-s2").scrollIntoView({behavior:"smooth",block:"start"}); }   /* textes lus par une voix : leurs temps sont connus, aucune écoute */
+    else if($("rc-autoon").checked) rcAuto(); }
+  catch(err){ rcProg("rc-prog",0,""); $("rc-info").textContent=err.message||"Échec. Réessaie."; }
+  finally{ RC.busy=false; } }
+function rcBlankMode(m){ RC.blankMode=m; document.querySelectorAll("#rc-blank-mode [data-bm]").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.bm===m))); document.querySelectorAll("#rc-blank [data-bp]").forEach(d=>{ d.hidden=d.dataset.bp!==m; }); }
+/* 🎤 enregistrement au micro (MediaRecorder) : le fichier suit le chemin d'un fichier importé */
+async function rcRecToggle(){ const b=$("rc-rec"), tm=$("rc-rec-t"), m=$("rc-blank-msg");
+  if(RC.rec){ RC.rec.stop(); return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){ m.textContent="Ce navigateur ne peut pas enregistrer : utilise Chrome ou Edge, ou importe un fichier audio."; return; }
+  let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:true, autoGainControl:true}}); }
+  catch(e){ m.textContent="Micro refusé ou absent : autorise le micro dans la barre d’adresse, puis réessaie."; return; }
+  const mime=["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/webm","audio/mp4"].find(t=>MediaRecorder.isTypeSupported(t))||"", rec=new MediaRecorder(stream, mime?{mimeType:mime, audioBitsPerSecond:128000}:{}), chunks=[], t0=Date.now();
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); }; RC.rec=rec; b.textContent="⏹ Arrêter et ouvrir le projet"; m.textContent="";
+  const iv=setInterval(()=>{ const s=Math.round((Date.now()-t0)/1000); tm.textContent=`🔴 Enregistrement : ${Math.floor(s/60)} min ${String(s%60).padStart(2,"0")} s`; },500);
+  rec.onstop=async()=>{ clearInterval(iv); stream.getTracks().forEach(t=>t.stop()); RC.rec=null; b.textContent="⏺ Commencer l’enregistrement"; tm.textContent="";
+    const type=(rec.mimeType||mime||"audio/webm").split(";")[0], blob=new Blob(chunks,{type}); if(blob.size<2000){ m.textContent="Enregistrement trop court : réessaie."; return; }
+    m.textContent="✅ Voix enregistrée : envoi et analyse…"; await rcStartFile(new File([blob], `ma-voix-${new Date().toISOString().slice(0,16).replace(/[:T]/g,"-")}.${/ogg/.test(type)?"ogg":/mp4/.test(type)?"m4a":"webm"}`, {type})); m.textContent=""; };
+  rec.start(1000); }
+/* 🗣 une voix lit les textes : un passage par ligne, une pause entre deux ; jamais un verset du Coran (vérifié sur le texte du Coran) */
+async function rcBlankTts(){ const m=$("rc-blank-msg"), b=$("rc-blank-tts"), lines=String($("rc-blank-txt").value||"").split(/\n/).map(x=>x.replace(/\s+/g," ").trim()).filter(Boolean).slice(0,200), sel=$("rc-blank-voice").value;
+  if(!lines.length){ m.textContent="Écris au moins un passage (une ligne)."; return; } if(RC.busy) return; b.disabled=true;
+  try{ for(const [i,l] of lines.entries()){ if(rcNormAr(l).length<3) continue; m.textContent=`Vérification du texte ${i+1} sur ${lines.length}…`; let q=null; try{ q=await rcApi("/api/recit/quran/find",{method:"POST", body:{texte:l}}); }catch(e){}
+      if(q&&q.ok) throw {message:`La ligne ${i+1} est un passage du Coran : il n’est jamais lu par une voix de synthèse. Enregistre ta voix (🎤) ou importe une vraie récitation, puis ajoute tes explications.`}; }
+    const ac=new (window.AudioContext||window.webkitAudioContext)(), bufs=[];
+    try{ for(const [i,l] of lines.entries()){ m.textContent=`Voix ${i+1} sur ${lines.length}…`; const v=await spSay(l, sel==="none"?"auto":sel, "recitation-voix", `ligne-${i+1}`, "a calm, warm and clear voice, unhurried, like a kind teacher", "Iapetus", spLangOf(l)); if(!v) throw {message:"Voix impossible : choisis une autre voix."}; bufs.push(await ac.decodeAudioData(await (await fetch(v.url)).arrayBuffer())); } }
+    finally{ try{ ac.close(); }catch(e){} }
+    const SR=44100, gap=.8, lead=.4, total=lead+bufs.reduce((n,x)=>n+x.duration+gap,0)+.6, off=new OfflineAudioContext(2,Math.ceil(total*SR),SR), known=[]; let t=lead;
+    bufs.forEach((x,i)=>{ const s=off.createBufferSource(); s.buffer=x; s.connect(off.destination); s.start(t); known.push({t0:+t.toFixed(2), t1:+(t+x.duration).toFixed(2), texte:lines[i]}); t+=x.duration+gap; });
+    const out=await off.startRendering(); m.textContent="✅ Voix prête : ouverture du projet…"; await rcStartFile(new File([prWav(out)], "voix-de-mes-textes.wav", {type:"audio/wav"}), known); m.textContent=""; }
+  catch(e){ m.textContent=(e&&e.message)||errText(e)||"Échec. Réessaie."; } finally{ b.disabled=false; } }
+/* 🌿 sans voix : une piste silencieuse de la durée choisie (le serveur la fabrique en un instant) */
+async function rcBlankSilence(){ const m=$("rc-blank-msg"); if(RC.busy) return; RC.busy=true; m.textContent="Création du projet…";
+  try{ const an=await rcApi("/api/recit/blank",{method:"POST", body:{seconds:+$("rc-blank-dur").value||60}}); RC.id=an.id; RC.items=[]; RC.ambUp=""; RC.heard=null; RC.heardTxt=""; RC.und=null; RC.lines=null; RC.msg=null; RC.follow=false; RC.fileName="Projet sans voix";
+    await rcProjects(); rcLoaded(an, null); m.textContent=""; $("rc-info").textContent=`✅ Projet sans voix : ${rcDur(an.duration)}. Choisis le texte à l’étape 2 (Coran, ton texte…), puis une ambiance à l’étape 5.`; rcSteps(2); $("rc-s2").scrollIntoView({behavior:"smooth",block:"start"}); }
+  catch(e){ m.textContent=e.message||"Échec. Réessaie."; } finally{ RC.busy=false; } }
+function rcBlankInit(){ $("rc-blank-open").addEventListener("click",()=>{ const box=$("rc-blank"), open=box.hidden; box.hidden=!open; $("rc-blank-open").setAttribute("aria-expanded",String(open)); if(open){ $("rc-blank-voice").innerHTML=spVoiceOptions(loadPrefs().rcBlankVoice||"auto")+`<optgroup label="Voix gratuites sur l'ordinateur (anglais, arabe)">${Object.values(SP_LOCAL_LANG).map(v=>`<option value="local:${v.id}">${v.name} · ${v.desc} · gratuite</option>`).join("")}</optgroup>`; } });
+  $("rc-blank-mode").addEventListener("click",e=>{ const b=e.target.closest("[data-bm]"); if(b) rcBlankMode(b.dataset.bm); });
+  $("rc-rec").addEventListener("click", rcRecToggle); $("rc-blank-tts").addEventListener("click", rcBlankTts); $("rc-blank-sil").addEventListener("click", rcBlankSilence);
+  $("rc-blank-voice").addEventListener("change",e=>savePrefs({rcBlankVoice:e.target.value})); }
 function rcInit(){
   $("rc-sig-an").addEventListener("click", rcSigAnalyze); $("rc-sig-type").addEventListener("change", e=>rcSigFill(e.target.value));
   $("rc-sig-play").addEventListener("click", rcSigPlay); $("rc-sig-save").addEventListener("click", rcSigSave);
-  $("rc-file").addEventListener("change", async e=>{ const f=e.target.files&&e.target.files[0]; if(!f||RC.busy) return; RC.busy=true; RC.fileName=f.name.replace(/\.[^.]+$/,"").slice(0,60); $("rc-info").textContent="";
-    try{ const up=await rcUpload(f); RC.id=up.id; RC.items=[]; RC.ambUp=""; rcProg("rc-prog",.5,"Analyse : démarrage…"); RC.heard=null; RC.heardTxt=""; RC.und=null; RC.lines=null; RC.msg=null; const an=await rcAnalyze(); RC.busy=false; await rcProjects(); rcLoaded(an, null); if($("rc-autoon").checked) rcAuto(); }
-    catch(err){ rcProg("rc-prog",0,""); $("rc-info").textContent=err.message||"Échec. Réessaie."; }
-    finally{ RC.busy=false; e.target.value=""; } });
+  $("rc-file").addEventListener("change", async e=>{ const f=e.target.files&&e.target.files[0]; try{ await rcStartFile(f); } finally{ e.target.value=""; } });
+  rcBlankInit();
   $("rc-stopauto").addEventListener("click", ()=>{ if(RC.autoCtl) RC.autoCtl.abort(); });
   $("rc-reauto").addEventListener("click", ()=>{ if(RC.an&&!RC.busy) rcAuto(); });
   $("rc-reund").addEventListener("click", ()=>{ if(RC.an&&!RC.busy) rcAuto(true); });
@@ -5369,6 +5441,9 @@ const LOCAL_VOICES=[{id:"fr_FR-siwis-medium", name:"Siwis", desc:"femme, naturel
 const LV={tts:null, busy:false};
 async function localTts(){ if(window.__localTtsMock) return window.__localTtsMock; if(!LV.tts) LV.tts=await import(LOCAL_TTS_URL); return LV.tts; }   /* __localTtsMock : tests sans téléchargement */
 const localVoice = id => LOCAL_VOICES.find(v=>v.id===id) || LOCAL_VOICES[0];
+/* voix gratuites de l'ordinateur pour l'anglais et l'arabe (Piper) : relais quand les voix en ligne manquent */
+const SP_LOCAL_LANG = {en:{id:"en_US-hfc_female-medium", name:"HFC", desc:"anglais, femme", credit:"Voix de synthèse « HFC Female » (Piper, données Hi-Fi TTS), licence CC BY 4.0"}, ar:{id:"ar_JO-kareem-medium", name:"Kareem", desc:"arabe, homme", credit:"Voix de synthèse « Kareem » (Piper, rhasspy/piper-voices)"}};
+const spLangOf = t => /[\u0600-\u06FF]/.test(String(t||""))?"ar":/\b(the|and|is|are|you|we|this|with|let's|hello)\b/i.test(String(t||""))&&!/[àâçéèêëîïôûùüÿœ]/i.test(String(t||""))?"en":"fr";
 const localFor = g => g==="homme" ? "fr_FR-gilles-low" : "fr_FR-siwis-medium";
 const localOptions = sel => `<optgroup label="Voix gratuites sur l'ordinateur (sans quota)">${LOCAL_VOICES.map(v=>`<option value="local|${v.id}"${sel&&sel.service==="local"&&sel.voice===v.id?" selected":""}>${v.name} · ${v.desc} · gratuite</option>`).join("")}</optgroup>`;
 /* Crédit demandé par la licence des voix gratuites utilisées, ajouté à la description de publication */
@@ -8288,21 +8363,22 @@ function spVoiceOptions(sel){
 const SP_STYLE = {quiz:"a charismatic TV quiz show host: energetic, playful, suspenseful, smiling voice, crisp articulation, punchy rhythm, a short dramatic pause before the answer",
   pub:"a premium radio advertisement announcer: warm, energetic, persuasive, smiling voice, crisp articulation, lively punchy rhythm"};
 const SP_AUTO = {quiz:"Puck", pub:"Laomedeia"};   /* voix Gemini choisie en « automatique » : un animateur enjoué pour les quiz, une annonceuse enjouée pour les pubs */
-async function spSay(text, sel, project, base, style, auto){
+async function spSay(text, sel, project, base, style, auto, lang){
   text=String(text||"").replace(/\s+/g," ").trim(); if(!text||!sel||sel==="none") return null;
+  const lv=(SP_LOCAL_LANG[lang||""]||{}).id||"";   /* texte anglais ou arabe : le relais gratuit parle cette langue */
   const local=async id=>{ const x=await localSpeak(text,id,project,base); return {url:x.url, seconds:x.seconds, voice:id}; };
-  if(/^local:/.test(sel)||!genApi) return local(/^local:/.test(sel)?sel.slice(6):"fr_FR-siwis-medium");
+  if(/^local:/.test(sel)||!genApi) return local(/^local:/.test(sel)?sel.slice(6):(lv||"fr_FR-siwis-medium"));
   const job=async(service,voice,fx,st)=>{ let {job}=await genApi.start(Object.assign({kind:"voice", service, voice, text, style:st||style||"", project, plan:0, base}, fx?{fx}:{})); for(let k=0;k<300&&/queued|running/.test(job.status);k++){ await new Promise(r=>setTimeout(r,window.__voicePoll||700)); job=((await genApi.jobs(project,[job.id])).jobs||[])[0]||job; } if(job.status!=="done"||!job.url) throw {code:job.code, message:job.error||"Voix impossible."}; return {url:job.url, seconds:job.seconds||0, voice}; };
   if(/^sig:/.test(sel)){ const sg=sigList().find(x=>x.id===sel.slice(4)); if(sg){ try{ return await job("gemini", sg.base, sg.fx, sg.style); }catch(e){} } sel="auto"; }   /* voix signature ; épuisée : la meilleure voix gratuite */
   if(/^hf:/.test(sel)){ try{ return await job("chatterbox",sel.slice(3)); }catch(e){ return local("fr_FR-siwis-medium"); } }
   if(/^el:/.test(sel)){ try{ return await job("elevenlabs",sel.slice(3)); }catch(e){ sel="auto"; } }   /* ElevenLabs épuisé : la meilleure voix gratuite prend le relais */
   try{ return await job("gemini", sel==="auto"?(auto||"Charon"):sel); }
-  catch(e){ if(sel==="auto"){ try{ return await job("chatterbox","fr_f1"); }catch(e2){} } const d=String(((FAB.voices.gemini||[]).find(v=>v.id===sel)||{}).desc||""); return local(sel==="auto"?"fr_FR-siwis-medium":localFor(/^femme/.test(d)?"femme":"homme")); }   /* relais gratuit jusqu'à la voix de l'ordinateur */
+  catch(e){ if(sel==="auto"&&!lv){ try{ return await job("chatterbox","fr_f1"); }catch(e2){} } const d=String(((FAB.voices.gemini||[]).find(v=>v.id===sel)||{}).desc||""); return local(lv||(sel==="auto"?"fr_FR-siwis-medium":localFor(/^femme/.test(d)?"femme":"homme"))); }   /* relais gratuit jusqu'à la voix de l'ordinateur */
 }
 /* Toutes les phrases d'une vidéo, une par une (le quota gratuit le demande), gardées pour le mixage */
-async function spSayAll(lines, sel, project, say, style, auto){
+async function spSayAll(lines, sel, project, say, style, auto, lang){
   const out={}, keys=Object.keys(lines).filter(k=>lines[k]); let n=0;
-  for(const k of keys){ n++; if(say) say(`Voix ${n} sur ${keys.length}…`); try{ const v=await spSay(lines[k], sel, project, `voix-${k}`, style, auto); if(v){ v.ab=await (await fetch(v.url)).arrayBuffer(); out[k]=v; } }catch(e){} }
+  for(const k of keys){ n++; if(say) say(`Voix ${n} sur ${keys.length}…`); try{ const v=await spSay(lines[k], sel, project, `voix-${k}`, style, auto, lang||spLangOf(lines[k])); if(v){ v.ab=await (await fetch(v.url)).arrayBuffer(); out[k]=v; } }catch(e){} }
   return out;
 }
 /* Pose les voix dans le mixage, avec la musique qui baisse sous la voix */
