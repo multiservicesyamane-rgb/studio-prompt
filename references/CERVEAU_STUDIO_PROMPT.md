@@ -870,6 +870,41 @@ Demande de l'utilisateur, avec 7 nouvelles vidéos de référence (`references/*
   - la voix est redemandée sans format imposé, puis par l'ancienne méthode `generateContent` ;
   - un modèle qui refuse encore passe la main au modèle suivant, au lieu d'abandonner.
   - Test : `gen-api-test.js` (format WAV refusé, puis voix signature fabriquée).
+- **Chanson de la leçon (14 octobre)**. Remarques de l'utilisateur : « je n'ai pas vu les paroles ni la chanson qui collent avec la leçon » ; « ajoute la chanson ou les paroles avant de générer la vidéo, et des chansons de qualité avec de sublimes voix » ; « la voix, c'est l'essentiel ».
+  - **Étape « 4 · La chanson »**, avant « 5 · La vidéo » :
+    - paroles d'office, toujours modifiables. L'agent les écrit avec la leçon (`chanson.paroles` dans `lcPrompt`) ou à part (`lcSongPrompt`). Sans IA, `lcSongTpl` fait un refrain, un couplet par groupe de 4 unités (« A, A, comme Avion ! »), le refrain au milieu et à la fin, puis bravo ;
+    - style : comptine, nasheed (voix et daf, sans instrument), berceuse, pop pour enfants ;
+    - voix : chœur d'enfants, femme douce, homme doux ;
+    - place dans la vidéo : la leçon puis la chanson, seulement la chanson (clip musical), ou pas de chanson ;
+    - **le Coran n'est jamais chanté** : `lcSongGuard` compare chaque ligne au texte du Coran.
+  - **Voix chantée par l'IA** : ACE-Step 1.5, modèle libre (licence MIT), sur Hugging Face ZeroGPU (`generation.js`, travail `kind:"song"`, `runAceSong`).
+    - Les 54 réglages de l'espace, dont des cachés, sont reconstruits depuis sa description publique (`/config`), par leur nom. On envoie les paroles, le style (tags), la langue, la durée, le tempo, et la demande des temps de chaque ligne (LRC).
+    - La file d'attente Gradio est suivie : rang, début, pourcentage, vrai message d'erreur.
+    - Relais : ACE-Step 1 (sans temps des lignes, donc lignes réparties selon leur longueur).
+    - Essai réel : sans compte, Hugging Face donne 0 minute (« ZeroGPU quota exceeded… Authenticate with a Hugging Face token »). D'où :
+  - **Compte Hugging Face gratuit relié depuis la page** (case « Jeton Hugging Face », avec la marche à suivre). `POST /api/gen/hf-token` vérifie le jeton chez Hugging Face (`whoami-v2`), puis l'écrit dans `.env`, sur cet ordinateur seulement ; il n'est jamais renvoyé au navigateur. `GET /api/gen/hf` dit seulement s'il est relié. Le jeton est relu à chaque demande (`hfTok`), donc il n'y a pas besoin de redémarrer ; il sert aussi à la voix Chatterbox.
+  - **Chanson de l'application** (gratuite, sans compte, sans limite ; `lcSongApp`) :
+    - chaque ligne différente est dite une fois par la voix choisie (direction « chanter »), puis posée sur les mesures ;
+    - musique composée dans le navigateur : accords I–V–vi–IV, basse, ukulélé, glockenspiel qui suit les syllabes, batterie ; nasheed : daf (dum et tak) et mains, sans instrument ; berceuse : nappes et boîte à musique ;
+    - chœur d'enfants au refrain, écho de salle, compresseur ;
+    - la chanson est enregistrée sur l'ordinateur.
+  - **Dans la vidéo** (`lecon-fx.js`, partie `song`) :
+    - chaque ligne est reliée à l'unité qu'elle chante (`songMap` : le mot exemple, puis le nom, puis l'unité en tête de ligne) ;
+    - l'unité apparaît en grand avec son image et son mot ; au refrain, toutes les unités dansent ;
+    - paroles mot par mot en grand en bas, notes de musique ;
+    - l'oustaz chante et montre avec son bâton, les talibés chantent le refrain, le public du théâtre danse ;
+    - le fond sonore se tait pendant la chanson, et les lèvres suivent l'énergie du chant.
+  - Si les paroles, le style ou la voix changent après la chanson, la page le signale : il faut recréer la chanson (`sig`).
+  - Test : `lecon-chanson-test.js` (10 vérifications, faux espace ACE-Step et faux Hugging Face) :
+    - étape et paroles d'office ;
+    - refus sans compte, expliqué ;
+    - jeton relié et jamais renvoyé ;
+    - demande complète (9 réglages par leur nom) ;
+    - 6 lignes calées sur les temps reçus et reliées aux lettres ;
+    - **clip musical 1080 × 1920 de 12,4 s** ;
+    - image « Avion » ;
+    - chanson de l'application (12 lignes, 35,6 s) ;
+    - 390 px ; console propre.
 - Test : `lecon-test.js` (9 vérifications) :
   - onglet ; 3 modèles dessinés et tous différents ;
   - alphabet arabe sans IA (28 lettres) ; changement de modèle ;
@@ -1085,6 +1120,7 @@ Ce que le code corrige :
 | `recitation-serveur-test.js`, `recitation-ui-test.js` | « Garder la voix » : serveur (envoi, analyse, Coran, morceaux, ambiance) et page complète sur 390 px jusqu'à la vidéo et l'écran de direct (§4.3 terdecies) |
 | `recitation-sans-fichier-test.js` | « Garder la voix » sans fichier : sans voix, voix qui lit mes textes (verset refusé), micro (§4.3 terdecies) |
 | `lecon-test.js` | Leçons animées (§4.3 quaterdecies) : 3 modèles, exemple sans IA, leçon de l'agent, garde du Coran, voix arabe gratuite, vraie vidéo Full HD 9:16 vérifiée par FFmpeg |
+| `lecon-chanson-test.js` | Chanson de la leçon : paroles, compte Hugging Face relié, voix chantée ACE-Step (simulée) avec temps des lignes, chanson de l'application, clip musical Full HD |
 | `ui-test.js`, `menu-test.js` | Vues, menu simplifié (5 entrées + Réglages, onglets des groupes, dernier onglet retenu, anciennes adresses), mobile, mode sombre, console sans erreur |
 | `presse-test.js` | Revue de presse avec un vrai `server.js` face à de faux Google Actualités, Google voix et site d'actualité : infos cochées, règles de vérité, voix d'or, audio complet, textes et liens, reprise, vidéo |
 | `gen-api-test.js` | `generation.js` face à de faux Google, Runway et ElevenLabs : clé gratuite pour les voix, clé payante pour Veo, budget, facturation absente, voix une à la fois, limites par minute et par jour, imports, Range, sécurité des chemins, reprise |
@@ -1183,6 +1219,7 @@ Les commits sont en français. Étapes majeures :
 37. Comprendre avant d'agir : l'agent comprend la vidéo (genre, unités, annonces, traductions) avant d'afficher ; une leçon d'alphabet montre les lettres, pas les noms entendus ; jamais le nom de la chaîne d'origine (14 octobre, §4.3 terdecies).
 38. Entrer sans fichier dans « Garder la voix » : micro, voix qui lit mes textes (jamais le Coran), ou projet sans voix avec ambiance ; relais gratuit anglais et arabe (14 octobre, §4.3 terdecies).
 39. Leçons animées : 3 modèles cinématiques (Grand Théâtre, Daara de lumière, Grande Aventure) pour n'importe quelle leçon en français, arabe et anglais ; bâton du maître et geste vers le haut (14 octobre, §4.3 quaterdecies).
+40. Chanson de la leçon : paroles avant la vidéo, voix chantée par l'IA (ACE-Step, compte Hugging Face gratuit relié depuis la page) ou chanson de l'application ; clip musical où chaque unité apparaît quand elle est chantée (14 octobre, §4.3 quaterdecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

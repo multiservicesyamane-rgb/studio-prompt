@@ -178,9 +178,11 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     /* vidéos : quelques-unes en même temps ; voix : une par une (l'offre gratuite limite les demandes par minute) */
     let free = PARALLEL - jobs.filter(j => j.kind === "video" && j.status === "running").length, freeV = VOICE_PARALLEL - jobs.filter(j => j.kind === "voice" && j.status === "running").length;
     let freeA = 1 - jobs.filter(j => j.service === "agnes" && j.status === "running").length;   /* Agnes gratuit : une vidéo à la fois */
+    let freeS = 1 - jobs.filter(j => j.kind === "song" && j.status === "running").length;   /* chansons : une à la fois */
     for(const j of jobs){
       if(j.status !== "queued" || (j.wait && j.wait > Date.now())) continue;
       if(j.kind === "video"){ if(free <= 0 || (j.service === "agnes" && freeA <= 0)) continue; free--; if(j.service === "agnes") freeA--; }
+      else if(j.kind === "song"){ if(freeS <= 0) continue; freeS--; }
       else{ if(freeV <= 0) continue; freeV--; }
       run(j);
     }
@@ -190,6 +192,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     try{
       const rm = j.remote || {};   /* déjà commandée : on attend, on ne recommande jamais */
       if(j.kind === "video") await (rm.op ? veoWait(j) : rm.task ? runwayWait(j) : rm.agnes ? agnesWait(j) : j.service === "runway" ? runRunway(j) : j.service === "agnes" ? runAgnes(j) : runVeo(j));
+      else if(j.kind === "song") await runAceSong(j);
       else await (j.service === "elevenlabs" ? runEleven(j) : j.service === "chatterbox" ? runChatterbox(j) : runGeminiVoice(j));
     }catch(e){ const err = e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`};
       /* Agnes est gratuit : une coupure ou une saturation AVANT la commande se réessaie toute seule (jamais deux commandes : seulement sans commande en cours) */
@@ -336,7 +339,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
   /* ---------- Voix naturelle gratuite : Chatterbox Multilingual (Resemble AI, licence MIT) sur Hugging Face ----------
      Espace public avec file d'attente GPU gratuite ; HF_TOKEN (compte Hugging Face gratuit) donne plus de minutes par jour.
      Le texte est dit par morceaux de 280 caractères au plus (limite de l'espace), puis recollé avec de courtes pauses. */
-  const HF_SPACE = String(env.CHATTERBOX_SPACE_URL || "https://resembleai-chatterbox-multilingual-tts.hf.space").replace(/\/$/, ""), HF_TOKEN = String(env.HF_TOKEN || "").trim();
+  const HF_SPACE = String(env.CHATTERBOX_SPACE_URL || "https://resembleai-chatterbox-multilingual-tts.hf.space").replace(/\/$/, ""), hfTok = () => String(env.HF_TOKEN || "").trim();
   const CHATTER_VOICES = [{id:"fr_f1", name:"Voix naturelle", desc:"femme, très naturelle (Chatterbox)", lang:"fr", ref:String(env.CHATTERBOX_REF_FR || "https://storage.googleapis.com/chatterbox-demo-samples/mtl_prompts/fr_f1.flac")}];
   function splitText(t, max){
     const out = []; let cur = "";
@@ -358,7 +361,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     return {rate, pcm:out};
   }
   async function runChatterbox(j){
-    const v = CHATTER_VOICES.find(x => x.id === j.voice) || CHATTER_VOICES[0], parts = splitText(j.text, 280), auth = HF_TOKEN ? {"Authorization":`Bearer ${HF_TOKEN}`} : {};
+    const v = CHATTER_VOICES.find(x => x.id === j.voice) || CHATTER_VOICES[0], parts = splitText(j.text, 280), auth = hfTok() ? {"Authorization":`Bearer ${hfTok()}`} : {};
     const st = String(j.style || ""), exag = /energetic|lively|punchy|dynamique|fast/i.test(st) ? 0.7 : /calm|grave|serious|measured|posé/i.test(st) ? 0.45 : 0.6;
     const chunks = []; let rate = 24000;
     for(const [k, txt] of parts.entries()){
@@ -367,7 +370,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
       if(!r.ok || !r.json || !r.json.event_id) throw {code:r.status === 429 ? "quota_day" : "server_error", message:`Voix naturelle (Hugging Face) indisponible pour le moment (${r.status}) : la voix de l'ordinateur prend le relais.`};
       const s2 = await call(`${HF_SPACE}/gradio_api/call/generate_tts_audio/${r.json.event_id}`, {headers:auth}, 300000), body = s2.buf.toString("utf8");
       const url = (body.match(/"url":\s*"([^"]+)"/) || [])[1];
-      if(!url){ const quota = /quota|exceeded|GPU|ZeroGPU|event:\s*error/i.test(body); throw {code:quota ? "quota_day" : "server_error", message:quota ? `Hugging Face refuse pour le moment (minutes gratuites du jour épuisées ou file trop chargée)${HF_TOKEN ? "" : " : un compte Hugging Face gratuit (HF_TOKEN dans .env) en donne davantage"}. La voix de l'ordinateur prend le relais.` : "La voix naturelle (Hugging Face) n'a pas répondu : la voix de l'ordinateur prend le relais."}; }
+      if(!url){ const quota = /quota|exceeded|GPU|ZeroGPU|event:\s*error/i.test(body); throw {code:quota ? "quota_day" : "server_error", message:quota ? `Hugging Face refuse pour le moment (minutes gratuites du jour épuisées ou file trop chargée)${hfTok() ? "" : " : un compte Hugging Face gratuit (HF_TOKEN dans .env) en donne davantage"}. La voix de l'ordinateur prend le relais.` : "La voix naturelle (Hugging Face) n'a pas répondu : la voix de l'ordinateur prend le relais."}; }
       const a = await call(url, {headers:auth}, 120000), w = a.ok ? pcmOf(a.buf) : null;
       if(!w) throw {code:"server_error", message:"La voix naturelle a rendu un son illisible : la voix de l'ordinateur prend le relais."};
       rate = w.rate; chunks.push(w.pcm, Buffer.alloc(Math.round(rate * 0.22) * 2));
@@ -382,6 +385,59 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     if(!r.ok || /json/.test(r.type) || r.buf.length < 200) throw errOf("elevenlabs", r);
     const o = await voiceOut(j, r.buf, "audio/mpeg");
     finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:o.mime === "audio/wav" ? wavSeconds(o.buf) : Math.round(r.buf.length / 16000 * 10) / 10}));
+  }
+  /* ---------- Chansons chantées : ACE-Step 1.5 (modèle libre, licence MIT) sur Hugging Face (14 octobre) ----------
+     Demande de l'utilisateur : « des chansons de qualité avec de sublimes voix » pour les leçons animées. Les paroles, le style et la langue
+     sont envoyés ; la chanson revient avec le moment de chaque ligne chantée (LRC), pour caler l'image. Espace public sur ZeroGPU : sans compte,
+     Hugging Face ne donne presque aucune minute ; avec un compte gratuit (jeton relié dans Connexions), quelques chansons par jour.
+     Les 54 réglages de l'espace (dont des cachés) sont reconstruits depuis sa description publique (/config), par leur nom. Relais : ACE-Step 1. */
+  const ACE_SPACE = String(env.ACESTEP_SPACE_URL || "https://ace-step-ace-step-v1-5.hf.space").replace(/\/$/, ""), ACE1_SPACE = String(env.ACESTEP1_SPACE_URL || "https://ace-step-ace-step.hf.space").replace(/\/$/, "");
+  const aceCfgs = {};
+  async function aceConfig(base){ const c = aceCfgs[base]; if(c && Date.now() - c.at < 3600e3) return c.cfg;
+    const r = await call(`${base}/config`, {}, 30000); if(!r.ok || !r.json || !Array.isArray(r.json.dependencies)) throw {code:"server_error", message:"Le chanteur (ACE-Step, Hugging Face) ne répond pas pour le moment : réessaie plus tard, ou crée la chanson de l'application."};
+    aceCfgs[base] = {cfg:r.json, at:Date.now()}; return r.json; }
+  /* file d'attente Gradio : on suit les messages jusqu'à la fin (rang, début, avancement), avec le vrai message d'erreur */
+  async function gradioQueue(base, fn, data, auth, onMsg){
+    const sh = crypto.randomBytes(6).toString("hex"), jn = await call(`${base}/gradio_api/queue/join`, post(Object.assign({"Content-Type":"application/json"}, auth), {data, fn_index:fn, session_hash:sh, event_data:null, trigger_id:null}), 60000);
+    if(!jn.ok) throw {code:jn.status === 429 ? "quota_day" : "server_error", message:`Le chanteur (Hugging Face) refuse la demande (${jn.status}).`};
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20 * 60e3);
+    try{ const r = await fetch(`${base}/gradio_api/queue/data?session_hash=${sh}`, {headers:auth, signal:ctl.signal}), rd = r.body.getReader(), dec = new TextDecoder(); let buf = "";
+      for(;;){ const {value, done} = await rd.read(); if(done) break; buf += dec.decode(value, {stream:true}); const L = buf.split("\n"); buf = L.pop();
+        for(const l of L){ if(!l.startsWith("data:")) continue; let m; try{ m = JSON.parse(l.slice(5)); }catch(e){ continue; } if(onMsg) onMsg(m);
+          if(m.msg === "process_completed"){ const out = m.output || {}; if(out.error || m.success === false){ const er = String(out.error || "erreur inconnue"); throw {code:/quota|exceeded|ZeroGPU|runs limit/i.test(er) ? "quota_day" : "server_error", message:er}; } return out; } } }
+      throw {code:"network", message:"Le chanteur a coupé la connexion : réessaie."}; }
+    finally{ clearTimeout(t); } }
+  /* paroles horodatées : « [00:12.34]ligne » dans n'importe quelle sortie texte */
+  function lrcOf(arr){ for(const x of arr){ const t = typeof x === "string" ? x : x && typeof x.value === "string" ? x.value : ""; if(!/\[\d+:\d+(?:\.\d+)?\]/.test(t)) continue; const out = [];
+      t.split(/\r?\n/).forEach(l => { const m = /^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/.exec(l); if(m && m[3].trim() && !/^\[.*\]$/.test(m[3].trim())) out.push({t:+(+m[1] * 60 + +m[2]).toFixed(2), text:m[3].trim()}); }); if(out.length) return out; } return []; }
+  const aceQuota = er => ({code:"quota_day", message:hfTok() ? `Le chanteur gratuit (Hugging Face) a épuisé tes minutes du jour : réessaie demain, ou crée la chanson de l'application (gratuite, sans limite). (${String(er && er.message || "").slice(0, 120)})` : "Le chanteur gratuit (Hugging Face) demande un compte : relie ton jeton Hugging Face gratuit (Réglages → Connexions, ou juste au-dessus), puis réessaie. En attendant, la chanson de l'application est gratuite et sans limite."});
+  async function runAceSong(j){
+    const tok = hfTok(), auth = tok ? {"Authorization":`Bearer ${tok}`} : {}, step = m => { if(m.msg === "estimation" && m.rank != null) update(j, {step:`file d'attente du chanteur : ${m.rank + 1}ᵉ`}); else if(m.msg === "process_starts") update(j, {step:"le chanteur chante…"}); else if(m.msg === "progress" && m.progress_data && m.progress_data[0]){ const p = m.progress_data[0]; if(p.length) update(j, {step:`le chanteur chante… ${Math.round(100 * (p.index || 0) / p.length)} %`}); } };
+    const build = (cfg, api, by, fixed) => { const fn = cfg.dependencies.findIndex(d => d.api_name === api); if(fn < 0) throw {code:"server_error", message:"Le chanteur a changé de fonctionnement : réessaie plus tard."};
+      const comps = new Map((cfg.components || []).map(c => [c.id, c])); return {fn, data:cfg.dependencies[fn].inputs.map((id, i) => { const c = comps.get(id) || {}, p = c.props || {}; if(fixed && i in fixed) return fixed[i]; if(p.label in by) return by[p.label]; if(c.type === "state") return null; return p.value === undefined ? null : p.value; })}; };
+    let out = null, base = ACE_SPACE, model = "ACE-Step 1.5 (Hugging Face)";
+    update(j, {step:"le chanteur prépare la chanson"});
+    try{ const cfg = await aceConfig(ACE_SPACE), q = build(cfg, "generation_wrapper", {"models":j.quality === "xl" ? "acestep-v15-xl-turbo" : "acestep-v15-turbo", "Prompt":j.tags, "Lyrics":j.lyrics, "Vocal Language":j.lang, "Vocal Language (optional)":j.lang, "Audio Duration (seconds)":j.duration, "batch size":1, "Get LRC":true, "Audio Format":"mp3", "BPM (optional)":j.bpm || 0}, {1:"custom"});
+      out = await gradioQueue(ACE_SPACE, q.fn, q.data, auth, step); }
+    catch(e){ if(e && e.code === "quota_day") throw aceQuota(e);
+      /* relais : ACE-Step 1 (sans paroles horodatées : l'image se cale sur la longueur des lignes) */
+      update(j, {step:"le chanteur 1.5 ne répond pas : relais ACE-Step 1"}); base = ACE1_SPACE; model = "ACE-Step 1 (Hugging Face)";
+      try{ const cfg = await aceConfig(ACE1_SPACE), q = build(cfg, "__call__", {"Audio Duration":j.duration, "Tags":j.tags, "Lyrics":j.lyrics, "Infer Steps":27}); out = await gradioQueue(ACE1_SPACE, q.fn, q.data, auth, step); }
+      catch(e2){ if(e2 && e2.code === "quota_day") throw aceQuota(e2); throw {code:"server_error", message:`Le chanteur (Hugging Face) est indisponible pour le moment (${String(e2 && e2.message || e && e.message || "").slice(0, 140)}) : réessaie plus tard, ou crée la chanson de l'application.`}; } }
+    const arr = Array.isArray(out && out.data) ? out.data : [], a = arr.find(x => x && typeof x === "object" && (x.url || x.path) && !/\.(json|zip|txt)$/i.test(String(x.path || x.url)));
+    if(!a) throw {code:"server_error", message:"Le chanteur n'a pas rendu de chanson : réessaie."};
+    const url = a.url || `${base}/gradio_api/file=${a.path}`, f = await call(url, {headers:auth}, 180000);
+    if(!f.ok || f.buf.length < 2000) throw {code:"server_error", message:"La chanson n'a pas pu être téléchargée : réessaie."};
+    const wavy = f.buf.slice(0, 4).toString() === "RIFF", mime = wavy ? "audio/wav" : /flac/i.test(String(a.path || url)) ? "audio/flac" : "audio/mpeg";
+    finish(j, Object.assign(saveMedia(j.project, j.base || "chanson", f.buf, mime), {seconds:wavy ? wavSeconds(f.buf) : 0, lrc:lrcOf(arr), model}));
+  }
+  /* relier un compte Hugging Face gratuit : le jeton est vérifié, puis écrit dans .env (sur cet ordinateur seulement, jamais renvoyé) */
+  async function hfLink(token){
+    token = String(token || "").trim(); if(!/^hf_[A-Za-z0-9]{20,}$/.test(token)) return [400, {code:"bad_request", message:"Ce n'est pas un jeton Hugging Face : il commence par « hf_ ». Crée-le sur huggingface.co/settings/tokens (type « Read »)."}];
+    const r = await call(String(env.HF_WHOAMI_URL || "https://huggingface.co/api/whoami-v2"), {headers:{"Authorization":`Bearer ${token}`}}, 20000).catch(() => null);
+    if(!r || !r.ok) return [400, {code:"bad_request", message:r ? "Hugging Face refuse ce jeton : vérifie-le (copie-le en entier), ou crées-en un nouveau." : "Hugging Face ne répond pas : vérifie Internet, puis réessaie."}];
+    if(!env.SP_NO_DOTENV){ const f = path.join(__dirname, ".env"); let txt = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : ""; txt = /^HF_TOKEN=.*$/m.test(txt) ? txt.replace(/^HF_TOKEN=.*$/m, `HF_TOKEN=${token}`) : `${txt}${txt && !txt.endsWith("\n") ? "\n" : ""}HF_TOKEN=${token}\n`; fs.writeFileSync(f, txt); }
+    env.HF_TOKEN = token; return [200, {ok:true, name:String((r.json && (r.json.name || r.json.fullname)) || "")}];
   }
   /* Reprise après redémarrage : on continue d'attendre les vidéos déjà commandées (jamais payées deux fois) */
   for(const j of jobs){
@@ -402,7 +458,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
       relais:{agnes:!!String(env.AGNES_API_KEY || "").trim(), groq:!!String(env.GROQ_API_KEY || "").trim(), openrouter:!!String(env.OPENROUTER_API_KEY || "").trim()},
       agnes:{ready:!!AGNES_KEY, video:AGNES_VIDEO_MODEL, image:env.AGNES_IMAGE_MODEL || "agnes-image-2.5-flash"},
       image:{label:"Nano Banana (Gemini)", price:IMAGE_PRICE, ready:!!MEDIA_KEY, needs:mediaNeeds()}, media_key:MEDIA_OWN,
-      voice:[{id:"gemini", label:"Voix Gemini", note:`offre gratuite, 30 voix, français inclus ; ${TTS_MODELS.length} modèles de voix en relais (chacun son quota du jour)`, ready:!!GEMINI_KEY, free:true, models:TTS_MODELS.length, blocked:TTS_MODELS.filter(m => ttsBlocked.get(m) > Date.now()).length}, {id:"elevenlabs", label:"ElevenLabs", note:"voix très naturelles, petite offre gratuite chaque mois", ready:!!ELEVEN_KEY}, {id:"chatterbox", label:"Voix naturelle Chatterbox (Hugging Face)", note:`gratuite, très naturelle, en français ; file d'attente GPU de Hugging Face${HF_TOKEN ? " (compte relié)" : " (sans compte : peu de minutes par jour)"}`, ready:true, free:true, token:!!HF_TOKEN}],
+      voice:[{id:"gemini", label:"Voix Gemini", note:`offre gratuite, 30 voix, français inclus ; ${TTS_MODELS.length} modèles de voix en relais (chacun son quota du jour)`, ready:!!GEMINI_KEY, free:true, models:TTS_MODELS.length, blocked:TTS_MODELS.filter(m => ttsBlocked.get(m) > Date.now()).length}, {id:"elevenlabs", label:"ElevenLabs", note:"voix très naturelles, petite offre gratuite chaque mois", ready:!!ELEVEN_KEY}, {id:"chatterbox", label:"Voix naturelle Chatterbox (Hugging Face)", note:`gratuite, très naturelle, en français ; file d'attente GPU de Hugging Face${hfTok() ? " (compte relié)" : " (sans compte : peu de minutes par jour)"}`, ready:true, free:true, token:!!hfTok()}],
       running:jobs.filter(j => j.status === "running" || j.status === "queued").length
     };
   }
@@ -416,9 +472,12 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     return {voices:((r.json && r.json.voices) || []).map(v => ({id:v.voice_id, name:v.name, desc:Object.values(v.labels || {}).filter(x => typeof x === "string").join(", "), preview:v.preview_url || ""}))};
   }
   function start(b){
-    const kind = b.kind === "voice" ? "voice" : b.kind === "video" ? "video" : "";
+    const kind = b.kind === "voice" ? "voice" : b.kind === "video" ? "video" : b.kind === "song" ? "song" : "";
     if(!kind) return [400, {code:"bad_request", message:"Type de fabrication inconnu."}];
     const project = safeId(b.project), plan = Math.max(0, Math.floor(Number(b.plan) || 0));
+    if(kind === "song"){ const lyrics = String(b.lyrics || "").trim(); if(lyrics.length < 10 || lyrics.length > 4000) return [400, {code:"bad_request", message:"Paroles de la chanson manquantes ou trop longues."}];
+      const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service:"acestep", label:"Chanson chantée (ACE-Step)", project, plan, lyrics, tags:String(b.tags || "").slice(0, 500), lang:/^[a-z]{2}$/.test(String(b.lang || "")) ? b.lang : "unknown", duration:Math.max(20, Math.min(240, Math.round(Number(b.duration) || 60))), bpm:Math.max(0, Math.min(200, Math.round(Number(b.bpm) || 0))), quality:b.quality === "xl" ? "xl" : "turbo", base:safeId(b.base || "chanson"), status:"queued", created:Date.now(), updated:Date.now()};
+      jobs.push(j); persist(); pump(); return [200, {job:pub(j)}]; }
     if(kind === "video"){
       const v = VIDEO.find(x => x.id === b.service);
       if(!v) return [400, {code:"bad_request", message:"Service vidéo inconnu."}];
@@ -471,6 +530,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     const route = p.slice(9);
     (async () => {
       if(req.method === "GET" && route === "status") return sendJson(res, 200, status());
+      if(req.method === "GET" && route === "hf") return sendJson(res, 200, {linked:!!hfTok()});
+      if(req.method === "POST" && route === "hf-token"){ let b = {}; try{ b = JSON.parse(await readBody(req, 4000) || "{}"); }catch(e){} const [code, out] = await hfLink(b.token); return sendJson(res, code, out); }
       if(req.method === "GET" && route === "voices") return sendJson(res, 200, await voices(u.searchParams.get("provider")));
       if(req.method === "GET" && route === "jobs"){ const pr = u.searchParams.get("project"), ids = String(u.searchParams.get("ids") || "").split(",").filter(Boolean); return sendJson(res, 200, {jobs:jobs.filter(j => (!pr || j.project === safeId(pr)) && (!ids.length || ids.includes(j.id))).slice(-400).map(pub)}); }
       if(req.method === "POST" && route === "start"){
