@@ -43,7 +43,7 @@ function norm(L){ L=L||{}; const langue=LANGS[L.langue]?L.langue:"fr", modele=MO
   const items=(Array.isArray(L.items)?L.items:[]).slice(0,40).map(x=>{ x=x||{}; const r=parseInt(x.repete,10);
     return {cle:str(x.cle,24), nom:str(x.nom,40), mot:str(x.mot,40), image:emoji1(x.image), sens:str(x.sens,80), phon:str(x.phon,40), texte:str(x.texte,260), voix:str(x.voix,320), repete:isFinite(r)?cl(r,0,3):1}; }).filter(x=>x.cle||x.texte);
   return {titre:str(L.titre,80)||LANGS[langue].lecon, sous_titre:str(L.sous_titre,90), langue, modele, intro:str(L.intro,320), fin:str(L.fin,320), quiz:L.quiz!==false&&items.length>=3,
-    chorus:L.chorus==null?MODELS[modele].chorus:!!L.chorus, personnage:L.personnage!==false, sous_titres:L.sous_titres!==false, items, chanson:songNorm(L.chanson), methode:(Array.isArray(L.methode)?L.methode:[]).slice(0,8).map(x=>str(x,160)).filter(Boolean), angle:str(L.angle,120), muet:Array.isArray(L.muet)?L.muet.filter(k=>typeof k==="string"):[]}; }
+    chorus:L.chorus==null?MODELS[modele].chorus:!!L.chorus, personnage:L.personnage!==false, sous_titres:L.sous_titres!==false, items, chanson:songNorm(L.chanson), effets:{transition:str((L.effets||{}).transition,40)||"auto", look:str((L.effets||{}).look,40)||"naturel", ambiance:str((L.effets||{}).ambiance,40)||"aucune"}, methode:(Array.isArray(L.methode)?L.methode:[]).slice(0,8).map(x=>str(x,160)).filter(Boolean), angle:str(L.angle,120), muet:Array.isArray(L.muet)?L.muet.filter(k=>typeof k==="string"):[]}; }
 
 /* ---------- la chanson de la leçon (14 octobre) : paroles, style, voix, place dans la vidéo, et la chanson fabriquée (adresse + temps des lignes) ---------- */
 const SONG_STYLES={comptine:"Comptine joyeuse", nasheed:"Nasheed (voix et daf, sans instrument)", berceuse:"Berceuse douce", pop:"Pop pour enfants"};
@@ -382,14 +382,30 @@ function stage(cv, L, P, o){ o=o||{};
     const c=AV.render(R.w*K,R.h*K,t,{mouth:m,speak:m>.05,since:say0?t-say0.t:9,point,up:V?.6:.2,side:R.x<W/2?1:-1,open:r&&t>=r.toi[0]?1:0,rock:false},{scene:"solo",style:(o.avatar||{}).style||"indigo",skin:(o.avatar||{}).skin||"fonce"}); if(c) x.drawImage(c,R.x,R.y,R.w,R.h); }
 
   /* ---------------- une image ---------------- */
-  function draw(t){ t=Math.max(0,Math.min(P.total-.001,t)); const pt=partAt(t); g.setTransform(K,0,0,K,0,0); g.__T=g.getTransform(); g.globalAlpha=1; g.globalCompositeOperation="source-over"; g.filter="none";
+  /* ---------------- effets de la bibliothèque commune (studio-fx.js) : transitions entre les moments, couleurs de cinéma, ambiances ---------------- */
+  const FXL=()=>typeof window!=="undefined"&&window.SP_FX, EF=Object.assign({transition:"auto",look:"naturel",ambiance:"aucune"},L.effets||{});
+  const off={}, offc=k=>{ if(!off[k]){ const c=document.createElement("canvas"); c.width=cv.width; c.height=cv.height; off[k]=c; } return off[k]; };
+  /* « automatique » : des transitions choisies pour chaque modèle, variées d'un moment à l'autre (dans le sens de lecture) */
+  const AUTO_TR={theatre:["rideau","iris","flash_blanc","zoom_entree","etoile","lumiere"], daara:["page","encre","fondu","lumiere","iris",T.dir==="rtl"?"volet_doux_d":"volet_doux_g"], aventure:[T.dir==="rtl"?"glisse_d":"glisse_g","zoom_traverse",T.dir==="rtl"?"cube_d":"cube_g","cercles","fondu_morph",T.dir==="rtl"?"pousse_d":"pousse_g"]};
+  const trOf=pt=>{ const i=parts.indexOf(pt), F=FXL(); if(i<=0||!F) return null; let id=EF.transition; if(id==="auto"){ const l=AUTO_TR[M]; id=l[i%l.length]; } return !id||id==="coupe"?null:F.transition(id); };
+  const vigLayer=()=>layer("vig",x=>{ const v=x.createRadialGradient(W/2,H/2,Math.min(W,H)*.42,W/2,H/2,Math.hypot(W,H)*.62); v.addColorStop(0,"rgba(0,0,0,0)"); v.addColorStop(1,`rgba(0,0,0,${M==="daara"?.28:.38})`); x.fillStyle=v; x.fillRect(0,0,W,H); });
+  /* une image du décor et de la leçon (sans les textes du dessus) */
+  function scene(x,t,pt){ x.setTransform(K,0,0,K,0,0); x.globalAlpha=1; x.globalCompositeOperation="source-over"; x.filter="none";
     /* caméra : rapprochement lent dans chaque partie, petite secousse quand la lettre touche la scène */
     const cam=1+.035*sm((t-pt.a)/Math.max(1,pt.b-pt.a)), shake=M==="theatre"&&pt.k==="item"&&t-pt.a>.72&&t-pt.a<.95?Math.sin((t-pt.a)*90)*4*(1-(t-pt.a-.72)/.23):0;
-    g.save(); g.translate(W/2,H/2+shake); g.scale(cam,cam); g.translate(-W/2,-H/2); g.__T=g.getTransform();
-    if(M==="theatre") theatre(g,t,pt); else if(M==="daara") daara(g,t,pt); else aventure(g,t,pt);
-    g.restore(); g.__T=g.getTransform();
-    captions(g,t,pt); progress(g,t,pt);
-    const vg=layer("vig",x=>{ const v=x.createRadialGradient(W/2,H/2,Math.min(W,H)*.42,W/2,H/2,Math.hypot(W,H)*.62); v.addColorStop(0,"rgba(0,0,0,0)"); v.addColorStop(1,`rgba(0,0,0,${M==="daara"?.28:.38})`); x.fillStyle=v; x.fillRect(0,0,W,H); }); g.setTransform(1,0,0,1,0,0); g.drawImage(vg,0,0); }
+    x.save(); x.translate(W/2,H/2+shake); x.scale(cam,cam); x.translate(-W/2,-H/2); x.__T=x.getTransform();
+    if(M==="theatre") theatre(x,t,pt); else if(M==="daara") daara(x,t,pt); else aventure(x,t,pt);
+    x.restore(); x.setTransform(K,0,0,K,0,0); x.__T=x.getTransform();
+    const F=FXL(); if(F&&EF.ambiance&&EF.ambiance!=="aucune") F.ambiance(x,EF.ambiance,{W,H,L:Math.min(W,H)/720,t,acc:ACC,acc2:"#14213D",V});
+    x.setTransform(1,0,0,1,0,0); x.globalAlpha=1; x.globalCompositeOperation="source-over"; x.drawImage(vigLayer(),0,0); }
+  function draw(t){ t=Math.max(0,Math.min(P.total-.001,t)); const pt=partAt(t), F=FXL(), TR=trOf(pt), D=TR?Math.min(TR.d,(pt.b-pt.a)*.3):0, inTr=!!(TR&&D>0&&t-pt.a<D), LOOK=F&&EF.look&&EF.look!=="naturel"&&F.looks[EF.look]?EF.look:null, fxo={W:cv.width,H:cv.height,acc:ACC,t};
+    if(!inTr&&!LOOK) scene(g,t,pt);
+    else { const cB=offc("B"); scene(cB.getContext("2d"),t,pt); const out=LOOK?offc("L").getContext("2d"):g; out.setTransform(1,0,0,1,0,0); out.globalAlpha=1; out.globalCompositeOperation="source-over"; out.filter="none";
+      if(inTr){ const prev=parts[parts.indexOf(pt)-1], cA=offc("A"); scene(cA.getContext("2d"),Math.max(prev.a,pt.a-.02),prev); out.fillStyle="#000"; out.fillRect(0,0,cv.width,cv.height); try{ TR.f(out,cA,cB,F.E[TR.e](cl((t-pt.a)/D)),fxo); }catch(e){ out.drawImage(cB,0,0); } out.setTransform(1,0,0,1,0,0); out.globalAlpha=1; out.globalCompositeOperation="source-over"; out.filter="none"; out.imageSmoothingEnabled=true; }
+      else out.drawImage(cB,0,0);
+      if(LOOK) F.look(g,offc("L"),LOOK,fxo); }
+    /* textes par-dessus, toujours nets et dans leurs vraies couleurs */
+    g.setTransform(K,0,0,K,0,0); g.globalAlpha=1; g.globalCompositeOperation="source-over"; g.filter="none"; g.__T=g.getTransform(); captions(g,t,pt); progress(g,t,pt); }
   /* miniature : le décor, la première unité en grand, le titre */
   function poster(){ const it=items[0]; const fake=Object.assign({},parts.find(p=>p.k==="item")||parts[0]); draw(fake.k==="item"?fake.a+2.4:1.5);
     g.setTransform(K,0,0,K,0,0); const sh=g.createLinearGradient(0,H*.62,0,H); sh.addColorStop(0,"rgba(0,0,0,0)"); sh.addColorStop(1,"rgba(0,0,0,.72)"); g.fillStyle=sh; g.fillRect(0,H*.62,W,H*.38);

@@ -1514,6 +1514,15 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
               <label class="check"><input type="checkbox" id="lc-perso" checked><span>Personnage 3D</span></label>
               <label class="check"><input type="checkbox" id="lc-subs" checked><span>Sous-titres</span></label>
             </div>
+            <details class="rc-fx" id="lc-fx">
+              <summary>🎨 Embellir : transitions, couleurs, ambiances <small id="lc-fx-sum"></small></summary>
+              <div class="rc-fx-body">
+                <div class="rc-fx-tabs" role="group" aria-label="Catégorie d’effets"><button type="button" data-lc-fxtab="trans" aria-pressed="true">Transitions</button><button type="button" data-lc-fxtab="looks" aria-pressed="false">Couleurs de cinéma</button><button type="button" data-lc-fxtab="ambs" aria-pressed="false">Ambiances</button></div>
+                <p class="hint" id="lc-fx-hint"></p>
+                <div class="actions"><button type="button" class="btn" id="lc-fx-rand">🎲 Au hasard</button><button type="button" class="btn" id="lc-fx-none">Sans effet</button></div>
+                <div class="rc-fx-grid" id="lc-fx-grid"></div>
+              </div>
+            </details>
             <div class="lc-prev" id="lc-prev" aria-label="Aperçu : trois moments de la leçon"></div>
             <div class="actions"><button type="button" class="btn" id="lc-play">▶ Aperçu animé (sans le son)</button></div>
             <canvas id="lc-live" class="lc-live" hidden></canvas>
@@ -11982,7 +11991,7 @@ function lcSet(L, msg){ const sav=loadPrefs(); LC.L=SP_LECON.norm(L); if(SP_LECO
 function lcOptsRender(){ const L=LC.L; $("lc-titre").value=L.titre; $("lc-stitre").value=L.sous_titre||""; $("lc-rep").value=String(L.items.length?L.items[0].repete:1); $("lc-quiz").checked=L.quiz; $("lc-chorus").checked=L.chorus; $("lc-perso").checked=L.personnage; $("lc-subs").checked=L.sous_titres; }
 function lcItemsRender(){ const L=LC.L, rtl=L.langue==="ar";
   $("lc-items").innerHTML=L.items.map((x,i)=>`<li class="lc-item"><span class="lc-n">${i+1}</span><input class="lc-cle" data-lc-f="${i}:cle" value="${esc(x.cle)}" dir="auto" aria-label="Élément ${i+1} : ce qu’on montre" placeholder="Ce qu’on montre"><input class="lc-nom" data-lc-f="${i}:nom" value="${esc(x.nom)}" dir="auto" aria-label="Élément ${i+1} : son nom" placeholder="Son nom"><input class="lc-mot" data-lc-f="${i}:mot" value="${esc(x.mot)}" dir="auto" aria-label="Élément ${i+1} : mot exemple" placeholder="Mot exemple"><input class="lc-emo" data-lc-f="${i}:image" value="${esc(x.image)}" aria-label="Élément ${i+1} : image (emoji)" placeholder="🙂"><button type="button" class="lc-del" data-lc-del="${i}" aria-label="Supprimer l’élément ${i+1}">✕</button><input class="lc-v" data-lc-f="${i}:voix" value="${esc(x.voix)}" dir="${rtl?"rtl":"auto"}" aria-label="Élément ${i+1} : phrase du maître" placeholder="Phrase du maître (automatique si vide)${x.texte?" · texte : "+esc(x.texte.slice(0,40)):""}"></li>`).join(""); }
-function lcRender(){ if(!LC.L) return; if(SP_LECON.songLines(LC.L.chanson.paroles).length<2) LC.L.chanson.paroles=lcSongTpl(LC.L); $("lc-s3").hidden=false; $("lc-s4").hidden=false; lcOptsRender(); lcMethodRender(); lcItemsRender(); lcSongRender(); lcPreview(); lcPubRender(); }
+function lcRender(){ if(!LC.L) return; if(SP_LECON.songLines(LC.L.chanson.paroles).length<2) LC.L.chanson.paroles=lcSongTpl(LC.L); $("lc-s3").hidden=false; $("lc-s4").hidden=false; lcOptsRender(); lcMethodRender(); lcFxSum(); if($("lc-fx").open) lcFxGrid(LC.fxTab||"trans"); lcItemsRender(); lcSongRender(); lcPreview(); lcPubRender(); }
 let lcPrevT=0; function lcPreview(){ clearTimeout(lcPrevT); lcPrevT=setTimeout(async()=>{ const L=LC.L, box=$("lc-prev"); if(!L||!L.items.length){ box.innerHTML=""; return; }
   try{ await SP_LECON.ready(L); if(L.personnage&&window.SP_AVATAR) await Promise.race([SP_AVATAR.load().catch(()=>null), new Promise(r=>setTimeout(r,8000))]);
     const fmt=spFmts($("lc-fmt").value)[0], C=L.chanson, sg=C.audio&&C.place!=="aucune"?{seconds:C.audio.seconds, lines:C.audio.lines, bpm:C.audio.bpm}:null, P=SP_LECON.plan(L,null,sg), it=P.parts.find(x=>x.k==="item"), rc=P.parts.find(x=>x.k==="recap"), so=P.parts.find(x=>x.k==="song"), cv=document.createElement("canvas"), st=SP_LECON.stage(cv,L,P,{fmt,K:fmt==="9:16"?.35:.3});
@@ -12040,6 +12049,19 @@ async function lcAngles(){ const o=lcOpts(), m=$("lc-msg"), box=$("lc-angles");
     m.textContent=`✅ ${LC.angles.length} angles proposés : choisis celui qui te plaît.`; box.scrollIntoView({behavior:"smooth",block:"start"}); }
   catch(e){ m.textContent=`Agent indisponible (${errText(e)}) : décris le sujet et touche « ✨ L’agent écrit la leçon », ou « ⚡ Sans IA ».`; }
   finally{ clearInterval(iv); b.disabled=false; } }
+/* ---------- embellir la leçon (14 octobre) : « je n'ai pas vu la galerie, les effets, les transitions pour embellir » ----------
+   La bibliothèque commune (studio-fx.js, celle du Constructeur) : 76 transitions, 63 couleurs de cinéma, 57 ambiances, avec leurs aperçus. */
+const LC_FX_KEY={trans:"transition", looks:"look", ambs:"ambiance"}, LC_FX_HINT={trans:"Entre chaque moment de la leçon. « Automatique » varie des transitions choisies pour le modèle (rideau, iris, page qui tourne, encre…).", looks:"L’étalonnage du décor, comme au cinéma. Les lettres, les mots et les sous-titres restent nets et gardent leurs vraies couleurs.", ambs:"Des particules douces par-dessus le décor : poussière dorée, lucioles, bulles, étoiles, confettis…"};
+const LC_FX_NICE={looks:["cinema","lumiere_doree","eclatant","chaud","pastel","reve","soleil_afrique","matin","studio","coucher_soleil"], ambs:["poussiere_doree","lucioles","bokeh_doux","etincelles_or","petales","bulles_savon","ciel_etoile","notes_musique","ballons","confettis_or"]};
+function lcFxSum(){ const F=window.SP_FX, L=LC.L; if(!F||!L) return; const e=L.effets, nm=(cat,id)=>id==="auto"?"automatiques":((F.list[cat].find(x=>x.id===id)||{}).nom||id); $("lc-fx-sum").textContent=`${nm("trans",e.transition)} · ${nm("looks",e.look)} · ${nm("ambs",e.ambiance)}`; }
+function lcFxGrid(cat){ const F=window.SP_FX, L=LC.L, g=$("lc-fx-grid"); if(!F||!L||!g) return; LC.fxTab=cat; const cur=L.effets[LC_FX_KEY[cat]], src=document.querySelector("#lc-prev img");
+  document.querySelectorAll("[data-lc-fxtab]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.lcFxtab===cat))); $("lc-fx-hint").textContent=LC_FX_HINT[cat];
+  const list=(cat==="trans"?[{id:"auto",nom:"✨ Automatique (variées)"}]:[]).concat(F.list[cat]);
+  g.innerHTML=list.map(x=>`<button type="button" class="rc-fxc" data-lc-fx="${cat}:${esc(x.id)}" aria-pressed="${x.id===cur}" title="${esc(x.nom)}"><canvas width="108" height="108" aria-hidden="true"></canvas><span>${esc(x.nom)}</span></button>`).join("");
+  let srcC=null; if(src&&src.complete&&cat==="looks"){ srcC=document.createElement("canvas"); srcC.width=216; srcC.height=Math.round(216*src.naturalHeight/Math.max(1,src.naturalWidth)); srcC.getContext("2d").drawImage(src,0,0,srcC.width,srcC.height); }
+  g.querySelectorAll(".rc-fxc").forEach(b=>{ const id=b.dataset.lcFx.slice(cat.length+1); try{ F.thumb(cat,id==="auto"?"iris":id,b.querySelector("canvas"),{src:srcC,acc:"#FFC23D",acc2:"#14213D"}); }catch(e){} }); lcFxSum(); }
+function lcFxSet(cat,id){ const L=LC.L; if(!L) return; L.effets[LC_FX_KEY[cat]]=id; document.querySelectorAll("#lc-fx-grid .rc-fxc").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.lcFx===`${cat}:${id}`))); lcFxSum(); lcSave(); lcPreview(); }
+$("lc-fx").addEventListener("toggle",()=>{ if($("lc-fx").open) lcFxGrid(LC.fxTab||"trans"); });
 function lcMethodRender(){ const L=LC.L, box=$("lc-methode"); if(!L||!L.methode.length){ box.hidden=true; return; } box.hidden=false; box.innerHTML=`<b>Méthode de la leçon${L.angle?` · ${esc(L.angle)}`:""}</b><ol>${L.methode.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`; }
 /* ---------- la chanson de la leçon (14 octobre) : « je n'ai pas vu les paroles ni la chanson qui collent avec la leçon » ; « des chansons de qualité avec de sublimes voix » ----------
    Paroles écrites par l'agent (avec la leçon) ou sans IA ; chanson chantée par une IA libre (ACE-Step, Hugging Face, gratuite avec un compte),
@@ -12189,6 +12211,10 @@ document.addEventListener("click",async e=>{ const t=e.target.closest&&e.target.
   if(t.dataset.lcModel){ lcPick(t.dataset.lcModel); return; }
   if(t.dataset.lcPreset){ const p=LC_PRESETS[t.dataset.lcPreset]; if(p){ LC.pub=null; const L=p.L($("lc-langue").value); lcSet(L, `✅ Exemple prêt : ${L.items.length} éléments, sans IA. Change ce que tu veux, puis fabrique la vidéo.`); } return; }
   if(t.id==="lc-angles-go"){ lcAngles(); return; }
+  if(t.dataset.lcFxtab){ lcFxGrid(t.dataset.lcFxtab); return; }
+  if(t.dataset.lcFx&&LC.L){ const [cat]=t.dataset.lcFx.split(":"); lcFxSet(cat,t.dataset.lcFx.slice(cat.length+1)); return; }
+  if(t.id==="lc-fx-rand"&&LC.L){ const F=window.SP_FX, pick=a=>a[Math.floor(Math.random()*a.length)]; LC.L.effets={transition:Math.random()<.5?"auto":pick(["rideau","iris","page","encre","etoile","lumiere","zoom_entree","cercles","cube_g","fondu_morph"]), look:pick(LC_FX_NICE.looks.filter(x=>F.looks[x])), ambiance:pick(LC_FX_NICE.ambs.filter(x=>F.ambs[x]))}; lcSave(); lcFxGrid(LC.fxTab||"trans"); lcPreview(); toast("Nouveaux effets tirés au hasard : touche encore pour une autre combinaison."); return; }
+  if(t.id==="lc-fx-none"&&LC.L){ LC.L.effets={transition:"coupe", look:"naturel", ambiance:"aucune"}; lcSave(); lcFxGrid(LC.fxTab||"trans"); lcPreview(); return; }
   if(t.dataset.lcFdel!=null){ const x=LC.files.splice(+t.dataset.lcFdel,1)[0]; if(x&&x.thumbUrl) URL.revokeObjectURL(x.thumbUrl); lcFilesRender(); return; }
   if(t.dataset.lcAngle!=null&&LC.angles){ const a=LC.angles[+t.dataset.lcAngle]; if(!a) return; LC.angle=a; document.querySelectorAll("#lc-angles .lc-angle").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.lcAi===t.dataset.lcAngle))); lcPick(a.modele); const nb=$("lc-nb"); nb.value=[...nb.options].some(op=>+op.value===a.nb)?String(a.nb):"auto"; lcGo(false); return; }
   if(t.id==="lc-go"){ lcGo(false); return; } if(t.id==="lc-free"){ lcGo(true); return; } if(t.id==="lc-stop"){ if(LC.ctl) LC.ctl.abort(); return; }

@@ -916,6 +916,13 @@ Demande de l'utilisateur, avec 7 nouvelles vidéos de référence (`references/*
   - « Choisir cet angle » prend le modèle conseillé, puis écrit la leçon. La consigne reçoit l'angle choisi et le contenu des fichiers, présentés comme la source à ne pas contredire ; les médias sont joints.
   - **Méthode** (`L.methode`) : écrite par l'agent pour chaque leçon, affichée à l'étape 3 et ajoutée au texte de publication.
   - Test : `lecon-fichiers-test.js` (5 vérifications : 4 fichiers lus, angles avec médias joints, angle suivi et méthode, 390 px, console).
+- **Embellir (14 octobre)**. Remarque de l'utilisateur : « je n'ai pas vu la galerie, les effets, les transitions pour embellir ». Étape 3, « 🎨 Embellir » : la bibliothèque commune `studio-fx.js`, celle du Constructeur, avec ses aperçus (`SP_FX.thumb`) :
+  - **76 transitions** entre chaque moment, plus « Automatique » : des transitions choisies pour chaque modèle (`AUTO_TR`) et dans le sens de lecture. Rideau, iris, flash, zoom, étoile, lumière pour le Théâtre ; page, encre, fondu, volet pour la Daara ; glisse, cube, cercles pour l'Aventure.
+  - **63 couleurs de cinéma**, appliquées au décor seul : les lettres, les mots et les sous-titres sont dessinés après et restent nets.
+  - **57 ambiances** : poussière dorée, lucioles, bulles, étoiles, confettis…
+  - Boutons « 🎲 Au hasard » (combinaisons choisies) et « Sans effet ».
+  - Les choix sont gardés dans la leçon (`L.effets`).
+  - Le moteur dessine maintenant chaque image du décor à part (`scene`). La transition mélange l'image d'avant et celle d'après, comme dans le Constructeur.
 - Test : `lecon-test.js` (9 vérifications) :
   - onglet ; 3 modèles dessinés et tous différents ;
   - alphabet arabe sans IA (28 lettres) ; changement de modèle ;
