@@ -110,7 +110,8 @@ function poseCharacter(C, t, p){ p=p||{}; const sd=C.seed*17.3, m=cl(p.mouth||0,
   C.eyes.forEach(e=>{ e.lid.rotation.x=-1.25+bl*1.3; });
   /* regard : la cible donnée, sinon il se promène (caméra, tablette, livre), avec de petits mouvements d'œil */
   let lx=0, ly=0; if(p.look){ lx=p.look.x; ly=p.look.y; } else { const gi=Math.floor((t+sd)/2.7), r=rnd(gi*3+C.seed), q=sm(((t+sd)%2.7)/.25), tg=r<.58?[0,0]:r<.82?[(p.side||1)*.9,.25]:[0,-.7], pr=rnd((gi-1)*3+C.seed), tp=pr<.58?[0,0]:pr<.82?[(p.side||1)*.9,.25]:[0,-.7]; lx=tp[0]+(tg[0]-tp[0])*q; ly=tp[1]+(tg[1]-tp[1])*q; }
-  const pt=cl(p.point||0,0,1); lx=lx*(1-pt)+(p.side||1)*pt; ly=ly*(1-pt)+.2*pt;
+  /* montrer : sur le côté, ou vers le haut quand le texte est au-dessus (format téléphone) — p.up de 0 (côté) à 1 (en haut) ; le regard suit */
+  const pt=cl(p.point||0,0,1), up=cl(p.up||0,0,1); lx=lx*(1-pt)+(p.side||1)*pt*(1-.55*up); ly=ly*(1-pt)+(.2+.6*up)*pt;
   const jx=Math.sin(t*7.3+sd)*.004, jy=Math.cos(t*6.1+sd)*.003;
   C.eyes.forEach(e=>{ const s=e.s, ex=lx*.035*s+jx, ey=ly*.03*s+jy; e.ir.position.x=ex; e.ir.position.y=ey; e.pu.position.x=ex*1.1; e.pu.position.y=ey*1.1; e.hl.position.x=.035*s+ex; });
   /* sourcils : levés quand la voix s'élève, attentifs quand il écoute */
@@ -125,10 +126,11 @@ function poseCharacter(C, t, p){ p=p||{}; const sd=C.seed*17.3, m=cl(p.mouth||0,
   const op=cl(p.open||0,0,1), page=cl(p.page||0,0,1);
   C.arms.forEach(a=>{ const toward=a.k===(p.side||1);
     let rz=-.1*a.k, rx=-.78+Math.sin(t*1.6+sd)*.01;
-    if(toward&&pt>0){ const q=sm(pt); rz=a.k*(-.1+1.12*q); rx=-.78+.05*q+Math.sin(t*1.3)*.03*q; }
+    if(toward&&pt>0){ const q=sm(pt); rz=a.k*(-.1+(1.12+1.3*up)*q); rx=-.78+(.05+.5*up)*q+Math.sin(t*1.3)*.03*q; }
+    if(C.stick&&C.stick.parent===a.sh) C.stick.rotation.x=.22+1.15*(1-(toward?sm(pt):0));   /* au repos, le bâton est posé vers l'avant (il ne traverse pas la table) */
     else if(op>0){ const q=sm(op); rz=a.k*(-.1+.7*q); rx=-.78-.22*q+Math.sin(t*2.1+a.k)*.06*q; }
     else if(page>0&&a.k===-1){ const q=Math.sin(page*Math.PI); rz=a.k*(-.1-.35*q); rx=-.78-.25*q; }
-    a.sh.rotation.z=rz; a.sh.rotation.x=rx; a.finger.visible=toward&&pt>.6; }); }
+    a.sh.rotation.z=rz; a.sh.rotation.x=rx; a.finger.visible=toward&&pt>.6&&!C.stick; }); }
 /* ---------- décors 3D : table basse, porte-livre et Coran ; tablette d'élève (alluwa sur les genoux) ---------- */
 function deskWithBook(scale){ const g=new T.Group(), wood=M("#8A5A33",.55), woodD=M("#5E3B20",.6), cover=M("#FFFFFF",.45,{map:tex(coverCanvas())}), page=M("#FFFFFF",.8,{map:tex(pageCanvas())});
   const top=new T.Mesh(new T.BoxGeometry(2.7,.12,1.05),wood); top.position.y=.62; g.add(top);
@@ -142,12 +144,17 @@ function deskWithBook(scale){ const g=new T.Group(), wood=M("#8A5A33",.55), wood
 function lapBoard(){ const g=new T.Group(), w=M("#E2C792",.6), f=M("#9C6A3A",.6); const b=new T.Mesh(new T.BoxGeometry(1.0,.05,1.3),w); g.add(b); const tb=new T.Mesh(new T.BoxGeometry(.3,.05,.22),f); tb.position.set(0,0,-.72); g.add(tb); return g; }
 function lights(scene){ scene.add(new T.HemisphereLight(0xFFF1DC,0x3A2A22,1.35)); const key=new T.DirectionalLight(0xFFF4E2,2.6); key.position.set(-3,5,6); scene.add(key);
   const fill=new T.DirectionalLight(0xBFD8FF,.65); fill.position.set(4,2,4); scene.add(fill); const rim=new T.DirectionalLight(0xFFD49A,1.6); rim.position.set(2,4,-5); scene.add(rim); }
-function buildSolo(){ const scene=new T.Scene(); lights(scene); const kid=buildCharacter("enfant","indigo","fonce",0); scene.add(kid.root); const desk=deskWithBook(); desk.position.set(0,0,1.35); scene.add(desk);
+/* bâton de maître (demande de l'utilisateur : « donne-lui un bâton ») : tenu dans la main qui montre, bois clair et pointe dorée pour bien se voir */
+function addStick(C, len){ const g=new T.Group(), H=C.H||1, wood=M("#7A4A22",.55), tip=M("#F2C46B",.35);
+  const rod=new T.Mesh(new T.CylinderGeometry(.03,.036,len,10),wood); rod.position.y=-len/2; g.add(rod);
+  const end=new T.Mesh(new T.SphereGeometry(.05,12,10),tip); end.position.y=-len; g.add(end);
+  g.position.set(0,-1.04*H,0); g.rotation.x=.22; C.arms[1].sh.add(g); C.stick=g; return g; }
+function buildSolo(){ const scene=new T.Scene(); lights(scene); const kid=buildCharacter("enfant","indigo","fonce",0); addStick(kid,1.05); scene.add(kid.root); const desk=deskWithBook(); desk.position.set(0,0,1.35); scene.add(desk);
   return {scene, cam:new T.PerspectiveCamera(26,1,.1,100), cast:{kid}}; }
 function buildDaara(){ const scene=new T.Scene(); lights(scene);
   const prof=buildCharacter("oustaz","blanc","fonce",3); prof.root.position.set(0,0,-1.2); scene.add(prof.root); const desk=deskWithBook(1.05); desk.position.set(0,0,.35); scene.add(desk);
   /* stick (pointeur) du maître, tenu dans la main qui montre la tablette */
-  const stick=new T.Mesh(new T.CylinderGeometry(.025,.025,1.3,8),M("#5E3B20",.6)); stick.position.set(0,-1.75,0); stick.rotation.x=.25; prof.arms[1].sh.add(stick);
+  addStick(prof,1.4);
   const kids=[["ciel","fonce",-2.75,2.3,.42],["ivoire","moyen",-.95,3.45,.14],["sauge","fonce",1.95,3.0,-.32]].map(([st,sk,x,z,ry],i)=>{ const k=buildCharacter("enfant",st,sk,11+i); k.root.position.set(x,0,z); k.root.rotation.y=Math.PI+ry; k.root.scale.setScalar(.82); scene.add(k.root);
     const lb=lapBoard(); lb.position.set(0,.95,.85); lb.rotation.x=-.45; k.root.add(lb); return k; });
   return {scene, cam:new T.PerspectiveCamera(30,1,.1,100), cast:{prof, kids}}; }

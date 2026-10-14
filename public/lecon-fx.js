@@ -272,7 +272,7 @@ function stage(cv, L, P, o){ o=o||{};
     else if(pt.k==="fin"){ const s=written(x,T.bravo,cx,b.y+b.h*.42,b.w*.84,V?120:100,pt.a+.3,t,1,isAr(T.bravo)?"ink":"kid"); burst(x,t,pt.a+1.3,cx,b.y+b.h*.42,s*1.2,"#E8A33D",12); x.save(); x.fillStyle="#7A4A22"; x.textAlign="center"; x.textBaseline="middle"; x.globalAlpha=sm((t-pt.a-1.5)/.5); fitText(x,L.titre,cx,b.y+b.h*.7,b.w*.8,V?34:30,700,"kid",14); x.restore(); }
     /* la classe : l'oustaz montre la tablette et récite ; les talibés répètent */
     if(L.personnage&&AV&&AV.ready()){ const chorusOn=P.say.some(z=>z.chorus&&t>=z.t&&t<z.t+z.d+.1), m=talk(t), mk=kids(t), r=pt.k==="item"?pt.reps.find(q=>t>=q.cue&&t<q.toi[1]):null, point=pt.k==="item"?(t<pt.v[1]+.3?cl((t-pt.a-.2)/.4):r&&t<r.say[1]?1:0):pt.k==="quiz"?1:0;
-      const say0=P.say.filter(z=>!z.chorus&&z.t<=t).pop(), since=say0?t-say0.t:9, p2=chorusOn?{prof:{listen:true,look:{x:0,y:-.35}},kids:{mouth:mk,speak:mk>.05,since:t-(P.say.filter(z=>z.chorus&&z.t<=t).pop()||{t:0}).t,rock:true}}:{prof:{mouth:m,speak:m>.05,since,point,side:1,rock:m>.05},kids:{listen:true,rock:false}};
+      const say0=P.say.filter(z=>!z.chorus&&z.t<=t).pop(), since=say0?t-say0.t:9, p2=chorusOn?{prof:{listen:true,look:{x:0,y:-.35}},kids:{mouth:mk,speak:mk>.05,since:t-(P.say.filter(z=>z.chorus&&z.t<=t).pop()||{t:0}).t,rock:true}}:{prof:{mouth:m,speak:m>.05,since,point,up:V||Q?1:.35,side:1,rock:m>.05},kids:{listen:true,rock:false}};
       const c=AV.render(DC.w*K,DC.h*K,t,p2,{scene:"daara",style:(o.avatar||{}).style||"blanc",skin:(o.avatar||{}).skin||"fonce"}); if(c) x.drawImage(c,DC.x,DC.y,DC.w,DC.h); } }
 
   /* ==================== GRANDE AVENTURE ==================== */
@@ -322,7 +322,7 @@ function stage(cv, L, P, o){ o=o||{};
     if(dt<.45){ x.fillStyle="#FFE9B0"; x.beginPath(); x.arc(cx,cy+(1-dt/.45)*260,4,0,7); x.fill(); } else { const e=dt-.45; for(let k=0;k<36;k++){ const a=k/36*Math.PI*2+seed, sp=170+rnd(k+seed*9)*90, px=cx+Math.cos(a)*sp*eo(e/1.2), py=cy+Math.sin(a)*sp*eo(e/1.2)+60*e*e; x.globalAlpha=cl(1-e/1.7); x.fillStyle=cols[(k+seed)%cols.length]; x.beginPath(); x.arc(px,py,3.2,0,7); x.fill(); } } x.restore(); }
 
   /* ---------------- révision : toutes les unités, allumées l'une après l'autre ---------------- */
-  function recapGrid(x,t,pt,top,hgt,sty,box){ if(!N) return; const bw=box?box.w*.92:W*(V?.9:.84), bx=box?box.x+box.w*.04:W/2-bw/2, cmax=box?(V?4:5):V?4:Q?5:7, cols=N<=cmax?N:Math.min(cmax,Math.max(3,Math.ceil(Math.sqrt(N*(V?.6:1.6))))), rows=Math.ceil(N/cols), cw=bw/cols, ch=Math.min(hgt/rows,cw*1.05);
+  function recapGrid(x,t,pt,top,hgt,sty,box){ if(!N) return; const side=!box&&!V&&!Q&&AVON(), bw=box?box.w*.92:side?W*.72:W*(V?.9:.84), bx=box?box.x+box.w*.04:side?W*.25:W/2-bw/2, cmax=box?(V?4:5):V?4:Q?5:7, cols=N<=cmax?N:Math.min(cmax,Math.max(3,Math.ceil(Math.sqrt(N*(V?.6:1.6))))), rows=Math.ceil(N/cols), cw=bw/cols, ch=Math.min(hgt/rows,cw*1.05);
     const rtl=T.dir==="rtl", y0=top+(hgt-rows*ch)/2; items.forEach((it,i)=>{ const r=Math.floor(i/cols), c=i%cols, cxi=rtl?bx+bw-(c+.5)*cw:bx+(c+.5)*cw, cyi=y0+(r+.5)*ch, at=pt.start+i*pt.step, on=t>=at, act=t>=at&&t<at+pt.step, ap=sm((t-pt.a-.2-i*.03)/.35);
       if(ap<=0) return; const s=(act?1.12+.06*Math.sin((t-at)*14):1)*eb(ap), key=it.cle||nameOf(it); x.save(); x.globalAlpha=ap; x.translate(cxi,cyi); x.scale(s,s);
       if(sty==="daara"){ rr(x,-cw*.44,-ch*.42,cw*.88,ch*.84,14); x.fillStyle=on?"#FFFBF0":"rgba(255,251,240,.7)"; x.shadowColor="rgba(60,30,10,.3)"; x.shadowBlur=act?18:6; x.fill(); x.shadowColor="transparent"; x.lineWidth=act?4:2; x.strokeStyle=act?"#E8A33D":"#C9A26A"; x.stroke();
@@ -334,9 +334,9 @@ function stage(cv, L, P, o){ o=o||{};
     if(sty==="aventure"){ x.save(); x.strokeStyle="rgba(255,240,180,.5)"; x.lineWidth=2; x.setLineDash([4,8]); x.beginPath(); items.forEach((it,i)=>{ if(t<pt.start+i*pt.step) return; const r=Math.floor(i/cols), c=i%cols, X=rtl?bx+bw-(c+.5)*cw:bx+(c+.5)*cw, Y=y0+(r+.5)*ch; if(i===0) x.moveTo(X,Y); else x.lineTo(X,Y); }); x.stroke(); x.restore(); } }
 
   /* ---------------- présentateur 3D (garçon en boubou) dans le Grand Théâtre et la Grande Aventure ---------------- */
-  function avatarSolo(x,t,pt){ if(!L.personnage||M==="daara"||!AV||!AV.ready()) return; const R=V?{x:W*.5,y:H*.5,w:W*.56,h:H*.37}:Q?{x:W*.62,y:H*.55,w:W*.42,h:H*.48}:{x:W*.78,y:H*.4,w:W*.24,h:H*.62};
+  function avatarSolo(x,t,pt){ if(!L.personnage||M==="daara"||!AV||!AV.ready()) return; if((V||Q)&&(pt.k==="quiz"||pt.k==="recap")) return; const R=V?{x:W*.5,y:H*.5,w:W*.56,h:H*.37}:Q?{x:W*.62,y:H*.55,w:W*.42,h:H*.48}:{x:W*.78,y:H*.4,w:W*.24,h:H*.62};
     if(!V&&!Q) R.x=-W*.02; const m=talk(t), r=pt.k==="item"?pt.reps.find(q=>t>=q.cue&&t<q.toi[1]):null, point=pt.k==="item"&&t<pt.v[1]?cl((t-pt.a-.3)/.4):0, say0=P.say.filter(z=>!z.chorus&&z.t<=t).pop();
-    const c=AV.render(R.w*K,R.h*K,t,{mouth:m,speak:m>.05,since:say0?t-say0.t:9,point,side:R.x<W/2?1:-1,open:r&&t>=r.toi[0]?1:0,rock:false},{scene:"solo",style:(o.avatar||{}).style||"indigo",skin:(o.avatar||{}).skin||"fonce"}); if(c) x.drawImage(c,R.x,R.y,R.w,R.h); }
+    const c=AV.render(R.w*K,R.h*K,t,{mouth:m,speak:m>.05,since:say0?t-say0.t:9,point,up:V?.6:.2,side:R.x<W/2?1:-1,open:r&&t>=r.toi[0]?1:0,rock:false},{scene:"solo",style:(o.avatar||{}).style||"indigo",skin:(o.avatar||{}).skin||"fonce"}); if(c) x.drawImage(c,R.x,R.y,R.w,R.h); }
 
   /* ---------------- une image ---------------- */
   function draw(t){ t=Math.max(0,Math.min(P.total-.001,t)); const pt=partAt(t); g.setTransform(K,0,0,K,0,0); g.__T=g.getTransform(); g.globalAlpha=1; g.globalCompositeOperation="source-over"; g.filter="none";

@@ -855,6 +855,18 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
   .mt-tabs{margin-inline:-2px}
 }
 @media(prefers-reduced-motion:reduce){section[data-view]:not([hidden])>.content{animation:none}.mt-tabs button[aria-selected="true"]{transform:none}}
+/* Leçons animées (3 modèles cinématiques) */
+.lc-models .rc-th canvas{aspect-ratio:16/9}
+.lc-models .rc-th .lc-lang{font-size:12px;font-weight:700;color:var(--view-accent)}
+.lc-items{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.lc-item{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr) 58px 40px;grid-template-areas:"n cle nom mot emo del" ". voix voix voix voix voix";gap:6px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:12px;background:var(--surface);min-width:0}
+.lc-item input{width:100%;min-width:0;min-height:40px;font:inherit;font-size:15px;padding:6px 8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink)}
+.lc-n{grid-area:n;font-weight:750;color:var(--muted);text-align:center}.lc-cle{grid-area:cle;font-weight:700}.lc-nom{grid-area:nom}.lc-mot{grid-area:mot}.lc-emo{grid-area:emo;text-align:center}.lc-v{grid-area:voix;font-size:14px!important}
+.lc-del{grid-area:del;min-height:40px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);cursor:pointer;font:inherit}
+@media (max-width:560px){.lc-item{grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 52px 38px;grid-template-areas:"n cle nom emo del" ". mot mot mot mot" ". voix voix voix voix"}}
+.lc-prev{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.lc-prev img{width:100%;height:auto;border-radius:10px;display:block;background:#000}
+.lc-prev.v{grid-template-columns:repeat(3,minmax(0,160px))}
+.lc-live{width:100%;max-width:720px;border-radius:12px;background:#000;display:block}
 /* Garder la voix, refaire l'image (récitations, lectures, conférences) */
 .rc-home{max-width:1000px}
 .rc-step .sub-h{margin:0}
@@ -1449,6 +1461,68 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
       </section>
 
       <!-- ============ VIDÉO RÉELLE ============ -->
+      <section id="view-lecon" data-view="lecon" hidden>
+        <div class="content rc-home lc-home">
+          <div class="page-head">
+            <span class="kicker">Créer · leçon animée</span>
+            <h1>Une leçon qui donne envie d’apprendre.</h1>
+            <p>Alphabet, chiffres, mots, couleurs, invocations, règles de lecture… Choisis un modèle de cinéma, décris la leçon : l’agent l’écrit, une voix gratuite la dit, la vidéo se fabrique sur ton ordinateur. Trois modèles, en français, en arabe et en anglais.</p>
+          </div>
+          <div class="panel rc-step">
+            <h2 class="sub-h">1 · Le modèle</h2>
+            <div class="rc-themes lc-models" id="lc-models" role="radiogroup" aria-label="Modèle de leçon"></div>
+          </div>
+          <div class="panel rc-step">
+            <h2 class="sub-h">2 · La leçon</h2>
+            <div class="field"><label for="lc-sujet">Sujet de la leçon</label><textarea id="lc-sujet" rows="3" placeholder="Ex. : les lettres arabes de Alif à Kha avec un mot pour chacune ; les couleurs en anglais ; les chiffres de 1 à 10"></textarea></div>
+            <div class="rc-row">
+              <div class="field"><label for="lc-langue">Langue de la leçon</label><div class="sel"><select id="lc-langue"><option value="fr">Français</option><option value="ar">Arabe</option><option value="en">Anglais</option></select></div></div>
+              <div class="field"><label for="lc-age">Pour qui ?</label><div class="sel"><select id="lc-age"><option value="petits">Petits (3 à 5 ans)</option><option value="enfants" selected>Enfants (6 à 9 ans)</option><option value="tous">Tout le monde</option></select></div></div>
+              <div class="field"><label for="lc-nb">Nombre d’éléments</label><div class="sel"><select id="lc-nb"><option value="auto">Automatique</option><option value="4">4</option><option value="6">6</option><option value="8">8</option><option value="12">12</option><option value="28">Jusqu’à 28</option></select></div></div>
+            </div>
+            <div class="actions"><button type="button" class="btn primary" id="lc-go">✨ L’agent écrit la leçon</button><button type="button" class="btn" id="lc-free">⚡ Sans IA</button><button type="button" class="btn" id="lc-stop" hidden>Arrêter</button></div>
+            <details class="rc-more" id="lc-more"><summary>Écrire la leçon moi-même, ou partir d’un exemple</summary>
+              <p class="hint">Une ligne par élément : <b>ce qu’on montre | son nom | un mot exemple | un emoji | sa traduction</b>. Exemple : <span dir="ltr">B | bé | Bateau | ⛵ | boat</span></p>
+              <div class="field"><label for="lc-lignes">Mes éléments</label><textarea id="lc-lignes" rows="6"></textarea></div>
+              <p class="hint">Exemples prêts, sans IA :</p>
+              <div class="actions" id="lc-presets"></div>
+            </details>
+            <p class="hint" id="lc-msg" aria-live="polite"></p>
+          </div>
+          <div class="panel rc-step" id="lc-s3" hidden>
+            <h2 class="sub-h">3 · Vérifie et ajuste</h2>
+            <div class="rc-row">
+              <div class="field rc-grow"><label for="lc-titre">Titre</label><input type="text" id="lc-titre" class="plain-in" maxlength="80"></div>
+              <div class="field rc-grow"><label for="lc-stitre">Sous-titre</label><input type="text" id="lc-stitre" class="plain-in" maxlength="90"></div>
+            </div>
+            <ol class="lc-items" id="lc-items"></ol>
+            <div class="actions"><button type="button" class="btn" id="lc-add">+ Ajouter un élément</button></div>
+            <div class="rc-row">
+              <div class="field"><label for="lc-rep">L’enfant répète</label><div class="sel"><select id="lc-rep"><option value="0">Pas de répétition</option><option value="1">1 fois</option><option value="2">2 fois</option><option value="3">3 fois</option></select></div></div>
+              <label class="check"><input type="checkbox" id="lc-quiz" checked><span>Petit quiz à la fin</span></label>
+              <label class="check"><input type="checkbox" id="lc-chorus"><span>Des enfants répètent (chœur)</span></label>
+              <label class="check"><input type="checkbox" id="lc-perso" checked><span>Personnage 3D</span></label>
+              <label class="check"><input type="checkbox" id="lc-subs" checked><span>Sous-titres</span></label>
+            </div>
+            <div class="lc-prev" id="lc-prev" aria-label="Aperçu : trois moments de la leçon"></div>
+            <div class="actions"><button type="button" class="btn" id="lc-play">▶ Aperçu animé (sans le son)</button></div>
+            <canvas id="lc-live" class="lc-live" hidden></canvas>
+          </div>
+          <div class="panel rc-step" id="lc-s4" hidden>
+            <h2 class="sub-h">4 · La vidéo</h2>
+            <div class="rc-row">
+              <div class="field"><label for="lc-voix">Voix du maître</label><div class="sel"><select id="lc-voix"></select></div></div>
+              <div class="field"><label for="lc-amb">Fond sonore</label><div class="sel"><select id="lc-amb"><option value="musique">Musique douce</option><option value="vent">Brise légère (sans instrument)</option><option value="ruisseau">Ruisseau (sans instrument)</option><option value="nuit">Nuit calme (sans instrument)</option><option value="aucun">Aucun fond</option></select></div></div>
+              <div class="field"><label for="lc-fmt">Format</label><div class="sel"><select id="lc-fmt"></select></div></div>
+            </div>
+            <div class="actions"><button type="button" class="btn primary" id="lc-make">🎬 Fabriquer la vidéo</button><button type="button" class="btn" id="lc-vstop" hidden>Arrêter et garder le début</button></div>
+            <p class="hint" id="lc-vmsg" aria-live="polite"></p>
+            <div id="lc-vids"></div>
+            <div class="field" id="lc-pubbox" hidden><label for="lc-pub">Texte de publication (titre, description, mots-clés)</label><textarea id="lc-pub" rows="6"></textarea><div class="actions"><button type="button" class="btn" id="lc-copy">Copier le texte</button></div></div>
+            <p class="hint">Illustrations : Twemoji (licence CC BY 4.0). Tout est dessiné par l’application : aucune image d’IA, aucun droit d’auteur. Le Coran n’est jamais lu par une voix de synthèse : pour une sourate, utilise « Garder la voix » avec une vraie récitation.</p>
+          </div>
+        </div>
+      </section>
       <section id="view-recitation" data-view="recitation" hidden>
         <div class="content rc-home">
           <div class="page-head">
@@ -3594,11 +3668,12 @@ const LOCAL_ERR = new Set(["no_credit","no_key","no_model","bad_key","network","
 const errText = e => { if(e && !ERR[e.code] && !LOCAL_ERR.has(e.code)) console.error(e); return ERR[e&&e.code] || (e && LOCAL_ERR.has(e.code) && e.message) || `La demande a échoué${e&&e.message?` (${String(e.message).slice(0,160)})`:""}. Réessaie.`; };
 
 /* =================== ROUTER =================== */
-const VIEWS = {accueil:"Accueil", constructeur:"Créer · constructeur", recitation:"Créer · garder la voix", assistant:"Créer · en 3 questions", connexions:"Connexions et voix", presse:"Créer · motion design", agence:"Agence · clients et créations", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
+const VIEWS = {accueil:"Accueil", constructeur:"Créer · constructeur", recitation:"Créer · garder la voix", lecon:"Créer · leçon animée", assistant:"Créer · en 3 questions", connexions:"Connexions et voix", presse:"Créer · motion design", agence:"Agence · clients et créations", tendances:"Veille du jour", idees:"Idées", studio:"Créer · idée", images:"Images", audio:"Créer · audio", reel:"Créer · vidéo", niches:"Stratégie · niches", pays:"Stratégie · pays", persos:"Personnages", memoire:"Mémoire de l'agent", qualite:"Réparer une image", son:"Son et sous-titres", chaine:"Stratégie · chaîne", projets:"Projets"};
 const VIEW_PROFILES = Object.freeze({
   accueil:{family:"command",index:"00",code:"EXECUTIVE STUDIO",accent:"#B0502A",accent2:"#E49357",deep:"#32170F",tags:["Créer","Produire","Publier"]},
   constructeur:{family:"production",index:"19",code:"VIDEO BUILDER",accent:"#C2410C",accent2:"#F59E0B",deep:"#3B1406",tags:["Demande","Fichiers","Montage"]},
   recitation:{family:"production",index:"20",code:"VOICE-KEPT STUDIO",accent:"#0E7C66",accent2:"#D4AF37",deep:"#06281F",tags:["Voix intacte","Habillage","Direct"]},
+  lecon:{family:"production",index:"21",code:"LESSON CINEMA",accent:"#B4235A",accent2:"#F2B33D",deep:"#2A0814",tags:["3 modèles","FR · AR · EN","Répète après moi"]},
   assistant:{family:"command",index:"18",code:"GUIDED START",accent:"#B0502A",accent2:"#E49357",deep:"#32170F",tags:["Type","Départ","Format"]},
   tendances:{family:"radar",index:"01",code:"NEWS INTELLIGENCE",accent:"#087B83",accent2:"#35C8D0",deep:"#06363D",tags:["Signaux du jour","Pays","Sources"]},
   idees:{family:"editorial",index:"02",code:"WRITERS' ROOM",accent:"#A54A16",accent2:"#F2A13A",deep:"#42210D",tags:["Angle","Audience","Originalité"]},
@@ -3651,7 +3726,7 @@ initProfessionalViews();
    « presse:succes » = l'onglet Succès YouTube de Motion design (rangé dans Idées) ; « presse:motion » = Motion design, dernier type de vidéo choisi. */
 const GROUPS = {
   accueil:{nom:"Accueil", tabs:[["accueil","Accueil"]]},
-  creer:{nom:"Créer", tabs:[["constructeur","✨ Constructeur"],["recitation","🎙 Garder la voix"],["assistant","En 3 questions"],["studio","Depuis une idée"],["audio","Depuis un audio"],["reel","Depuis une vidéo"],["presse:motion","Motion design"]]},
+  creer:{nom:"Créer", tabs:[["constructeur","✨ Constructeur"],["recitation","🎙 Garder la voix"],["lecon","🎓 Leçon animée"],["assistant","En 3 questions"],["studio","Depuis une idée"],["audio","Depuis un audio"],["reel","Depuis une vidéo"],["presse:motion","Motion design"]]},
   trouver:{nom:"Idées", tabs:[["idees","Idées originales"],["tendances","Tendances du jour"],["presse:succes","Vidéos à succès"]]},
   contenus:{nom:"Mes projets", tabs:[["projets","Projets"],["persos","Personnages"],["images","Images"],["agence","Mes clients"]]},
   strategie:{nom:"Ma chaîne", tabs:[["niches","Niches"],["pays","Pays et monétisation"],["chaine","Chaîne YouTube"],["memoire","Mémoire et statistiques"]]},
@@ -4262,7 +4337,7 @@ async function rcBlankSilence(){ const m=$("rc-blank-msg"); if(RC.busy) return; 
   try{ const an=await rcApi("/api/recit/blank",{method:"POST", body:{seconds:+$("rc-blank-dur").value||60}}); RC.id=an.id; RC.items=[]; RC.ambUp=""; RC.heard=null; RC.heardTxt=""; RC.und=null; RC.lines=null; RC.msg=null; RC.follow=false; RC.fileName="Projet sans voix";
     await rcProjects(); rcLoaded(an, null); m.textContent=""; $("rc-info").textContent=`✅ Projet sans voix : ${rcDur(an.duration)}. Choisis le texte à l’étape 2 (Coran, ton texte…), puis une ambiance à l’étape 5.`; rcSteps(2); $("rc-s2").scrollIntoView({behavior:"smooth",block:"start"}); }
   catch(e){ m.textContent=e.message||"Échec. Réessaie."; } finally{ RC.busy=false; } }
-function rcBlankInit(){ $("rc-blank-open").addEventListener("click",()=>{ const box=$("rc-blank"), open=box.hidden; box.hidden=!open; $("rc-blank-open").setAttribute("aria-expanded",String(open)); if(open){ $("rc-blank-voice").innerHTML=spVoiceOptions(loadPrefs().rcBlankVoice||"auto")+`<optgroup label="Voix gratuites sur l'ordinateur (anglais, arabe)">${Object.values(SP_LOCAL_LANG).map(v=>`<option value="local:${v.id}">${v.name} · ${v.desc} · gratuite</option>`).join("")}</optgroup>`; } });
+function rcBlankInit(){ $("rc-blank-open").addEventListener("click",()=>{ const box=$("rc-blank"), open=box.hidden; box.hidden=!open; $("rc-blank-open").setAttribute("aria-expanded",String(open)); if(open) $("rc-blank-voice").innerHTML=spVoiceOptionsAll(loadPrefs().rcBlankVoice||"auto"); });
   $("rc-blank-mode").addEventListener("click",e=>{ const b=e.target.closest("[data-bm]"); if(b) rcBlankMode(b.dataset.bm); });
   $("rc-rec").addEventListener("click", rcRecToggle); $("rc-blank-tts").addEventListener("click", rcBlankTts); $("rc-blank-sil").addEventListener("click", rcBlankSilence);
   $("rc-blank-voice").addEventListener("change",e=>savePrefs({rcBlankVoice:e.target.value})); }
@@ -4282,7 +4357,8 @@ ${$("rc-pub-d").value}`; try{ await navigator.clipboard.writeText(t); toast("Tit
   $("rc-old").addEventListener("change", e=>{ $("rc-del").disabled=!e.target.value; rcOpen(e.target.value); });
   $("rc-del").addEventListener("click", async ()=>{ const id=$("rc-old").value||RC.id, p=RC.projs.find(x=>x.id===id); if(!id||RC.busy||!confirm(`Supprimer le projet « ${(p&&p.nom)||"Sans titre"} » (voix et vidéos) de l’ordinateur ?`)) return;
     try{ if(id===RC.id){ const au=$("rc-audio"); au.pause(); au.removeAttribute("src"); au.load(); cancelAnimationFrame(RC.raf); }   /* libère le fichier de la voix (Windows refuse d’effacer un fichier ouvert) */
-      await rcApi("/api/recit/delete",{method:"POST", body:{id}}); if(id===RC.id){ RC.id=""; RC.an=null; RC.items=[]; rcSteps(1); $("rc-audio").removeAttribute("src"); $("rc-info").textContent="Projet supprimé."; } await rcProjects(); }catch(e){ toast(e.message||"Suppression impossible."); } });
+      for(let k=0;;k++){ try{ await rcApi("/api/recit/delete",{method:"POST", body:{id}}); break; }catch(e){ if(k<2&&e&&e.code==="busy"){ await new Promise(r=>setTimeout(r,1500)); continue; } throw e; } }   /* Windows : un fichier encore ouvert par la lecture se libère en un instant */
+      if(id===RC.id){ RC.id=""; RC.an=null; RC.items=[]; rcSteps(1); $("rc-audio").removeAttribute("src"); $("rc-info").textContent="Projet supprimé."; } await rcProjects(); }catch(e){ toast(e.message||"Suppression impossible."); } });
   $("rc-reanalyze").addEventListener("click", async ()=>{ if(!RC.id||RC.busy) return; RC.busy=true; try{ const an=await rcAnalyze(); RC.busy=false; const had=RC.items.length; rcLoaded(an, null); if(had) await rcAlignRun(); }catch(e){ rcProg("rc-prog",0,""); $("rc-info").textContent=e.message; } finally{ RC.busy=false; } });
   document.querySelectorAll("[data-rc-mode]").forEach(b=>b.addEventListener("click",()=>rcMode(b.dataset.rcMode)));
   $("rc-pass").addEventListener("change", e=>{ const el=e.target.closest("[data-rc-p]"); if(!el) return; RC.follow=false; const [i,k]=el.dataset.rcP.split(":"), p=RC.pass[+i]; if(!p) return;
@@ -8321,6 +8397,7 @@ function episodeToStudio(i){
 /* =================== ROUTAGE DES VUES EXPERTES =================== */
 function onViewShown(name){
   if(name==="recitation") rcShow();
+  if(name==="lecon") lcShow();
   if(name==="son") fillSndSrc();
   if(name==="persos"){ renderCharList(); renderDraft(); }
   if(name==="studio"||name==="chaine") renderPickers();
@@ -8353,6 +8430,7 @@ function spCine(c, W, H, t, cuts){
 /* ---------- Voix (« parleurs ») des onglets Quiz et Publicités : la même chaîne gratuite que la revue de presse (Gemini, puis Hugging Face, puis l'ordinateur) ---------- */
 /* voix signature : une voix gratuite + sa manière de parler + le réglage du son (hauteur, chaleur, écho, rythme), créée à partir des qualités d'une voix importée */
 function sigList(){ try{ return (loadPrefs().sigs||[]).filter(x=>x&&x.id&&x.base); }catch(e){ return []; } }
+function spVoiceOptionsAll(sel){ return spVoiceOptions(sel)+`<optgroup label="Voix gratuites sur l'ordinateur (anglais, arabe)">${Object.values(SP_LOCAL_LANG).map(v=>`<option value="local:${v.id}"${sel==="local:"+v.id?" selected":""}>${v.name} · ${v.desc} · gratuite</option>`).join("")}</optgroup>`; }
 function spVoiceOptions(sel){
   const g=FAB.voices.gemini||[], o=(v,l)=>`<option value="${esc(v)}"${v===sel?" selected":""}>${esc(l)}</option>`;
   return o("none","Sans voix (musique et effets seulement)")+`<optgroup label="Recommandé">${o("auto","⭐ La meilleure voix gratuite (automatique)")}</optgroup>`+(sigList().length?`<optgroup label="Mes voix signature (gratuites)">${sigList().map(v=>o("sig:"+v.id,`🎙 ${v.nom}`)).join("")}</optgroup>`:"")+(g.length?`<optgroup label="Voix Gemini (gratuites dans la limite du jour)">${g.map(v=>o(v.id,`${v.name} · ${v.desc}`)).join("")}</optgroup>`:"")
@@ -11796,6 +11874,150 @@ async function cbMake(){ const P=CB.plan; if(!P) return; const m=$("cb-vmsg"), b
     m.textContent=CB.videos.map(v=>`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"}${CB.videos.length>1?` (${SP_FMT[v.fmt].court})`:""} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo${v.pro?", Full HD":""}.`).join(" "); }
   catch(err){ m.textContent=errText(err)||"La vidéo a échoué : réessaie."; }
   finally{ try{ ac.close(); }catch(e){} bt.disabled=false; $("cb-vstop").hidden=true; } }
+/* =================== LEÇONS ANIMÉES (14 octobre) : 3 modèles cinématiques pour n'importe quelle leçon, en français, en arabe et en anglais ===================
+   Le dessin est dans public/lecon-fx.js (SP_LECON). Ici : la page ; l'agent qui écrit la leçon avec la grammaire apprise des vidéos de référence
+   de l'utilisateur ; « Sans IA » (lignes écrites ou exemples prêts) ; les voix gratuites (relais dans la langue de la leçon) ; le mixage (voix du
+   maître, chœur d'enfants, effets, fond sonore) ; la vidéo Full HD image par image (sinon enregistrement en direct) ; Mes projets. */
+const LC={model:"theatre", L:null, videos:[], stop:false, ctl:null, pub:null, key:"", playing:0, shown:false}; window.__spLecon=LC;   /* état lisible par les tests */
+const LC_AUTO={theatre:"Leda", daara:"Iapetus", aventure:"Achernar"};   /* voix Gemini « automatique » de chaque modèle */
+const LC_STYLE="a warm, joyful and patient teacher speaking to young children: clear articulation, smiling voice, unhurried, gentle enthusiasm, short pauses between ideas";
+const LC_AMB={theatre:"musique", daara:"vent", aventure:"musique"};
+/* exemples prêts (données, pas de logique) : alphabets et chiffres, chaque unité avec un mot connu et une image */
+const LC_AR_WORDS=[["أَرْنَبٌ","🐇","lapin"],["بَطَّةٌ","🦆","canard"],["تُفَّاحَةٌ","🍎","pomme"],["ثَعْلَبٌ","🦊","renard"],["جَمَلٌ","🐫","chameau"],["حِصَانٌ","🐎","cheval"],["خَرُوفٌ","🐑","mouton"],["دُبٌّ","🐻","ours"],["ذُرَةٌ","🌽","maïs"],["رِيشَةٌ","🪶","plume"],["زَرَافَةٌ","🦒","girafe"],["سَمَكَةٌ","🐟","poisson"],["شَمْسٌ","☀️","soleil"],["صُنْدُوقٌ","📦","boîte"],["ضِفْدَعٌ","🐸","grenouille"],["طَائِرَةٌ","✈️","avion"],["ظَرْفٌ","✉️","enveloppe"],["عِنَبٌ","🍇","raisin"],["غَزَالٌ","🦌","gazelle"],["فِيلٌ","🐘","éléphant"],["قِطٌّ","🐱","chat"],["كِتَابٌ","📖","livre"],["لَيْمُونٌ","🍋","citron"],["مَوْزٌ","🍌","banane"],["نَحْلَةٌ","🐝","abeille"],["هِلَالٌ","🌙","croissant de lune"],["وَرْدَةٌ","🌹","rose"],["يَدٌ","✋","main"]];
+const LC_FR_ABC="A|a|Avion|✈️;B|bé|Ballon|🎈;C|cé|Chat|🐱;D|dé|Dauphin|🐬;E|e|Éléphant|🐘;F|effe|Fraise|🍓;G|gé|Girafe|🦒;H|ache|Hibou|🦉;I|i|Île|🏝️;J|ji|Jus|🧃;K|ka|Koala|🐨;L|elle|Lion|🦁;M|emme|Maison|🏠;N|enne|Nuage|☁️;O|o|Orange|🍊;P|pé|Poisson|🐟;Q|ku|Quille|🎳;R|erre|Robot|🤖;S|esse|Soleil|☀️;T|té|Tortue|🐢;U|u|Usine|🏭;V|vé|Vélo|🚲;W|double vé|Wagon|🚃;X|ixe|Xylophone|🎶;Y|i grec|Yoyo|🪀;Z|zède|Zèbre|🦓";
+const LC_EN_ABC="Aa|ay|Apple|🍎|pomme;Bb|bee|Ball|⚽|ballon;Cc|see|Cat|🐱|chat;Dd|dee|Dog|🐶|chien;Ee|ee|Egg|🥚|œuf;Ff|ef|Fish|🐟|poisson;Gg|jee|Grapes|🍇|raisin;Hh|aitch|Hat|🎩|chapeau;Ii|eye|Ice cream|🍦|glace;Jj|jay|Juice|🧃|jus;Kk|kay|Kite|🪁|cerf-volant;Ll|el|Lion|🦁|lion;Mm|em|Moon|🌙|lune;Nn|en|Nose|👃|nez;Oo|oh|Orange|🍊|orange;Pp|pee|Pizza|🍕|pizza;Qq|cue|Queen’s crown|👑|couronne;Rr|ar|Rabbit|🐇|lapin;Ss|ess|Sun|☀️|soleil;Tt|tee|Tree|🌳|arbre;Uu|you|Umbrella|☂️|parapluie;Vv|vee|Violin|🎻|violon;Ww|double-you|Whale|🐋|baleine;Xx|ex|Xylophone|🎶|xylophone;Yy|why|Yo-yo|🪀|yo-yo;Zz|zee|Zebra|🦓|zèbre";
+const LC_NUM={fr:"1|un|un soleil|☀️;2|deux|deux yeux|👀;3|trois|trois fraises|🍓;4|quatre|quatre pattes|🐾;5|cinq|cinq doigts|✋;6|six|six pattes de coccinelle|🐞;7|sept|sept couleurs de l’arc-en-ciel|🌈;8|huit|huit bras de la pieuvre|🐙;9|neuf|neuf ballons|🎈;10|dix|dix doigts|🙌",
+  en:"1|one|one sun|☀️|un;2|two|two eyes|👀|deux;3|three|three strawberries|🍓|trois;4|four|four paws|🐾|quatre;5|five|five fingers|✋|cinq;6|six|six ladybug legs|🐞|six;7|seven|seven rainbow colors|🌈|sept;8|eight|eight octopus arms|🐙|huit;9|nine|nine balloons|🎈|neuf;10|ten|ten fingers|🙌|dix",
+  ar:"١|وَاحِدٌ||☀️|un;٢|اثْنَانِ||👀|deux;٣|ثَلَاثَةٌ||🍓|trois;٤|أَرْبَعَةٌ||🐾|quatre;٥|خَمْسَةٌ||✋|cinq;٦|سِتَّةٌ||🐞|six;٧|سَبْعَةٌ||🌈|sept;٨|ثَمَانِيَةٌ||🐙|huit;٩|تِسْعَةٌ||🎈|neuf;١٠|عَشَرَةٌ||🙌|dix"};
+const lcRows = txt => String(txt).split(";").map(r=>{ const [cle,nom,mot,image,sens]=r.split("|"); return {cle,nom,mot,image,sens}; });
+const LC_PRESETS={
+  ar_abc:{nom:"🌙 Alphabet arabe (28 lettres)", L:()=>({titre:"حُرُوفُ الهِجَاءِ", sous_titre:"Les 28 lettres arabes", langue:"ar", modele:"daara", items:AR_LETTERS.map(([g,ar,la],i)=>({cle:g, nom:ar, phon:la, mot:LC_AR_WORDS[i][0], image:LC_AR_WORDS[i][1], sens:LC_AR_WORDS[i][2]}))})},
+  fr_abc:{nom:"🇫🇷 Alphabet français", L:()=>({titre:"L’alphabet de A à Z", sous_titre:"Une lettre, un mot, une image", langue:"fr", modele:"theatre", items:lcRows(LC_FR_ABC)})},
+  en_abc:{nom:"🇬🇧 English alphabet", L:()=>({titre:"The ABC", sous_titre:"From A to Z", langue:"en", modele:"aventure", items:lcRows(LC_EN_ABC)})},
+  num:{nom:"🔢 Chiffres de 1 à 10 (langue choisie)", L:lang=>({titre:lang==="ar"?"الأَرْقَامُ مِنْ ١ إِلَى ١٠":lang==="en"?"Numbers 1 to 10":"Les chiffres de 1 à 10", sous_titre:lang==="en"?"Count with me!":lang==="ar"?"Les chiffres en arabe":"Compte avec moi !", langue:lang, modele:SP_LECON.modelOf[lang], items:lcRows(LC_NUM[lang]||LC_NUM.fr)})}};
+/* lignes écrites à la main : « ce qu'on montre | son nom | mot | emoji | traduction », ou simplement « A Avion ✈️ » */
+function lcParse(txt){ return String(txt||"").split(/\n/).map(l=>l.trim()).filter(Boolean).slice(0,40).map(l=>{ if(l.includes("|")){ const [cle,nom,mot,image,sens]=l.split("|").map(x=>x.trim()); return {cle,nom,mot,image,sens}; }
+  const emo=(l.match(/\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*/u)||[""])[0], rest=l.replace(emo,"").trim().split(/\s+/); return {cle:rest[0]||"", mot:rest.slice(1).join(" "), image:emo}; }).filter(x=>x.cle||x.mot); }
+const lcOpts = () => ({sujet:$("lc-sujet").value.trim(), langue:$("lc-langue").value, age:$("lc-age").value, nb:$("lc-nb").value, model:LC.model});
+/* l'agent écrit la leçon : grammaire des meilleures leçons (vidéos de référence), règles du Coran et des hadiths, langue et public */
+function lcPrompt(o, lines){ const M=SP_LECON.models[o.model], LN={fr:"français", ar:"arabe (avec toutes les voyelles)", en:"anglais"}[o.langue], AGE={petits:"petits de 3 à 5 ans (phrases très courtes)", enfants:"enfants de 6 à 9 ans", tous:"tout le monde (enfants et adultes débutants)"}[o.age];
+  let pub=""; try{ pub=activeLessons({outil:""},"strategie").filter(l=>l.domaine==="publication").map(l=>l.regle).slice(0,3).join(" ; "); }catch(e){}
+  return `Tu es pédagogue pour enfants et réalisateur de vidéos éducatives (YouTube, TikTok). Écris une LEÇON ANIMÉE.
+Sujet : « ${o.sujet||"d’après les éléments donnés"} ».${lines?`\nÉléments donnés par l’utilisateur (à garder, à compléter) :\n${lines.slice(0,2000)}`:""}
+Langue de la leçon : ${LN}. Tout ce qui est dit et écrit est dans cette langue, sauf « sens » (traduction française courte, pour les parents). Public : ${AGE}. Nombre d’éléments : ${o.nb==="auto"?"5 à 10 selon le sujet":o.nb}.
+Modèle visuel : ${M.nom} (${M.desc}).
+GRAMMAIRE DES MEILLEURES LEÇONS (apprise des vidéos de référence de l’utilisateur) :
+- UNE unité à la fois, montrée en très grand : « cle » (une lettre, une syllabe, un chiffre, un mot court ; 12 caractères au plus) ;
+- son nom tel qu’on le prononce : « nom » ; si utile, sa lecture en lettres latines : « phon » ;
+- un exemple concret que l’enfant connaît : « mot », avec UNE image : « image » = un seul emoji clair (objet, animal, fruit, nature) ;
+- « voix » : ce que dit le maître pour présenter l’élément, une ou deux phrases courtes et joyeuses ;
+- « repete » : combien de fois l’enfant répète (0 à 3 ; 1 par défaut ; 2 pour un son difficile) ;
+- une phrase à apprendre (invocation, règle, bon comportement) va dans « texte » (240 caractères au plus), avec « cle » court ou vide ;
+- un accueil (« intro ») et une fin (« fin » : bravo et à bientôt) chaleureux.
+RÈGLES :
+- Jamais de verset du Coran dans « voix », « texte » ni « intro » : le Coran n’est jamais lu par une voix de synthèse. Pour une sourate, enseigne les mots, le sens ou les règles, et écris dans « avertissement » d’utiliser une vraie récitation.
+- Un hadith seulement s’il est authentique, avec sa source exacte (recueil et numéro) dans « sources » ; sinon aucun.
+- Aucun prophète, compagnon ni personne réelle représenté ; aucune marque ; aucun texte protégé. Exactitude : alphabet, orthographe, voyelles arabes complètes sur « cle » et « mot » en arabe.${pub?`\n- Publication, d’après les statistiques de l’utilisateur : ${pub}.`:""}
+RÉPONDS UNIQUEMENT avec ce JSON : {"titre":"","sous_titre":"","intro":"","fin":"","items":[{"cle":"","nom":"","phon":"","mot":"","image":"","sens":"","voix":"","repete":1,"texte":""}],"quiz":true,"avertissement":"","sources":[],"publication":{"titre":"","description":"","hashtags":["#…"]}}`; }
+/* les trois cartes des modèles : un vrai moment de leçon dessiné par le moteur */
+const LC_DEMO={theatre:{titre:"Les fruits",langue:"fr",modele:"theatre",items:[{cle:"A",mot:"Ananas",image:"🍍"},{cle:"B",mot:"Banane",image:"🍌"},{cle:"C",mot:"Cerise",image:"🍒"}]},
+  daara:{titre:"حُرُوفُ الهِجَاءِ",langue:"ar",modele:"daara",items:[{cle:"بَ",nom:"باء",phon:"ba",mot:"بَطَّةٌ",image:"🦆",sens:"canard"},{cle:"تُ",nom:"تاء",phon:"tu",mot:"تُفَّاحَةٌ",image:"🍎"},{cle:"ثِ",nom:"ثاء",phon:"thi",mot:"ثَعْلَبٌ",image:"🦊"}]},
+  aventure:{titre:"Animals",langue:"en",modele:"aventure",items:[{cle:"Aa",mot:"Ant",image:"🐜"},{cle:"Bb",mot:"Bear",image:"🐻"},{cle:"Cc",mot:"Cat",image:"🐱"}]}};
+async function lcModels(){ const box=$("lc-models"); box.replaceChildren();
+  for(const [k,M] of Object.entries(SP_LECON.models)){ const b=document.createElement("button"); b.type="button"; b.className="rc-th"; b.setAttribute("role","radio"); b.dataset.lcModel=k; b.setAttribute("aria-checked",String(k===LC.model));
+    const c=document.createElement("canvas"); b.append(c); b.insertAdjacentHTML("beforeend",`<b>${esc(M.nom)}</b><span class="lc-lang">${esc(SP_LECON.langs[M.lang].nom)} par défaut · les 3 langues</span><small>${esc(M.desc)}</small>`); box.append(b);
+    try{ const L=SP_LECON.norm(LC_DEMO[k]); L.personnage=false; await SP_LECON.ready(L); const P=SP_LECON.plan(L,null), it=P.parts.find(x=>x.k==="item"); SP_LECON.stage(c,L,P,{fmt:"16:9",K:.3}).draw(it.ex+1); }catch(e){} } }
+function lcPick(k){ if(!SP_LECON.models[k]) return; LC.model=k; document.querySelectorAll("#lc-models [data-lc-model]").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.lcModel===k)));
+  if(!LC.L) $("lc-langue").value=SP_LECON.models[k].lang; savePrefs({lcModel:k}); if(LC.L){ LC.L.modele=k; LC.L.chorus=SP_LECON.models[k].chorus; $("lc-amb").value=LC_AMB[k]; lcOptsRender(); lcSave(); lcPreview(); } }
+function lcShow(){ if(LC.shown) return; LC.shown=true; LC.model=SP_LECON.models[loadPrefs().lcModel]?loadPrefs().lcModel:"theatre"; $("lc-langue").value=SP_LECON.models[LC.model].lang;
+  $("lc-presets").innerHTML=Object.entries(LC_PRESETS).map(([k,p])=>`<button type="button" class="btn" data-lc-preset="${k}">${esc(p.nom)}</button>`).join("");
+  $("lc-voix").innerHTML=spVoiceOptionsAll(loadPrefs().lcVoix||"auto"); $("lc-fmt").innerHTML=spFmtOptions(["9:16","16:9","both","1:1"], loadPrefs().lcFmt||"9:16"); $("lc-amb").value=LC_AMB[LC.model];
+  lcModels(); if(LC.L) lcRender(); }
+/* la leçon : par l'agent, sinon sans IA (lignes écrites, exemple prêt d'après le sujet) */
+function lcPresetFor(o){ const t=o.sujet.toLowerCase(); if(/chiffre|nombre|compter|number|count|أرقام|عدد/.test(t)) return LC_PRESETS.num.L(o.langue); if(/alphab|lettre|letter|abc|حروف|هجاء/.test(t)) return (o.langue==="ar"||/arab|عرب/.test(t)?LC_PRESETS.ar_abc:o.langue==="en"?LC_PRESETS.en_abc:LC_PRESETS.fr_abc).L(); return null; }
+async function lcGo(free){ const o=lcOpts(), m=$("lc-msg"), lines=$("lc-lignes").value.trim(); let L=null;
+  if(!free&&sample){ if(o.sujet.length<3&&!lines){ m.textContent="Décris la leçon (ex. : « les lettres arabes de Alif à Kha »), ou touche « Sans IA »."; return; }
+    LC.ctl=new AbortController(); $("lc-go").disabled=true; $("lc-stop").hidden=false; const t0=Date.now(), iv=setInterval(()=>{ m.textContent=`L’agent écrit la leçon… ${Math.round((Date.now()-t0)/1000)} s`; },1000);
+    try{ const r=await sample.json(lcPrompt(o,lines),{modelTier:"complex", engine:"best", cache:false, signal:LC.ctl.signal}); if(r&&Array.isArray(r.items)&&r.items.length){ L=r; LC.pub=r.publication||null; if(r.avertissement) toast(String(r.avertissement).slice(0,200)); } }
+    catch(e){ if(e&&e.code==="cancelled"){ clearInterval(iv); m.textContent="Arrêté."; $("lc-go").disabled=false; $("lc-stop").hidden=true; LC.ctl=null; return; } toast(`Agent indisponible (${errText(e)}) : leçon composée sans IA.`); }
+    finally{ clearInterval(iv); $("lc-go").disabled=false; $("lc-stop").hidden=true; LC.ctl=null; } }
+  if(!L){ LC.pub=null; if(lines) L={titre:o.sujet.slice(0,70)||SP_LECON.langs[o.langue].lecon, items:lcParse(lines)}; else L=lcPresetFor(o); }
+  if(!L||!(L.items||[]).length){ m.textContent="Sans IA : écris une ligne par élément (« ce qu’on montre | son nom | un mot | un emoji »), ou touche un exemple prêt."; $("lc-more").open=true; return; }
+  lcSet(Object.assign({},L,{langue:o.langue, modele:LC.model}), `✅ Leçon prête : ${L.items.length} éléments${LC.pub?" (écrite par l’agent)":" (sans IA)"}. Vérifie, puis fabrique la vidéo.`); }
+function lcSet(L, msg){ const sav=loadPrefs(); LC.L=SP_LECON.norm(L); if(sav.lcRep!=null&&!L.items.some(x=>x.repete!=null)) LC.L.items.forEach(x=>{ x.repete=+sav.lcRep; });
+  LC.model=LC.L.modele; document.querySelectorAll("#lc-models [data-lc-model]").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.lcModel===LC.model))); $("lc-langue").value=LC.L.langue; $("lc-amb").value=LC_AMB[LC.model];
+  LC.key=`lc:${Date.now()}`; LC.videos.forEach(v=>URL.revokeObjectURL(v.url)); LC.videos=[]; $("lc-vids").innerHTML=""; lcRender(); lcSave(); $("lc-msg").textContent=msg||""; $("lc-s3").scrollIntoView({behavior:"smooth",block:"start"}); }
+/* écran : éléments modifiables, réglages, aperçu */
+function lcOptsRender(){ const L=LC.L; $("lc-titre").value=L.titre; $("lc-stitre").value=L.sous_titre||""; $("lc-rep").value=String(L.items.length?L.items[0].repete:1); $("lc-quiz").checked=L.quiz; $("lc-chorus").checked=L.chorus; $("lc-perso").checked=L.personnage; $("lc-subs").checked=L.sous_titres; }
+function lcItemsRender(){ const L=LC.L, rtl=L.langue==="ar";
+  $("lc-items").innerHTML=L.items.map((x,i)=>`<li class="lc-item"><span class="lc-n">${i+1}</span><input class="lc-cle" data-lc-f="${i}:cle" value="${esc(x.cle)}" dir="auto" aria-label="Élément ${i+1} : ce qu’on montre" placeholder="Ce qu’on montre"><input class="lc-nom" data-lc-f="${i}:nom" value="${esc(x.nom)}" dir="auto" aria-label="Élément ${i+1} : son nom" placeholder="Son nom"><input class="lc-mot" data-lc-f="${i}:mot" value="${esc(x.mot)}" dir="auto" aria-label="Élément ${i+1} : mot exemple" placeholder="Mot exemple"><input class="lc-emo" data-lc-f="${i}:image" value="${esc(x.image)}" aria-label="Élément ${i+1} : image (emoji)" placeholder="🙂"><button type="button" class="lc-del" data-lc-del="${i}" aria-label="Supprimer l’élément ${i+1}">✕</button><input class="lc-v" data-lc-f="${i}:voix" value="${esc(x.voix)}" dir="${rtl?"rtl":"auto"}" aria-label="Élément ${i+1} : phrase du maître" placeholder="Phrase du maître (automatique si vide)${x.texte?" · texte : "+esc(x.texte.slice(0,40)):""}"></li>`).join(""); }
+function lcRender(){ if(!LC.L) return; $("lc-s3").hidden=false; $("lc-s4").hidden=false; lcOptsRender(); lcItemsRender(); lcPreview(); lcPubRender(); }
+let lcPrevT=0; function lcPreview(){ clearTimeout(lcPrevT); lcPrevT=setTimeout(async()=>{ const L=LC.L, box=$("lc-prev"); if(!L||!L.items.length){ box.innerHTML=""; return; }
+  try{ await SP_LECON.ready(L); if(L.personnage&&window.SP_AVATAR) await Promise.race([SP_AVATAR.load().catch(()=>null), new Promise(r=>setTimeout(r,8000))]);
+    const fmt=spFmts($("lc-fmt").value)[0], P=SP_LECON.plan(L,null), it=P.parts.find(x=>x.k==="item"), rc=P.parts.find(x=>x.k==="recap"), cv=document.createElement("canvas"), st=SP_LECON.stage(cv,L,P,{fmt,K:fmt==="9:16"?.35:.3});
+    const shots=[[1.8,"Ouverture"],[it.ex+1,"Premier élément"],[rc.start+rc.step*Math.min(L.items.length-1,2.5),"Révision"]].map(([t,lab])=>{ st.draw(t); return `<img src="${cv.toDataURL("image/jpeg",.85)}" alt="Aperçu : ${lab}">`; });
+    box.className="lc-prev"+(fmt==="9:16"?" v":""); box.innerHTML=shots.join(""); }catch(e){ box.innerHTML=""; } },200); }
+/* aperçu animé sans le son (minutage estimé) */
+async function lcPlay(){ const cv=$("lc-live"), b=$("lc-play"); if(LC.playing){ cancelAnimationFrame(LC.playing); LC.playing=0; cv.hidden=true; b.textContent="▶ Aperçu animé (sans le son)"; return; }
+  const L=LC.L; if(!L) return; await SP_LECON.ready(L); const fmt=spFmts($("lc-fmt").value)[0], P=SP_LECON.plan(L,null), st=SP_LECON.stage(cv,L,P,{fmt,K:fmt==="9:16"?.5:.5}); cv.hidden=false; b.textContent="⏹ Arrêter l’aperçu"; const t0=performance.now();
+  const tick=()=>{ const t=(performance.now()-t0)/1000; if(t>=P.total){ LC.playing=0; cv.hidden=true; b.textContent="▶ Aperçu animé (sans le son)"; return; } st.draw(t); LC.playing=requestAnimationFrame(tick); }; tick(); }
+function lcSave(){ if(!LC.L) return; LC.key=LC.key||`lc:${Date.now()}`; creationSave("lecon", LC.key, LC.L.titre, {L:LC.L, pub:LC.pub||null}); }
+/* le Coran n'est jamais lu par une voix de synthèse : chaque phrase arabe de 3 mots ou plus est comparée au texte du Coran */
+async function lcQuranGuard(L){ const S=SP_LECON.script(Object.assign({},L,{muet:[]})), out=[]; for(const [k,v] of Object.entries(S)){ if(rcNormAr(v).length<3) continue; try{ const r=await rcApi("/api/recit/quran/find",{method:"POST", body:{texte:v}}); if(r&&r.ok) out.push(k); }catch(e){} } return out; }
+/* petits effets sonores de la leçon */
+function lcPop(ctx,dest,t){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type="sine"; o.frequency.setValueAtTime(320,t); o.frequency.exponentialRampToValueAtTime(980,t+.09); prEnv(g,t,.35,.005,.18); o.connect(g).connect(dest); o.start(t); o.stop(t+.25); }
+function lcSparkle(ctx,dest,t){ [1568,2093,2637].forEach((f,i)=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type="sine"; o.frequency.value=f; prEnv(g,t+i*.05,.08,.005,.35); o.connect(g).connect(dest); o.start(t+i*.05); o.stop(t+i*.05+.4); }); }
+/* mixage : voix du maître (son de studio), chœur d'enfants (la même voix, trois fois, plus aiguë et décalée), effets, fond sonore ; énergie des voix pour les lèvres */
+async function lcAudio(L, P, vo, amb){ const SR=44100, C=window.OfflineAudioContext||window.webkitOfflineAudioContext, total=P.total, ctx=new C(2,Math.ceil((total+.5)*SR),SR);
+  const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=3; comp.connect(ctx.destination); const bed=ctx.createGain(), hi=amb==="musique"?.5:.6; bed.gain.value=hi; bed.connect(comp);
+  if(amb==="musique") prBed(ctx,PR_MOODS.inspirant,bed,total); else if(amb&&amb!=="aucun"){ try{ const b=await rcAmbBuf(amb), s=ctx.createBufferSource(), g=ctx.createGain(); g.gain.value=.4; s.buffer=b; s.loop=true; s.connect(g).connect(bed); s.start(0); }catch(e){} }
+  const fx=ctx.createGain(); fx.gain.value=.55; fx.connect(comp);
+  P.parts.forEach(p=>{ if(p.k==="item"){ if(p.i) prWhoosh(ctx,fx,Math.max(0,p.a-.1),.5,p.i%2===0,.6); lcPop(ctx,fx,p.a+(L.modele==="theatre"?.72:L.modele==="daara"?.35:.95)); }
+    if(p.k==="quiz"){ for(let k=0;k<3;k++) cbTick(ctx,fx,p.count[0]+k,.9); cbDing(ctx,fx,p.rev,1); }
+    if(p.k==="recap") L.items.forEach((x,i)=>lcSparkle(ctx,fx,p.start+i*p.step));
+    if(p.k==="fin") prSting(ctx,fx,p.a+.3,PR_MOODS.inspirant,1); });
+  const f=(type,fr,g,q)=>{ const b=ctx.createBiquadFilter(); b.type=type; b.frequency.value=fr; if(g!=null) b.gain.value=g; if(q) b.Q.value=q; return b; }, vc=ctx.createDynamicsCompressor(); vc.threshold.value=-22; vc.ratio.value=3.5; vc.attack.value=.004; vc.release.value=.15;
+  const vin=f("highpass",85), vg=ctx.createGain(); vg.gain.value=1.15; vin.connect(f("peaking",220,1.5,1)).connect(f("peaking",3200,3.5,1)).connect(vc).connect(vg).connect(comp);
+  const step=.04, n=Math.ceil(total/step)+2, envP=new Float32Array(n), envK=new Float32Array(n);
+  P.say.forEach(s=>{ const b=vo[s.k]&&vo[s.k].buf; if(!b) return; const rates=s.chorus?[1.16,1.24,1.31]:[1];
+    rates.forEach((r,j)=>{ const src=ctx.createBufferSource(), g=ctx.createGain(), pan=ctx.createStereoPanner(); src.buffer=b; src.playbackRate.value=r; g.gain.value=s.chorus?.36:1; pan.pan.value=s.chorus?[-.5,0,.5][j]:0; src.connect(g).connect(pan).connect(vin); src.start(s.t+j*.035); });
+    bed.gain.setTargetAtTime(hi*.3,Math.max(0,s.t-.08),.05); bed.gain.setTargetAtTime(hi,s.t+b.duration+.05,.25);
+    const d=b.getChannelData(0), arr=s.chorus?envK:envP, r=s.chorus?1.24:1, win=Math.max(1,Math.round(b.sampleRate*step*r)); for(let i=0;i*win<d.length;i++){ let q=0, c=0; for(let j=i*win;j<Math.min(d.length,(i+1)*win);j+=4){ q+=d[j]*d[j]; c++; } const idx=Math.round(s.t/step)+i; if(idx<n) arr[idx]=Math.max(arr[idx],Math.sqrt(q/(c||1))); } });
+  [envP,envK].forEach(a=>{ let mx=0; a.forEach(v=>{ if(v>mx) mx=v; }); if(mx>0) for(let i=0;i<a.length;i++) a[i]=Math.min(1,a[i]/(mx*.7)); });
+  const out=await ctx.startRendering(); return {blob:prWav(out), buf:out, env:{prof:envP, kids:envK}}; }
+function lcVideosHtml(){ const vs=LC.videos||[]; if(!vs.length) return ""; return `<div class="pr-vids${vs.length>1?" two":""}">${vs.map((v,n)=>spVideoFigure(v,n,`data-lc-dl="${n}"`)).join("")}</div>`; }
+function lcPubRender(vo){ const L=LC.L; if(!L) return; const p=LC.pub||{}, tags={fr:["#apprendre","#enfants","#leçon"], ar:["#تعليم","#أطفال","#حروف"], en:["#learning","#kids","#lesson"]}[L.langue]||[];
+  const cred=[...new Set(Object.values(vo||{}).map(v=>(Object.values(SP_LOCAL_LANG).find(x=>x.id===v.voice)||(String(v.voice||"").startsWith("fr_")?localVoice(v.voice):{})).credit).filter(Boolean))];
+  $("lc-pub").value=[p.titre||L.titre, p.description||`${L.sous_titre?L.sous_titre+" · ":""}${L.items.length} éléments, avec « répète après moi », un petit quiz et la révision.`, (Array.isArray(p.hashtags)&&p.hashtags.length?p.hashtags:tags).join(" "), ["Illustrations : Twemoji (CC BY 4.0).", ...cred].join("\n")].filter(Boolean).join("\n\n"); $("lc-pubbox").hidden=false; }
+async function lcMake(){ const L=LC.L; if(!L||!L.items.length) return; const m=$("lc-vmsg"), bt=$("lc-make"), ac=new (window.AudioContext||window.webkitAudioContext)(), sel=$("lc-voix").value, fmts=spFmts($("lc-fmt").value);
+  LC.stop=false; bt.disabled=true; $("lc-vstop").hidden=false; LC.videos.forEach(v=>URL.revokeObjectURL(v.url)); LC.videos=[]; $("lc-vids").innerHTML="";
+  try{ m.textContent="Préparation (polices, images, personnage 3D)…"; await SP_LECON.ready(L); if(L.personnage&&window.SP_AVATAR) await Promise.race([SP_AVATAR.load().catch(()=>null), new Promise(r=>setTimeout(r,8000))]);
+    m.textContent="Vérification du texte (le Coran n’est jamais lu par une voix de synthèse)…"; L.muet=await lcQuranGuard(L); if(L.muet.length) toast(`${L.muet.length} phrase(s) du Coran ne seront pas lues par la voix : utilise « Garder la voix » avec une vraie récitation pour les versets.`);
+    let vo={}; if(sel!=="none"){ const S=SP_LECON.script(L), lines={}; Object.keys(S).forEach(k=>{ if(S[k]) lines[k]=S[k]; }); m.textContent="Fabrication des voix…";
+      vo=await spSayAll(lines, sel, "lecon", t=>{ m.textContent=`Voix du maître : ${t}`; }, LC_STYLE, LC_AUTO[L.modele], L.langue);
+      for(const k of Object.keys(vo)){ try{ const b=await ac.decodeAudioData(vo[k].ab.slice(0)); vo[k].buf=b; vo[k].seconds=b.duration; }catch(e){ delete vo[k]; } } }
+    const P=SP_LECON.plan(L,vo); m.textContent="Voix, chœur, effets et fond sonore…"; const au=await lcAudio(L,P,vo,$("lc-amb").value), av={style:L.modele==="daara"?"blanc":"indigo", skin:"fonce"};
+    for(const [n,f] of fmts.entries()){ const say=t=>{ m.textContent=`${fmts.length>1?`Vidéo ${n+1} sur ${fmts.length} (${SP_FMT[f].court}) · `:""}${t}`; };
+      const v=await spMakeVideo({stage:hd=>SP_LECON.stage(document.createElement("canvas"),L,P,{fmt:f,K:hd?1.5:.75,env:au.env,envStep:.04,avatar:av}), audio:au, say, stop:()=>LC.stop, live:st=>jxRecord(st, au.blob, ac, say, ()=>LC.stop)});
+      v.fmt=f; v.url=URL.createObjectURL(v.blob); LC.videos.push(v); $("lc-vids").innerHTML=lcVideosHtml(); if(v.stopped) break; }
+    m.textContent=LC.videos.map(v=>`${v.stopped?"Vidéo arrêtée (partielle)":"Vidéo prête"}${LC.videos.length>1?` (${SP_FMT[v.fmt].court})`:""} : ${v.seconds} s, ${(v.blob.size/1e6).toFixed(1).replace(".",",")} Mo${v.pro?", Full HD":""}.`).join(" "); lcPubRender(vo); lcSave(); }
+  catch(err){ m.textContent=errText(err)||"La vidéo a échoué : réessaie."; }
+  finally{ try{ ac.close(); }catch(e){} bt.disabled=false; $("lc-vstop").hidden=true; } }
+document.addEventListener("click",async e=>{ const t=e.target.closest&&e.target.closest("button"); if(!t||!t.closest("#view-lecon")) return;
+  if(t.dataset.lcModel){ lcPick(t.dataset.lcModel); return; }
+  if(t.dataset.lcPreset){ const p=LC_PRESETS[t.dataset.lcPreset]; if(p){ LC.pub=null; const L=p.L($("lc-langue").value); lcSet(L, `✅ Exemple prêt : ${L.items.length} éléments, sans IA. Change ce que tu veux, puis fabrique la vidéo.`); } return; }
+  if(t.id==="lc-go"){ lcGo(false); return; } if(t.id==="lc-free"){ lcGo(true); return; } if(t.id==="lc-stop"){ if(LC.ctl) LC.ctl.abort(); return; }
+  if(t.dataset.lcDel!=null&&LC.L){ LC.L.items.splice(+t.dataset.lcDel,1); lcItemsRender(); lcSave(); lcPreview(); return; }
+  if(t.id==="lc-add"&&LC.L){ LC.L.items.push({cle:"",nom:"",mot:"",image:"",sens:"",phon:"",texte:"",voix:"",repete:+$("lc-rep").value}); lcItemsRender(); const ins=$("lc-items").querySelectorAll(".lc-cle"); if(ins.length) ins[ins.length-1].focus(); return; }
+  if(t.id==="lc-play"){ lcPlay(); return; } if(t.id==="lc-make"){ lcMake(); return; } if(t.id==="lc-vstop"){ LC.stop=true; return; }
+  if(t.id==="lc-copy"){ try{ await navigator.clipboard.writeText($("lc-pub").value); toast("Texte copié."); }catch(err){ toast("Copie impossible : sélectionne le texte à la main."); } return; }
+  if(t.dataset.lcDl!=null){ const v=LC.videos[+t.dataset.lcDl]; if(v) await prSaveBlob(v.blob, `${slug(LC.L.titre)}-${spFmtTag(v.fmt)}.${v.ext}`); return; } });
+document.addEventListener("change",e=>{ const t=e.target; if(!t||!t.closest||!t.closest("#view-lecon")) return; const L=LC.L;
+  if(t.id==="lc-voix"){ savePrefs({lcVoix:t.value}); return; } if(t.id==="lc-fmt"){ savePrefs({lcFmt:t.value}); lcPreview(); return; } if(t.id==="lc-langue"&&!L) return; if(!L) return;
+  if(t.dataset.lcF){ const [i,k]=t.dataset.lcF.split(":"), x=L.items[+i]; if(!x) return; x[k]=k==="image"?(String(t.value).match(/\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*/u)||[""])[0]:String(t.value).replace(/\s+/g," ").trim(); if(k==="image") t.value=x.image; lcSave(); lcPreview(); return; }
+  if(t.id==="lc-titre"){ L.titre=t.value.trim()||L.titre; } else if(t.id==="lc-stitre"){ L.sous_titre=t.value.trim(); } else if(t.id==="lc-rep"){ L.items.forEach(x=>{ x.repete=+t.value; }); savePrefs({lcRep:+t.value}); }
+  else if(t.id==="lc-quiz"){ L.quiz=t.checked&&L.items.length>=3; } else if(t.id==="lc-chorus"){ L.chorus=t.checked; } else if(t.id==="lc-perso"){ L.personnage=t.checked; } else if(t.id==="lc-subs"){ L.sous_titres=t.checked; } else if(t.id==="lc-langue"){ L.langue=t.value; } else return;
+  lcSave(); lcPreview(); });
 /* le plan va dans Mes projets (les fichiers restent sur l'ordinateur : il faudra les rejoindre pour refaire la vidéo) */
 function cbSave(){ const P=CB.plan; if(!P) return; P._key=P._key||`cb:${Date.now()}`; creationSave("video", P._key, P.titre, {plan:Object.assign({},P,{timeline:undefined}), fichiers:CB.assets.filter(a=>!a.libre).map(a=>({kind:a.kind,name:a.name,role:a.role||""}))}); }
 $("cb-form").addEventListener("submit",e=>{ e.preventDefault(); cbGo(false); });
@@ -11844,7 +12066,7 @@ cbInit();
    Quiz, infos, pubs, cours et animations s'enregistrent aussi dans « Mes projets » (kind « creation »), à côté des films,
    et se rouvrent dans leur onglet. Chaque onglet garde son propre état (sp-jeux, sp-presse, sp-pub, MD_RESULT) : la copie
    enregistrée est ce même état. Une clé stable par création (sp-prefs.crea) évite les doublons ; écriture regroupée (1,2 s). */
-const CREA_TYPES={video:["✨","Constructeur"],quiz:["🧠","Quiz"],infos:["📰","Infos du jour"],pub:["📣","Publicité"],cours:["🎓","Cours"],anim:["🎨","Animation"]};
+const CREA_TYPES={lecon:["📚","Leçon animée"],video:["✨","Constructeur"],quiz:["🧠","Quiz"],infos:["📰","Infos du jour"],pub:["📣","Publicité"],cours:["🎓","Cours"],anim:["🎨","Animation"]};
 const CREA_T={};
 function creationSave(type, key, titre, state){
   if(!db||!uid||!CREA_TYPES[type]) return;
@@ -11860,6 +12082,7 @@ function creationOpen(d){
   if(x.type==="infos"&&s.r){ try{ localStorage.setItem("sp-presse", JSON.stringify(s)); }catch(e){} if(prInit.done) prApply(s); link(`infos:${s.id||""}:${s.r.titre||""}`); setView("presse:infos"); if(PR.r) prRender(); return; }
   if(x.type==="pub"&&s.d){ try{ localStorage.setItem("sp-pub", JSON.stringify(s)); }catch(e){} (PB.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PB.videos=[]; PB.d=s.d; PB.photos=s.photos||[]; PB.logo=s.logo||""; link(`pub:${s.d.at||""}`); pbShow.done=false; setView("presse:pub"); return; }
   if((x.type==="cours"||x.type==="anim")&&s.r){ setView(s.course?"presse:cours":"presse:libre"); MD_RESULT={f:s.f||{}, r:s.r, research:s.research||null, course:!!s.course, _key:`md:${d.id}`}; link(MD_RESULT._key); MD_VIDEO=null; if(s.course) crRender(s.r); else mdRender(s.r); return; }
+  if(x.type==="lecon"&&s.L){ setView("lecon"); LC.L=SP_LECON.norm(s.L); LC.model=LC.L.modele; LC.pub=s.pub||null; LC.key=`lc:${d.id}`; link(LC.key); lcRender(); return; }
   if(x.type==="video"&&s.plan){ setView("constructeur"); CB.plan=Object.assign({},s.plan,{_key:`cb:${d.id}`}); link(CB.plan._key); const miss=(s.fichiers||[]).filter(f=>f.kind!=="doc"&&!CB.assets.some(a=>a.name===f.name)); CB.plan.scenes.forEach(z=>{ z.media=(z.media||[]).filter(m=>CB.assets[m.ai]); }); cbRender(); if(miss.length) toast(`Rejoins tes fichiers (${miss.map(f=>f.name).slice(0,3).join(", ")}${miss.length>3?"…":""}) pour les revoir dans la vidéo.`); return; }
   toast("Cette création ne peut pas être rouverte.");
 }

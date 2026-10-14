@@ -391,11 +391,11 @@ function stage(o){
     const m=mouthAt(vt), age=it?vt-it.a:99, point=it&&it.kind==="verset"?(age<.35?age/.35:age<2.2?1:age<2.7?1-(age-2.2)/.5:0):0;
     const ws=it&&(it.speech||[]).find(z=>vt>=z.a-.05&&vt<z.b+.3), since=ws?vt-ws.a:9;
     if(T==="daara"){ const kidsTurn=o.roles!=="prof"&&!!it&&(it.rep||1)%2===0;   /* « répète après moi » : la répétition est dite par les élèves */
-      const P2=kidsTurn?{prof:{listen:true, look:{x:0,y:-.35}}, kids:{mouth:m, speak:m>.05, since, rock:true}}:{prof:{mouth:m, speak:m>.05, since, point, side:1, rock:m>.05}, kids:{listen:true, rock:false}};
+      const P2=kidsTurn?{prof:{listen:true, look:{x:0,y:-.35}}, kids:{mouth:m, speak:m>.05, since, rock:true}}:{prof:{mouth:m, speak:m>.05, since, point, up:V?1:.35, side:1, rock:m>.05}, kids:{listen:true, rock:false}};
       const c=A.render(AVR.w*K,AVR.h*K,t,P2,{scene:"daara", style:av.style||"blanc", skin:av.skin||"fonce"}); if(c) x.drawImage(c,AVR.x,AVR.y,AVR.w,AVR.h); return; }
     /* garçon seul : il explique parfois avec les mains pendant un long passage, et tourne la page entre deux versets */
     const quiet=m<.05&&since>1.2, longSpeech=m>.05&&since>3, beat=Math.floor(t/5.5), open=longSpeech&&rnd(beat+77)>.55?Math.sin(((t%5.5)/5.5)*Math.PI):0, page=quiet&&it&&rnd(Math.floor(t/7)+33)>.7?((t%7)/7):0;
-    const c=A.render(AVR.w*K,AVR.h*K,t,{mouth:m, speak:m>.05, since, point, side:1, open, page, rock:m>.05&&!!it&&it.kind!=="titre"},{scene:"solo", style:av.style||"indigo", skin:av.skin||"fonce"}); if(c) x.drawImage(c,AVR.x,AVR.y,AVR.w,AVR.h); }
+    const c=A.render(AVR.w*K,AVR.h*K,t,{mouth:m, speak:m>.05, since, point, up:V?1:.35, side:1, open, page, rock:m>.05&&!!it&&it.kind!=="titre"},{scene:"solo", style:av.style||"indigo", skin:av.skin||"fonce"}); if(c) x.drawImage(c,AVR.x,AVR.y,AVR.w,AVR.h); }
   /* parties pour TikTok et Shorts : « Partie 2/4 », hors du mouvement de caméra */
   function partBadge(x,t){ const P2=o.parts; if(!P2||P2.length<2) return; const k=P2.findIndex(([a,b])=>t>=a-.01&&t<b); if(k<0) return; x.save(); x.direction="ltr";
     const txt=`Partie ${k+1}/${P2.length}`; x.font=`700 ${Math.round((V?26:19)*L)}px ${LAT}`; const h=(V?44:34)*L, w=x.measureText(txt).width+30*L, bx=(V?26:20)*L, by=(V?28:18)*L;

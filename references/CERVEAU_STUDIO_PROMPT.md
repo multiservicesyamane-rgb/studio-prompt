@@ -114,6 +114,7 @@ Côté page (revue de presse) :
 - `POST /api/news/read` : texte principal d'un article à partir de son lien. Les adresses locales sont refusées, sauf avec `NEWS_ALLOW_LOCAL` en test ; les liens Google Actualités sont refusés avec une explication. `SP_NO_DOTENV=1` ignore `.env`, pour les tests. |
 | `recitation.js` | Module serveur de « **Garder la voix, refaire l'image** » (§4.3 terdecies), sans dépendance : réception d'un fichier jusqu'à 20 Go écrit au fil de l'eau, voix extraite et pauses repérées par FFmpeg, texte du Coran (alquran.cloud) en cache, vidéo refaite reçue par morceaux écrits à leur place, voix d'origine remise (+ ambiance), liste et suppression des projets, place libre sur le disque. Routes `/api/recit/*`. |
 | `public/recitation-fx.js` | Moteur d'image de « Garder la voix » (`window.SP_RECIT`) : 7 habillages dessinés à la volée, mise en page arabe ou latine, pages des versets longs, page qui tourne, caméra, calage des textes sur la voix (`align`). Le même moteur sert l'aperçu, la vidéo et le direct. |
+| `public/lecon-fx.js` | Moteur des **Leçons animées** (`window.SP_LECON`, §4.3 quaterdecies) : 3 modèles cinématiques (Grand Théâtre, Daara de lumière, Grande Aventure), FR / AR / EN, formats 16:9, 9:16 et 1:1 ; leçon nettoyée (`norm`), texte de la voix (`script`), minutage commun à l'image et au son (`plan`), dessin (`stage`), illustrations Twemoji. |
 | `public/direct.html` | Écran de direct d'un projet « Garder la voix » (OBS Studio, TikTok LIVE Studio) : voix et ambiance jouées, habillage dessiné en temps réel, boucle possible. |
 | `generation.js` | Module serveur de **fabrication**, sans dépendance. Il gère les tâches suivies (`public/generated/jobs.json`, reprise après redémarrage), le budget du jour (`GEN_BUDGET_USD`), les voix (Gemini gratuit, une à la fois, avec attente si Google limite par minute et relais entre ses modèles de voix quand l'un atteint son quota du jour ; voix naturelle Chatterbox sur un espace Hugging Face ; ElevenLabs), les vidéos (Veo 3.1 avec `GEMINI_MEDIA_API_KEY` ou la clé principale, Runway, Agnes Video 2.5 Flash gratuit pour le moment), les imports (`/api/gen/upload-file`) et la lecture des médias par morceaux (Range). |
 | `public/*_PROMPTING_GUIDE.md`, `public/MASTER_VIDEO_PROMPT_AGENT.md` | Guides de rédaction par générateur. |
@@ -799,6 +800,80 @@ Demande de l'utilisateur : « je te donne une vidéo de récitation du Coran tr�
     - micro de 2,5 s enregistré, analysé, ouvert ;
     - 390 px, console propre.
 
+### 4.3 quaterdecies Leçons animées : 3 modèles cinématiques pour n'importe quelle leçon, en français, en arabe et en anglais (14 octobre)
+
+Demande de l'utilisateur, avec 7 nouvelles vidéos de référence (`references/*.mp4`, non versionnées) : chanson ABC sur scène de théâtre, Alifun Baa en 3D (maître et élèves), alphabet français pour bébés, grille de lettres arabes touchées au doigt, Al-Fatiha surlignée verset par verset, cahier des voyelles arabes au doigt, mots lus au doigt. Sa demande : « crée trois modèles pour n'importe quelle leçon, français, arabe et anglais, plus influents, plus professionnels, plus cinématiques, animés, dynamiques, sublimes ».
+
+- **Grammaire apprise des références**, reprise dans la consigne de l'agent :
+  - une seule unité à la fois, en très grand ;
+  - son nom ;
+  - un exemple concret avec une image ;
+  - « répète après moi », puis un temps laissé à l'enfant ;
+  - un petit quiz, la révision en grille, bravo.
+- **Moteur** `public/lecon-fx.js` (`SP_LECON`). Tout est dessiné par le code : aucune image d'IA, aucun droit d'auteur. Illustrations Twemoji (CC BY 4.0), ou emoji du système hors ligne.
+  - **Grand Théâtre** (français par défaut) :
+    - rideaux de velours qui s'ouvrent, lambrequin à franges d'or, plancher en perspective ;
+    - projecteurs et poussière dans la lumière ;
+    - lettre en relief brillante qui tombe et rebondit sur la scène, avec petite secousse de caméra et confettis ;
+    - exemple sur un socle doré et une plaque, public en ombres qui bouge avec le chœur ;
+    - enseigne lumineuse du titre ; « Bravo ! » rideaux fermés.
+  - **Daara de lumière** (arabe par défaut) :
+    - cour aux arcades au coucher du soleil, natte tressée, rayons de lumière, lanternes ;
+    - le jeune oustaz et ses talibés en 3D (moteur de l'avatar) ;
+    - la leçon s'écrit au **calame** sur la tablette (alluwa), de droite à gauche ;
+    - **voyelles en couleur** : fatha rouge, kasra bleue, damma verte, soukoun orange, chadda violette ;
+    - mot exemple sur une carte épinglée, révision en tuiles comme dans les vidéos de lettres arabes.
+  - **Grande Aventure** (anglais par défaut) :
+    - paysage de cinéma (aube, jour, or, soir, nuit), parallaxe, nuages, oiseaux, fleurs ;
+    - lettre géante qui vole avec une traînée d'étoiles puis tourne sur elle-même ;
+    - image dans une bulle de savon, mot sur un panneau en bois ;
+    - quiz de nuit, révision en constellation, feu d'artifice.
+  - **Commun aux trois modèles** :
+    - les 3 langues (sens de lecture compris) et les 3 formats ;
+    - sous-titres mot par mot en grand, progression « 3 / 10 » ;
+    - bandeaux « Répète après moi ! » et « À toi ! », avec anneau de compte à rebours ;
+    - quiz de 3 éléments au plus (ceux avec image d'abord), révision, fin ;
+    - caméra qui se rapproche lentement, vignette ;
+    - présentateur 3D (garçon en boubou) en option dans le Théâtre et l'Aventure.
+  - **Vitesse** : le décor et les lumières sont peints en demi-résolution, ce qui donne un léger flou de profondeur. Les lettres et les textes restent nets. En Full HD sans carte graphique, une image prend environ 50 à 75 ms, soit 2 à 4 minutes pour une leçon de 90 s. L'Aventure est passée de 150 à 50 ms par image.
+- **Minutage** (`plan`) : même calcul pour l'image et le son, à partir des durées réelles des voix (estimées sans voix). Il enchaîne l'intro, puis pour chaque élément :
+  - l'apparition ;
+  - la présentation ;
+  - les répétitions (« répète après moi », le chœur, « à toi » d'au moins 1,5 s) ;
+  - puis le quiz, la révision et la fin.
+- **Page** Créer → **« 🎓 Leçon animée »** (`view-lecon`, `lc*`), en 4 étapes, téléphone d'abord :
+  1. **Le modèle** : 3 cartes dessinées par le moteur.
+  2. **La leçon** :
+     - sujet, langue, public, nombre d'éléments ;
+     - **« ✨ L'agent écrit la leçon »** : consigne `lcPrompt` (grammaire des références, règles, leçons de publication de la mémoire) ;
+     - **« ⚡ Sans IA »** : lignes écrites (« ce qu'on montre | nom | mot | emoji | traduction ») ou exemple prêt deviné d'après le sujet ;
+     - **exemples prêts** : alphabet arabe (28 lettres, chacune avec un mot voyellé, une image et sa traduction ; reprend `AR_LETTERS`), alphabet français, alphabet anglais, chiffres de 1 à 10 dans la langue choisie.
+  3. **Vérifie** :
+     - éléments modifiables (unité, nom, mot, emoji, phrase du maître), ajout et suppression ;
+     - répétitions, quiz, chœur, personnage 3D, sous-titres ;
+     - aperçu de 3 moments et aperçu animé sans le son.
+  4. **La vidéo** :
+     - voix du maître (toutes les voix, voix signature comprise) ;
+     - fond sonore : musique douce, ou brise, ruisseau, nuit sans instrument ;
+     - format.
+     - **Garde du Coran** (`lcQuranGuard`) : chaque phrase arabe de 3 mots ou plus est comparée au Coran, et un verset n'est jamais lu par la voix de synthèse.
+     - **Voix** (`spSayAll`, relais gratuit dans la langue de la leçon).
+     - **Mixage** (`lcAudio`) : voix de studio ; chœur d'enfants (la même voix trois fois, plus aiguë, décalée, en stéréo) ; effets (pop, souffle, tic-tac, ding, étincelles, final) ; fond sonore qui baisse sous la voix ; énergie des voix pour les lèvres de l'oustaz et des talibés.
+     - **Vidéo** : MP4 H.264 + AAC Full HD, image par image (`spMakeVideo`), sinon enregistrement en direct. Texte de publication (agent, sinon composé) avec crédits (Twemoji, voix Piper). La leçon va dans Mes projets (type `lecon`) et se rouvre.
+- **Toujours gratuit** : agent Gemini et ses relais ; sans IA, exemples prêts et lignes écrites ; voix Gemini, puis voix de l'ordinateur en français, anglais ou arabe ; vidéo sur l'ordinateur.
+- **Bâton du maître et geste vers le haut** (demande de l'utilisateur : « l'oustaz doit montrer le texte avec son bâton, en haut au format TikTok ; donne-lui un bâton ») :
+  - `addStick` : bois clair et pointe dorée, pour l'oustaz et pour le garçon. Au repos, le bâton est posé vers l'avant et ne traverse plus la table.
+  - `poseCharacter` : nouveau réglage `p.up` (0 sur le côté, 1 vers le haut) ; le bras se lève et le regard suit.
+  - Au format téléphone, la tablette est au-dessus, donc le geste se fait vers le haut ; en 16:9, vers le haut à droite. Cela vaut pour « Garder la voix » (Daara, enseignant) et pour la leçon Daara.
+- **Suppression d'un projet** : si Windows garde un fichier ouvert (code `busy`), la page réessaie deux fois après 1,5 s.
+- Test : `lecon-test.js` (9 vérifications) :
+  - onglet ; 3 modèles dessinés et tous différents ;
+  - alphabet arabe sans IA (28 lettres) ; changement de modèle ;
+  - leçon écrite par l'agent simulé ;
+  - **vraie vidéo 1080 × 1920 H.264 + AAC de 38 s, fabriquée en 72 s** ;
+  - verset jamais lu, voix arabe Kareem en relais ;
+  - image non vide ; 390 px ; console propre.
+
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
@@ -1004,6 +1079,8 @@ Ce que le code corrige :
 | `gates-test.js` | Routage d'entrée, tous les contrôles du code V3 et V4, `cameraOne` |
 | `audio-lock-test.js` | Alignement des plans sur l'audio importé |
 | `recitation-serveur-test.js`, `recitation-ui-test.js` | « Garder la voix » : serveur (envoi, analyse, Coran, morceaux, ambiance) et page complète sur 390 px jusqu'à la vidéo et l'écran de direct (§4.3 terdecies) |
+| `recitation-sans-fichier-test.js` | « Garder la voix » sans fichier : sans voix, voix qui lit mes textes (verset refusé), micro (§4.3 terdecies) |
+| `lecon-test.js` | Leçons animées (§4.3 quaterdecies) : 3 modèles, exemple sans IA, leçon de l'agent, garde du Coran, voix arabe gratuite, vraie vidéo Full HD 9:16 vérifiée par FFmpeg |
 | `ui-test.js`, `menu-test.js` | Vues, menu simplifié (5 entrées + Réglages, onglets des groupes, dernier onglet retenu, anciennes adresses), mobile, mode sombre, console sans erreur |
 | `presse-test.js` | Revue de presse avec un vrai `server.js` face à de faux Google Actualités, Google voix et site d'actualité : infos cochées, règles de vérité, voix d'or, audio complet, textes et liens, reprise, vidéo |
 | `gen-api-test.js` | `generation.js` face à de faux Google, Runway et ElevenLabs : clé gratuite pour les voix, clé payante pour Veo, budget, facturation absente, voix une à la fois, limites par minute et par jour, imports, Range, sécurité des chemins, reprise |
@@ -1101,6 +1178,7 @@ Les commits sont en français. Étapes majeures :
 36. Voix signature : voix nouvelle aux qualités d'une voix importée (hauteur, rythme, timbre, écho), jamais une copie ; disponible dans tous les choix de voix (13 octobre, §4.3 terdecies).
 37. Comprendre avant d'agir : l'agent comprend la vidéo (genre, unités, annonces, traductions) avant d'afficher ; une leçon d'alphabet montre les lettres, pas les noms entendus ; jamais le nom de la chaîne d'origine (14 octobre, §4.3 terdecies).
 38. Entrer sans fichier dans « Garder la voix » : micro, voix qui lit mes textes (jamais le Coran), ou projet sans voix avec ambiance ; relais gratuit anglais et arabe (14 octobre, §4.3 terdecies).
+39. Leçons animées : 3 modèles cinématiques (Grand Théâtre, Daara de lumière, Grande Aventure) pour n'importe quelle leçon en français, arabe et anglais ; bâton du maître et geste vers le haut (14 octobre, §4.3 quaterdecies).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 
