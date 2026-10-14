@@ -69,4 +69,58 @@ comment on table public.studio_prompt_documents is
 comment on column public.studio_prompt_documents.data is
   'Document JSON versionné par le code de Studio Prompt.';
 
+create table if not exists public.studio_prompt_rate_limits (
+  scope text not null,
+  identity_hash text not null,
+  window_start bigint not null,
+  hits integer not null default 1 check (hits > 0),
+  primary key (scope, identity_hash, window_start)
+);
+
+alter table public.studio_prompt_rate_limits enable row level security;
+alter table public.studio_prompt_rate_limits force row level security;
+revoke all on table public.studio_prompt_rate_limits from anon, authenticated;
+grant select, insert, update, delete on table public.studio_prompt_rate_limits to service_role;
+
+create index if not exists studio_prompt_rate_limits_window_idx
+  on public.studio_prompt_rate_limits (window_start);
+
+create or replace function public.studio_prompt_take_rate_limit(
+  p_scope text,
+  p_identity_hash text,
+  p_window_start bigint,
+  p_max_hits integer
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_hits integer;
+begin
+  if p_max_hits < 1
+     or char_length(p_scope) not between 1 and 40
+     or char_length(p_identity_hash) not between 32 and 128 then
+    return false;
+  end if;
+
+  insert into public.studio_prompt_rate_limits(scope, identity_hash, window_start, hits)
+  values (p_scope, p_identity_hash, p_window_start, 1)
+  on conflict (scope, identity_hash, window_start)
+  do update set hits = public.studio_prompt_rate_limits.hits + 1
+  returning hits into current_hits;
+
+  return current_hits <= p_max_hits;
+end;
+$$;
+
+revoke all on function public.studio_prompt_take_rate_limit(text, text, bigint, integer)
+  from public, anon, authenticated;
+grant execute on function public.studio_prompt_take_rate_limit(text, text, bigint, integer)
+  to service_role;
+
+comment on table public.studio_prompt_rate_limits is
+  'Compteurs anti-abus des API IA publiques de Studio Prompt.';
+
 commit;

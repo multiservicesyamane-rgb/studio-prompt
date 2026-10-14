@@ -1105,8 +1105,44 @@ function authorized(req){
   return pass.length === APP_PASSWORD.length && require("crypto").timingSafeEqual(Buffer.from(pass), Buffer.from(APP_PASSWORD));
 }
 
-http.createServer((req, res) => {
+function sameOriginRequest(req){
+  const site=String(req.headers["sec-fetch-site"]||"").toLowerCase();
+  if(site==="cross-site") return false;
+  const origin=String(req.headers.origin||"");
+  if(!origin) return true;
+  try{
+    const expected=String(req.headers["x-forwarded-host"]||req.headers.host||"").toLowerCase();
+    return new URL(origin).host.toLowerCase()===expected;
+  }catch(e){ return false; }
+}
+function costlyCloudRequest(req){
+  if(!process.env.VERCEL || !/^\/api\//.test(req.url||"")) return false;
+  if(req.method==="GET" || req.method==="HEAD" || req.method==="OPTIONS") return false;
+  return !String(req.url).startsWith("/api/db/documents");
+}
+async function cloudRateAllowed(req){
+  if(!costlyCloudRequest(req)) return true;
+  const rawIp=String(req.headers["x-forwarded-for"]||req.headers["x-real-ip"]||"unknown").split(",")[0].trim();
+  const salt=APP_PASSWORD||SUPABASE_SECRET_KEY;
+  if(!salt) return false;
+  const identity=require("crypto").createHash("sha256").update(`${salt}|${rawIp}`).digest("hex");
+  const now=Math.floor(Date.now()/1000), windows=[
+    {scope:"ai-hour",start:Math.floor(now/3600)*3600,max:60},
+    {scope:"ai-day",start:Math.floor(now/86400)*86400,max:200}
+  ];
+  try{
+    for(const w of windows){
+      const r=await supabaseCall("rpc/studio_prompt_take_rate_limit",{method:"POST",body:JSON.stringify({p_scope:w.scope,p_identity_hash:identity,p_window_start:w.start,p_max_hits:w.max})});
+      if(await r.json()!==true) return false;
+    }
+    return true;
+  }catch(e){ console.error("Limiteur Supabase indisponible :",e.message); return false; }
+}
+
+async function requestHandler(req, res){
   if(!authorized(req)){ res.writeHead(401, {"WWW-Authenticate":'Basic realm="Studio Prompt", charset="UTF-8"', "Content-Type":"text/plain; charset=utf-8"}); return res.end("Mot de passe requis."); }
+  if(process.env.VERCEL && !sameOriginRequest(req)) return sendJson(res,403,{code:"forbidden",message:"Appel externe refusé."});
+  if(!(await cloudRateAllowed(req))) return sendJson(res,429,{code:"rate_limited",message:"Limite de sécurité atteinte : réessaie plus tard."});
   if(req.method === "GET" && req.url.startsWith("/api/status")) return handleStatus(res).catch(() => sendJson(res, 200, {provider:PROVIDER, ready:!!PROVIDER, model:""}));
   if(req.url.startsWith("/api/db/documents") && ["GET","POST","DELETE"].includes(req.method)) return handleSupabaseDb(req,res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res,500,{code:"supabase_error",message:"Stockage Supabase indisponible."}); });
   if(req.method === "POST" && req.url.startsWith("/api/pdf/text")) return handlePdfText(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Lecture du PDF impossible."}); });
@@ -1135,7 +1171,11 @@ http.createServer((req, res) => {
   if(req.method === "POST" && req.url.startsWith("/api/sample")) return handleSample(req, res).catch(e => { console.error(e); if(!res.headersSent) sendJson(res, 500, {code:"server_error", message:"Erreur interne du serveur."}); else res.end(); });
   if(req.method === "GET" || req.method === "HEAD") return serveStatic(req, res);
   res.writeHead(405); res.end();
-}).on("error", e => {
+}
+
+module.exports = requestHandler;
+
+if(require.main === module) http.createServer(requestHandler).on("error", e => {
   if(e.code === "EADDRINUSE"){ console.log(`Studio Prompt tourne déjà : ouvre http://localhost:${PORT} dans ton navigateur.`); process.exit(0); }
   throw e;
 }).listen(PORT, HOST, () => {

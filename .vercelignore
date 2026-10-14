@@ -2,9 +2,6 @@
 # Le serveur de l'ordinateur (FFmpeg, fichiers, clés) ne tourne pas chez Vercel :
 # sans ces lignes, Vercel prenait server.js pour une fonction en ligne et la page affichait
 # « 500 FUNCTION_INVOCATION_FAILED ».
-server.js
-generation.js
-recitation.js
 manus-mcp.js
 tests/
 references/
