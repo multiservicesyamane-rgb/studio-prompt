@@ -24,7 +24,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
   /* Agnes AI (apihub.agnes-ai.com, vérifié le 7 octobre 2026) : agnes-video-2.5-flash à 0 $ la seconde (promotion limitée dans le temps), 720p, 4 à 12 s ;
      l'offre gratuite accepte peu de demandes par minute : une vidéo à la fois, et on attend puis on réessaie quand Agnes répond 429 */
   const AGNES_KEY = String(env.AGNES_API_KEY || "").trim(), AGNES_BASE = (env.AGNES_BASE_URL || "https://apihub.agnes-ai.com").replace(/\/$/, ""), AGNES_VIDEO_MODEL = env.AGNES_VIDEO_MODEL || "agnes-video-2.5-flash", AGNES_WAIT = Number(env.AGNES_WAIT_MS) || 20000;
-  const ELEVEN_KEY = env.ELEVENLABS_API_KEY || "", ELEVEN_BASE = (env.ELEVENLABS_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, ""), ELEVEN_MODEL = env.ELEVENLABS_MODEL || "eleven_multilingual_v2";
+  const ELEVEN_KEY = env.ELEVENLABS_API_KEY || "", ELEVEN_BASE = (env.ELEVENLABS_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, ""), ELEVEN_MODEL = env.ELEVENLABS_MODEL || "eleven_multilingual_v2", ELEVEN_MUSIC_MODEL = env.ELEVENLABS_MUSIC_MODEL || "music_v2_5";
   const TTS_MODEL = env.GEMINI_TTS_MODEL || "gemini-3.8-flash-tts";
   const POLL = Number(env.GEN_POLL_MS) || 10000, PARALLEL = Math.max(1, Number(env.GEN_PARALLEL) || 2), VOICE_PARALLEL = Math.max(1, Number(env.GEN_VOICE_PARALLEL) || 1), MAX_WAIT = Number(env.GEN_MAX_WAIT_MS) || 25 * 60 * 1000;
   const num = (k, d) => env[k] !== undefined && env[k] !== "" && isFinite(Number(env[k])) ? Number(env[k]) : d;
@@ -82,8 +82,9 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
   function saveMedia(project, base, buf, mime){
     const p = safeId(project), d = path.join(dir, p); fs.mkdirSync(d, {recursive:true});
     const name = `${safeId(base)}-${Date.now().toString(36)}.${EXT[mime] || "bin"}`;
-    fs.writeFileSync(path.join(d, name), buf);
-    return {url:`/generated/${p}/${name}`, mime, size:buf.length};
+    const f=path.join(d,name); fs.writeFileSync(f, buf);
+    const media={url:`/generated/${p}/${name}`,mime,size:buf.length};
+    Object.defineProperties(media,{_file:{value:f,configurable:true},_name:{value:`generated/${p}/${name}`,configurable:true}}); return media;
   }
   function imageInput(x){
     const s = String(x || ""), d = s.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=]+)$/);
@@ -167,8 +168,15 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
 
   /* ---------- tâches ---------- */
   const update = (j, patch) => { Object.assign(j, patch, {updated:Date.now()}); persist(); };
-  const pub = j => { const o = Object.assign({}, j); delete o.refs; delete o.charge; delete o.remote; return o; };
-  function finish(j, media){ update(j, Object.assign({status:"done", step:""}, media)); if(j.service !== "runway" && j.service !== "agnes" && j.kind === "video") billing(true); pump(); }
+  const pub = j => { const o = Object.assign({}, j); delete o.refs; delete o.charge; delete o.remote; delete o._file; delete o._name; return o; };
+  async function finish(j, media){
+    if(env.VERCEL){
+      if(!env.BLOB_READ_WRITE_TOKEN) throw {code:"storage_missing",message:"Stockage Vercel Blob absent : relie un Blob Store au projet pour conserver les voix et chansons."};
+      update(j,{step:"enregistrement durable sur Vercel…"});
+      const {put}=require("@vercel/blob"), blob=await put(media._name,fs.readFileSync(media._file),{access:"public",addRandomSuffix:false,token:env.BLOB_READ_WRITE_TOKEN}); media.url=blob.url;
+    }
+    delete media._file; delete media._name; update(j,Object.assign({status:"done",step:""},media)); if(j.service!=="runway"&&j.service!=="agnes"&&j.kind==="video") billing(true); pump();
+  }
   function failJob(j, e){
     refund(j.charge); update(j, {status:"failed", step:"", code:e.code || "server_error", error:e.message || String(e)});
     if(e.code === "billing") billing(false);
@@ -235,7 +243,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     update(j, {step:"téléchargement"});
     const v = await call(uri, {headers:{"x-goog-api-key":MEDIA_KEY}}, 300000);
     if(!v.ok || v.buf.length < 1000) throw errOf("veo", v);
-    finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-${j.service}`, v.buf, "video/mp4"));
+    await finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-${j.service}`, v.buf, "video/mp4"));
   }
   async function runRunway(j){
     const img = imageInput(j.image), body = {model:RUNWAY_MODEL, promptText:String(j.prompt).slice(0, 1000), ratio:j.ratio === "9:16" ? "720:1280" : "1280:720", duration:j.duration};
@@ -261,7 +269,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     update(j, {step:"téléchargement"});
     const v = await call(url, {}, 300000);
     if(!v.ok || v.buf.length < 1000) throw errOf("runway", v);
-    finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-runway`, v.buf, "video/mp4"));
+    await finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-runway`, v.buf, "video/mp4"));
   }
   /* Agnes Video 2.5 Flash : avec l'image de départ du Storyboard (mode « keyframe ») pour garder les mêmes visages, sinon depuis le texte seul.
      L'image part par son adresse publique (image faite par Agnes) ou en data URI ; si Agnes la refuse, le clip est fait sans elle. */
@@ -298,7 +306,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     update(j, {step:"téléchargement"});
     const v = await call(url, {}, 300000);
     if(!v.ok || v.buf.length < 1000) throw errOf("agnes", v);
-    finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-agnes`, v.buf, "video/mp4"));
+    await finish(j, saveMedia(j.project, `P${pad(j.plan)}-video-agnes`, v.buf, "video/mp4"));
   }
   /* Voix Gemini : chaque modèle de voix a son propre quota gratuit par jour ; quand l'un est épuisé, le suivant prend le relais (mêmes voix) */
   const TTS_MODELS = [...new Set([TTS_MODEL].concat(String(env.GEMINI_TTS_FALLBACKS || "gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts,gemini-2.5-pro-preview-tts,gemini-3.8-flash-lite-tts").split(",").map(x => x.trim()).filter(Boolean)))];
@@ -379,7 +387,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
       rate = w.rate; chunks.push(w.pcm, Buffer.alloc(Math.round(rate * 0.22) * 2));
     }
     const o = await voiceOut(j, wav(Buffer.concat(chunks), rate), "audio/wav");
-    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:wavSeconds(o.buf), model:"Chatterbox (Hugging Face)"}));
+    await finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:wavSeconds(o.buf), model:"Chatterbox (Hugging Face)"}));
   }
   async function runEleven(j){
     /* jeu de la voix selon la direction donnée : animateur ou annonceur plus expressif, voix posée plus stable ; sinon, réglages de la voix */
@@ -387,7 +395,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     const r = await call(`${ELEVEN_BASE}/v1/text-to-speech/${encodeURIComponent(j.voice)}?output_format=mp3_44100_128`, post({"xi-api-key":ELEVEN_KEY, "Content-Type":"application/json", "Accept":"audio/mpeg"}, Object.assign({text:j.text, model_id:ELEVEN_MODEL}, vs ? {voice_settings:vs} : {})), 120000);
     if(!r.ok || /json/.test(r.type) || r.buf.length < 200) throw errOf("elevenlabs", r);
     const o = await voiceOut(j, r.buf, "audio/mpeg");
-    finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:o.mime === "audio/wav" ? wavSeconds(o.buf) : Math.round(r.buf.length / 16000 * 10) / 10}));
+    await finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:o.mime === "audio/wav" ? wavSeconds(o.buf) : Math.round(r.buf.length / 16000 * 10) / 10}));
   }
   /* ---------- moments des mots d'une voix enregistrée (Whisper large chez Groq, gratuit ; même clé que l'agent de secours) ----------
      Sert à couper une « prise unique » exactement entre deux phrases (les silences seuls ne suffisent pas : mesuré le 15 octobre). */
@@ -412,11 +420,11 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     if(blocks.length>30) throw {code:"bad_request",message:"Eleven Music accepte 30 sections au maximum : regroupe certains couplets."};
     const total=Math.max(blocks.length*3,Math.min(600,+j.duration||60)), weights=blocks.map(x=>Math.max(12,x.lines.join(" ").length)), sum=weights.reduce((a,b)=>a+b,0)||1, styles=String(j.tags||"").split(",").map(x=>x.trim()).filter(Boolean).slice(0,30);
     let left=Math.round(total*1000); const chunks=blocks.map((x,i)=>{ const remaining=blocks.length-i-1, ideal=i===blocks.length-1?left:Math.round(total*1000*weights[i]/sum), ms=Math.max(3000,Math.min(120000,ideal,left-remaining*3000)); left-=ms; return {text:`[${x.name}]\n${x.lines.join("\n")}`,duration_ms:ms,positive_styles:styles.length?styles:["clear vocals","educational song","professional studio production"],negative_styles:["spoken word","incorrect lyrics","distorted vocals"],context_adherence:"high"}; });
-    const r=await call(`${ELEVEN_BASE}/v1/music?output_format=mp3_48000_192`,post({"xi-api-key":ELEVEN_KEY,"Content-Type":"application/json","Accept":"audio/mpeg"},{composition_plan:{chunks},model_id:"music_v2_5",sign_with_c2pa:false}),10*60e3);
+    const r=await call(`${ELEVEN_BASE}/v1/music?output_format=mp3_48000_192`,post({"xi-api-key":ELEVEN_KEY,"Content-Type":"application/json","Accept":"audio/mpeg"},{composition_plan:{chunks},model_id:ELEVEN_MUSIC_MODEL,sign_with_c2pa:false}),10*60e3);
     if(!r.ok||/json/.test(r.type)||r.buf.length<2000) throw errOf("elevenlabs",r);
     /* temps des lignes : chaque couplet a sa durée dans le plan de composition ; ses lignes s'y répartissent (MP3 à 192 kb/s : durée tirée de la taille) */
     let at=0; const lrc=[]; chunks.forEach((c,i)=>{ const ls=blocks[i].lines; ls.forEach((t,k)=>lrc.push({t:+((at+c.duration_ms*(.08+.84*k/Math.max(1,ls.length)))/1000).toFixed(2), text:t})); at+=c.duration_ms; });
-    finish(j,Object.assign(saveMedia(j.project,j.base||"chanson-elevenlabs",r.buf,"audio/mpeg"),{seconds:Math.round(r.buf.length*8/192000*10)/10,lrc,model:"Eleven Music v2.5"}));
+    await finish(j,Object.assign(saveMedia(j.project,j.base||"chanson-elevenlabs",r.buf,"audio/mpeg"),{seconds:Math.round(r.buf.length*8/192000*10)/10,lrc,model:`Eleven Music (${ELEVEN_MUSIC_MODEL})`}));
   }
   /* ---------- Chansons chantées : ACE-Step 1.5 (modèle libre, licence MIT) sur Hugging Face (14 octobre) ----------
      Demande de l'utilisateur : « des chansons de qualité avec de sublimes voix » pour les leçons animées. Les paroles, le style et la langue
@@ -461,7 +469,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     const url = a.url || `${base}/gradio_api/file=${a.path}`, f = await call(url, {headers:auth}, 180000);
     if(!f.ok || f.buf.length < 2000) throw {code:"server_error", message:"La chanson n'a pas pu être téléchargée : réessaie."};
     const wavy = f.buf.slice(0, 4).toString() === "RIFF", mime = wavy ? "audio/wav" : /flac/i.test(String(a.path || url)) ? "audio/flac" : "audio/mpeg";
-    finish(j, Object.assign(saveMedia(j.project, j.base || "chanson", f.buf, mime), {seconds:wavy ? wavSeconds(f.buf) : 0, lrc:lrcOf(arr), model}));
+    await finish(j, Object.assign(saveMedia(j.project, j.base || "chanson", f.buf, mime), {seconds:wavy ? wavSeconds(f.buf) : 0, lrc:lrcOf(arr), model}));
   }
   /* relier un compte Hugging Face gratuit : le jeton est vérifié, puis écrit dans .env (sur cet ordinateur seulement, jamais renvoyé) */
   async function hfLink(token){
@@ -491,6 +499,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
       agnes:{ready:!!AGNES_KEY, video:AGNES_VIDEO_MODEL, image:env.AGNES_IMAGE_MODEL || "agnes-image-2.5-flash"},
       image:{label:"Nano Banana (Gemini)", price:IMAGE_PRICE, ready:!!MEDIA_KEY, needs:mediaNeeds()}, media_key:MEDIA_OWN,
       voice:[{id:"gemini", label:"Voix Gemini", note:`offre gratuite, 30 voix, français inclus ; ${TTS_MODELS.length} modèles de voix en relais (chacun son quota du jour)`, ready:!!GEMINI_KEY, free:true, models:TTS_MODELS.length, blocked:TTS_MODELS.filter(m => ttsBlocked.get(m) > Date.now()).length}, {id:"elevenlabs", label:"ElevenLabs", note:"voix très naturelles, petite offre gratuite chaque mois", ready:!!ELEVEN_KEY}, {id:"chatterbox", label:"Voix naturelle Chatterbox (Hugging Face)", note:`gratuite, très naturelle, en français ; file d'attente GPU de Hugging Face${hfTok() ? " (compte relié)" : " (sans compte : peu de minutes par jour)"}`, ready:true, free:true, token:!!hfTok()}],
+      song:[{id:"app", label:"Chanson de l'application", ready:true, free:true, note:"gratuite et sans limite"}, {id:"acestep", label:"ACE-Step (Hugging Face)", ready:true, free:true, token:!!hfTok(), note:hfTok()?"compte Hugging Face relié":"quota public limité"}, {id:"elevenmusic", label:"Eleven Music", ready:!!ELEVEN_KEY, free:false, model:ELEVEN_MUSIC_MODEL, note:ELEVEN_KEY?"clé configurée ; abonnement API payant requis":"clé ElevenLabs manquante"}],
+      storage:{durable:!env.VERCEL||!!env.BLOB_READ_WRITE_TOKEN, provider:env.VERCEL?"vercel-blob":"disk"},
       running:jobs.filter(j => j.status === "running" || j.status === "queued").length
     };
   }
@@ -570,7 +580,10 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
       if(req.method === "GET" && route === "jobs"){ const pr = u.searchParams.get("project"), ids = String(u.searchParams.get("ids") || "").split(",").filter(Boolean); return sendJson(res, 200, {jobs:jobs.filter(j => (!pr || j.project === safeId(pr)) && (!ids.length || ids.includes(j.id))).slice(-400).map(pub)}); }
       if(req.method === "POST" && route === "start"){
         let b; try{ b = JSON.parse(await readBody(req, 20e6)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible ou image trop lourde."}); }
-        const [code, out] = start(b || {}); return sendJson(res, code, out);
+        const [code, out] = start(b || {});
+        /* Une fonction Vercel reste ouverte jusqu'à la fin : aucun travail audio n'est abandonné après la réponse. */
+        if(code===200&&env.VERCEL&&out.job){ const live=jobs.find(x=>x.id===out.job.id), until=Date.now()+MAX_WAIT; while(live&&/queued|running/.test(live.status)&&Date.now()<until) await sleep(100); if(live) out.job=pub(live); }
+        return sendJson(res, code, out);
       }
       /* Import d'un fichier fait ailleurs (image Gemini, clip Flow, voix) : envoyé tel quel, écrit en flux sur le disque */
       if(req.method === "POST" && route === "upload-file"){

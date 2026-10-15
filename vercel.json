@@ -4,6 +4,7 @@
   "installCommand": "npm ci",
   "buildCommand": "echo \"Studio Prompt : le site est le dossier public\"",
   "outputDirectory": "public",
+  "regions": ["cdg1"],
   "cleanUrls": false,
   "functions": {
     "api/[...path].js": {

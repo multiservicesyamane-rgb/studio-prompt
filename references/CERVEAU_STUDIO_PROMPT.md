@@ -1301,6 +1301,7 @@ Les commits sont en français. Étapes majeures :
 41. Leçon animée à partir de tes fichiers (audio, vidéo, image, texte, PDF) : l'agent analyse, propose 3 angles avec leur méthode, la leçon suit l'angle choisi (14 octobre, §4.3 quaterdecies).
 42. Relecture du travail de l'autre outil (10 enseignants, Eleven Music, couleurs) : enseignants sans crâne nu, foulard et chignon, garçon en boubou rendu à « Garder la voix », lettres arabes de la Daara, temps des chansons (15 octobre, §4.3 quindecies).
 43. **Capsule pédagogique** (4e modèle) et **séries de cours** : programme importé, un enseignant par classe, étude YouTube du sujet, agent puis relecteur, une prise de voix par personnage, 7 vidéos par jour en 2 formats avec leur texte de publication (15 octobre, §4.3 quindecies).
+44. **Voix et chansons prêtes pour la production en ligne** : `/api/gen/status` annonce séparément la chanson locale, ACE-Step et Eleven Music sans jamais exposer les clés ; le modèle Eleven Music est configurable (`ELEVENLABS_MUSIC_MODEL`, défaut `music_v2_5`) et un test serveur vérifie le MP3, les paroles exactes, les sections et le minutage. Sur Vercel, la requête reste ouverte jusqu'à la fin de la fabrication et le média est conservé dans Vercel Blob (`BLOB_READ_WRITE_TOKEN`) plutôt que dans le `/tmp` éphémère ; région Paris `cdg1`. Le Blueprint Render garde aussi les secrets équivalents. Le lanceur complet des tests conserve les chemins du workspace sous Windows géré (15 octobre).
 
 ## 11. Chantiers ouverts (proposés, pas encore faits)
 

@@ -12,7 +12,9 @@ const up = () => new Promise(r => http.get(BASE + "/api/status", res => { res.re
   let total = 0, bad = 0;
   for(const f of CODE.concat(NAV).filter(f => !only.length || only.some(o => f.includes(o)))){
     if(NAV.includes(f) && !serverUp){ console.log(`--   ${f} : ignoré, serveur absent sur ${BASE} (lance npm start)`); continue; }
-    const r = spawnSync(process.execPath, [path.join(__dirname, f)], {cwd: OUT, encoding: "utf8", timeout: 900000});
+    /* Sous Windows géré, le bac à sable peut interdire realpath sur le dossier parent.
+       Les mêmes options que le script npm gardent les chemins du workspace et rendent la suite complète exécutable. */
+    const r = spawnSync(process.execPath, ["--preserve-symlinks", "--preserve-symlinks-main", path.join(__dirname, f)], {cwd: OUT, encoding: "utf8", timeout: 900000});
     const o = (r.stdout || "") + (r.stderr || "");
     const tap = n => Number((o.match(new RegExp(`^# ${n} (\\d+)`, "m")) || [])[1] || 0);   /* suites écrites avec node:test (« # pass 10 ») */
     const okN = (o.match(/^OK\b/gm) || []).length + tap("pass"), koN = (o.match(/^(ECHEC|ÉCHEC)\b|ERREUR DU TEST/gm) || []).length + tap("fail") + (r.status ? 1 : 0) * (okN ? 0 : 1);

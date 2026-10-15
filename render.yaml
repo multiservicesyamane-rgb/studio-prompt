@@ -19,11 +19,19 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_MEDIA_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: AGNES_API_KEY
+        sync: false
+      - key: RUNWAY_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: HF_TOKEN
         sync: false
       - key: GROQ_API_KEY
         sync: false

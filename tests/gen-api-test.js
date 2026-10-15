@@ -11,7 +11,7 @@ const body = req => new Promise(r => { const c = []; req.on("data", x => c.push(
 const json = (res, code, o) => { res.writeHead(code, {"Content-Type": "application/json"}); res.end(JSON.stringify(o)); };
 
 /* ---------- faux services ---------- */
-const seen = {keys: [], runway: [], eleven: [], polls: {}, ttsActive: 0, ttsMax: 0}; let FAKE = "", veoBilling = false, ttsMode = "ok";
+const seen = {keys: [], runway: [], eleven: [], music: [], polls: {}, ttsActive: 0, ttsMax: 0}; let FAKE = "", veoBilling = false, ttsMode = "ok";
 const fake = http.createServer(async (req, res) => {
   const u = new URL(req.url, "http://x"), b = req.method === "POST" ? await body(req) : "";
   if(u.pathname === "/v1beta/interactions"){ const o = JSON.parse(b); seen.keys.push(["tts", req.headers["x-goog-api-key"], o.generation_config && o.generation_config.speech_config[0].voice]);
@@ -33,6 +33,7 @@ const fake = http.createServer(async (req, res) => {
   if(u.pathname === "/rw/out.mp4"){ res.writeHead(200, {"Content-Type": "video/mp4"}); return res.end(Buffer.alloc(4000, 3)); }
   m = u.pathname.match(/^\/v1\/text-to-speech\/(.+)$/);
   if(m){ seen.eleven.push([m[1], req.headers["xi-api-key"], JSON.parse(b)]); res.writeHead(200, {"Content-Type": "audio/mpeg"}); return res.end(Buffer.alloc(3200, 1)); }
+  if(u.pathname === "/v1/music"){ seen.music.push([req.headers["xi-api-key"], u.searchParams.get("output_format"), JSON.parse(b)]); res.writeHead(200, {"Content-Type": "audio/mpeg"}); return res.end(Buffer.alloc(192000, 2)); }
   if(u.pathname === "/v2/voices") return json(res, 200, {voices: [{voice_id: "v-awa", name: "Awa", labels: {gender: "female", accent: "african"}, preview_url: ""}]});
   json(res, 404, {error: {message: "inconnu " + u.pathname}});
 });
@@ -53,7 +54,7 @@ const PNG = "data:image/png;base64," + Buffer.alloc(300, 9).toString("base64");
   let {srv} = studio(ENV); const port = await listen(srv);
 
   const st = await getJ(port, "/api/gen/status");
-  check("état : voix Gemini gratuite prête, Veo prêt avec la clé du projet payant, budget 2 $", st.voice[0].ready && st.voice[0].free && st.video[1].ready && st.video[1].needs === "" && st.budget.limit === 2 && st.media_key === true, JSON.stringify({veo: st.video[1], budget: st.budget}));
+  check("état : voix Gemini, Veo et Eleven Music prêts, chanson locale toujours disponible, budget 2 $", st.voice[0].ready && st.voice[0].free && st.video[1].ready && st.video[1].needs === "" && st.song[0].ready && st.song[0].free && st.song[2].ready && st.budget.limit === 2 && st.media_key === true, JSON.stringify({veo: st.video[1], song:st.song, budget: st.budget}));
   check("aucune clé dans l'état renvoyé à la page", !/cle-/.test(JSON.stringify(st)));
   const vg = await getJ(port, "/api/gen/voices?provider=gemini"), ve = await getJ(port, "/api/gen/voices?provider=elevenlabs");
   check("30 voix Gemini (avec genre) et voix ElevenLabs du compte", vg.voices.length === 30 && /femme|homme/.test(vg.voices[0].desc) && ve.voices[0].id === "v-awa", `${vg.voices.length} · ${ve.voices.map(v => v.name)}`);
@@ -127,6 +128,10 @@ const PNG = "data:image/png;base64," + Buffer.alloc(300, 9).toString("base64");
   r = await postJ(port, "/api/gen/start", {kind: "voice", service: "elevenlabs", project: "proj1", plan: 6, text: "Bonjour.", voice: "v-awa"});
   j = r.status === 200 && await waitJob(port, r.body.job.id);
   check("ElevenLabs : voix mp3 enregistrée avec la voix choisie", j && j.status === "done" && /\.mp3$/.test(j.url) && seen.eleven[0][0] === "v-awa" && seen.eleven[0][1] === "cle-eleven", j ? `${j.status} ${j.error || ""}` : "");
+  r = await postJ(port, "/api/gen/start", {kind:"song", service:"elevenmusic", project:"proj1", plan:7, lyrics:"[Verse]\nRouge comme la tomate\nBleu comme le ciel\n[Chorus]\nLes couleurs, chantons-les !", tags:"children's educational song,female vocals,clear French vocals", lang:"fr", duration:20, base:"couleurs"});
+  j = r.status === 200 && await waitJob(port, r.body.job.id);
+  const em = seen.music[0] || [], ep = em[2] || {}, ec = ep.composition_plan && ep.composition_plan.chunks || [];
+  check("Eleven Music : chanson mp3, paroles exactes, sections minutées et modèle v2.5", j && j.status === "done" && /\.mp3$/.test(j.url) && j.lrc.length === 3 && j.seconds === 8 && em[0] === "cle-eleven" && em[1] === "mp3_48000_192" && ep.model_id === "music_v2_5" && ec.length === 2 && ec.every(x => x.duration_ms >= 3000) && /Rouge comme la tomate/.test(ec[0].text), j ? `${j.status} · ${j.seconds}s · ${j.lrc.length} lignes` : JSON.stringify(r.body));
 
   // 6. sécurité des chemins
   const bad = await Promise.all(["/generated/../server.js", "/generated/proj1/..%2F..%2Fserver.js", "/generated/jobs.json", "/generated/state.json", "/generated/proj1/.hidden"].map(p => get(port, p)));
@@ -149,7 +154,7 @@ const PNG = "data:image/png;base64," + Buffer.alloc(300, 9).toString("base64");
   fs.rmSync(DIR, {recursive: true, force: true});
   ({srv} = studio({GEMINI_API_KEY: "cle-gratuite", GEMINI_BASE_URL: FAKE + "/v1beta"})); const port3 = await listen(srv);
   const st3 = await getJ(port3, "/api/gen/status");
-  check("seulement la clé gratuite : voix prêtes, Veo et images marqués « facturation », Runway et ElevenLabs « clé »", st3.voice[0].ready && st3.video[0].needs === "billing" && st3.image.needs === "billing" && st3.video[3].needs === "key" && !st3.voice[1].ready && st3.media_key === false, JSON.stringify({veo: st3.video[0].needs, img: st3.image.needs, rw: st3.video[3].needs}));
+  check("seulement la clé gratuite : voix prêtes, chanson locale disponible, Eleven Music indisponible, Veo et images marqués « facturation »", st3.voice[0].ready && st3.song[0].ready && !st3.song[2].ready && st3.video[0].needs === "billing" && st3.image.needs === "billing" && st3.video[3].needs === "key" && !st3.voice[1].ready && st3.media_key === false, JSON.stringify({veo: st3.video[0].needs, song:st3.song, img: st3.image.needs, rw: st3.video[3].needs}));
   r = await postJ(port3, "/api/gen/start", {kind: "voice", service: "elevenlabs", project: "p", text: "Bonjour", voice: "x"});
   check("ElevenLabs sans clé → refus clair qui renvoie à la page Connexions", r.status === 400 && r.body.code === "no_key" && /Connexions/.test(r.body.message), r.body.message);
 
