@@ -33,7 +33,7 @@ const FF = require(path.join(__dirname, "..", "node_modules", "ffmpeg-static")),
       reply({}); });
     await pg.setViewport({width: 390, height: 844, deviceScaleFactor: 1});
     await pg.goto(BASE + "/#lecon", {waitUntil: "networkidle0"});
-    await pg.waitForFunction(() => document.querySelectorAll("#lc-models canvas").length === 3, {timeout: 60000});
+    await pg.waitForFunction(() => document.querySelectorAll("#lc-models canvas").length === 4, {timeout: 60000});
     await (await pg.$("#lc-files")).uploadFile(F("lc-rouge.png"), F("lc-son.wav"), F("lc-clip.mp4"), F("lc-couleurs.txt"));
     await pg.waitForFunction(() => /4 fichiers prêts/.test(document.getElementById("lc-msg").textContent), {timeout: 60000});
     const s1 = await pg.evaluate(() => ({chips: [...document.querySelectorAll("#lc-assets .cb-chip")].map(c => c.textContent.replace(/\s+/g, " ").trim()), files: __spLecon.files.map(x => [x.kind, x.blobs.length, x.text.length])}));
@@ -46,7 +46,7 @@ const FF = require(path.join(__dirname, "..", "node_modules", "ffmpeg-static")),
     check("angle choisi : modèle conseillé pris (Grand Théâtre), la leçon suit l'angle et le contenu des fichiers (médias joints), méthode affichée et dans la publication, paroles de la chanson reçues", asked.lesson && asked.lesson.angle && asked.lesson.src && asked.lesson.media.wav === 1 && s3.model === "theatre" && s3.n === 4 && /Méthode de la leçon · Chanson des couleurs/.test(s3.meth) && /Montrer l’objet/.test(s3.meth) && /Méthode :\n1\. Écouter la couleur/.test(s3.pub) && /Rouge, rouge, comme la tomate/.test(s3.lyr), `${s3.model} · ${s3.n} éléments`);
     /* embellir : galerie de la bibliothèque commune (transitions, couleurs de cinéma, ambiances) */
     await pg.evaluate(() => { document.getElementById("lc-fx").open = true; }); await pg.waitForFunction(() => document.querySelectorAll("#lc-fx-grid .rc-fxc").length > 50, {timeout: 30000});
-    const nT = await pg.evaluate(() => document.querySelectorAll("#lc-fx-grid .rc-fxc").length); await pg.click('[data-lc-fxtab="looks"]'); await pg.click('[data-lc-fx="looks:cinema"]'); await pg.click('[data-lc-fxtab="ambs"]'); await pg.click('[data-lc-fx="ambs:lucioles"]');
+    const nT = await pg.evaluate(() => document.querySelectorAll("#lc-fx-grid .rc-fxc").length); await pg.evaluate(() => { const q = s => document.querySelector(s).click(); q('[data-lc-fxtab="looks"]'); q('[data-lc-fx="looks:cinema"]'); q('[data-lc-fxtab="ambs"]'); q('[data-lc-fx="ambs:lucioles"]'); });   /* clics directs : à 390 px, la barre fixe du haut peut recouvrir les onglets */
     const fx = await pg.evaluate(() => ({e: __spLecon.L.effets, sum: document.getElementById("lc-fx-sum").textContent, nA: document.querySelectorAll("#lc-fx-grid .rc-fxc").length}));
     check("galerie « Embellir » : 77 transitions (dont « Automatique »), couleurs de cinéma et ambiances avec aperçus ; le choix est gardé dans la leçon", nT === 77 && fx.e.transition === "auto" && fx.e.look === "cinema" && fx.e.ambiance === "lucioles" && fx.nA > 50 && /Cinéma/i.test(fx.sum), `${nT} transitions · ${JSON.stringify(fx.e)} · ${fx.sum}`);
     const wide = await pg.evaluate(() => document.documentElement.scrollWidth);

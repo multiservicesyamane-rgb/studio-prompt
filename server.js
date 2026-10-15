@@ -641,7 +641,7 @@ async function youtubeWebTop(q, opts = {}){
   if(!ids.length) return [];
   const metas = (await Promise.all(ids.map(id => youtubeMeta(id).catch(() => null)))).filter(Boolean).map(ytItem);
   const days = {semaine:7, mois:31, annee:365}[opts.periode], after = days ? Date.now() - days * 864e5 : 0;
-  return metas.filter(x => x.id && x.title && x.views >= YT_MIN_VIEWS)
+  return metas.filter(x => x.id && x.title && x.views >= (opts.min || YT_MIN_VIEWS))
     .filter(x => opts.format === "court" ? x.duration > 0 && x.duration < 240 : opts.format === "moyen" ? x.duration >= 240 && x.duration <= 1200 : true)
     .filter(x => !after || (Date.parse(x.published) || 0) >= after)
     .sort((a,b) => b.views - a.views).slice(0, 12);
@@ -659,27 +659,27 @@ function ytApiError(r){
   return [502, "network", "YouTube ne répond pas : l'agent cherche sur Google à la place."];
 }
 async function handleYoutubeTop(req, res){
-  const u = new URL(req.url, "http://x"), p = k => String(u.searchParams.get(k) || "").trim();
+  const u = new URL(req.url, "http://x"), p = k => String(u.searchParams.get(k) || "").trim(), minV = Math.min(YT_MIN_VIEWS, Math.max(1000, Number(p("min")) || YT_MIN_VIEWS));   /* min : seuil de vues plus bas pour étudier un sujet précis (leçons) */
   const ids = [...new Set(p("ids").split(/[\s,]+/).map(x => ytId(x) || (/^[A-Za-z0-9_-]{11}$/.test(x) ? x : "")).filter(Boolean))].slice(0, 12);
   if(ids.length){   /* liens trouvés par l'agent ou collés : chacun vérifié sur YouTube ; un lien qui ne mène à aucune vidéo est écarté */
-    const items = (await Promise.all(ids.map(id => youtubeMeta(id).catch(() => null)))).filter(m => m && m.title).map(ytItem).filter(x => x.views >= YT_MIN_VIEWS).sort((a, b) => b.views - a.views);
-    return sendJson(res, 200, {items, source:"liens", min_views:YT_MIN_VIEWS}); }
+    const items = (await Promise.all(ids.map(id => youtubeMeta(id).catch(() => null)))).filter(m => m && m.title).map(ytItem).filter(x => x.views >= minV).sort((a, b) => b.views - a.views);
+    return sendJson(res, 200, {items, source:"liens", min_views:minV}); }
   const q = p("q").replace(/[<>"]/g, " ").slice(0, 120); if(!q) return sendJson(res, 400, {code:"bad_request", message:"Écris un sujet à chercher."});
   if(!ytKey()){
-    const items = await youtubeWebTop(q, {format:p("format"), periode:p("periode"), langue:p("langue")});
-    if(items.length) return sendJson(res, 200, {items, source:"youtube_web", min_views:YT_MIN_VIEWS});
+    const items = await youtubeWebTop(q, {format:p("format"), periode:p("periode"), langue:p("langue"), min:minV});
+    if(items.length) return sendJson(res, 200, {items, source:"youtube_web", min_views:minV});
     return sendJson(res, 400, {code:"network", message:"La page publique de résultats YouTube n’a rendu aucune vidéo vérifiable : nouvelle tentative par la recherche web."});
   }
   const days = {semaine:7, mois:31, annee:365}[p("periode")], params = {part:"snippet", type:"video", order:"viewCount", maxResults:"25", q, safeSearch:"strict"};
   if(days) params.publishedAfter = new Date(Date.now() - days * 864e5).toISOString().replace(/\.\d+Z$/, "Z");
   if(p("format") === "court") params.videoDuration = "short"; else if(p("format") === "moyen") params.videoDuration = "medium";
   if(/^[a-z]{2}$/.test(p("langue"))) params.relevanceLanguage = p("langue");
-  const s = await ytApi("search", params); if(s.status !== 200 || !s.json){ const items = await youtubeWebTop(q, {format:p("format"), periode:p("periode"), langue:p("langue")}); if(items.length) return sendJson(res, 200, {items, source:"youtube_web", min_views:YT_MIN_VIEWS}); const [code, c, message] = ytApiError(s); return sendJson(res, code, {code:c, message}); }
+  const s = await ytApi("search", params); if(s.status !== 200 || !s.json){ const items = await youtubeWebTop(q, {format:p("format"), periode:p("periode"), langue:p("langue"), min:minV}); if(items.length) return sendJson(res, 200, {items, source:"youtube_web", min_views:minV}); const [code, c, message] = ytApiError(s); return sendJson(res, code, {code:c, message}); }
   const found = (s.json.items || []).map(x => x && x.id && x.id.videoId).filter(Boolean); if(!found.length) return sendJson(res, 200, {items:[], source:"api"});
   const v = await ytApi("videos", {part:"snippet,statistics,contentDetails", id:found.join(",")}); if(v.status !== 200 || !v.json){ const [code, c, message] = ytApiError(v); return sendJson(res, code, {code:c, message}); }
   const items = (v.json.items || []).map(x => { const sn = x.snippet || {}; return ytItem({id:x.id, title:sn.title, channel:sn.channelTitle, views:(x.statistics || {}).viewCount, duration:isoSeconds((x.contentDetails || {}).duration), published:sn.publishedAt, description:sn.description}); })
-    .filter(x => x.id && x.title && x.views >= YT_MIN_VIEWS).sort((a, b) => b.views - a.views).slice(0, 12);
-  sendJson(res, 200, {items, source:"api", min_views:YT_MIN_VIEWS});
+    .filter(x => x.id && x.title && x.views >= minV).sort((a, b) => b.views - a.views).slice(0, 12);
+  sendJson(res, 200, {items, source:"api", min_views:minV});
 }
 /* Les commentaires les plus appréciés d'une vidéo : lus pour trouver un nouvel angle (ce que le public aime, demande ou reproche), jamais republiés */
 async function handleYoutubeComments(req, res){

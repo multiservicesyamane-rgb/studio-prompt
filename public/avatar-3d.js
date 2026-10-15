@@ -19,6 +19,28 @@ const STYLES={
   blanc:{nom:"Blanc pur et bleu", robe:"#F7F7F4", brod:"#2F5D9E", kufi:"#F7F7F4", kufiB:"#2F5D9E"}
 };
 const SKINS={fonce:{nom:"Peau foncée", c:"#5A3A24"}, moyen:{nom:"Peau brune", c:"#7B4F2E"}, clair:{nom:"Peau claire", c:"#A87A52"}};
+/* coiffes : kufi (calotte brodée), cheveux courts, foulard noué (moussor), chignon, macarons (fillette). Une femme ne porte jamais le kufi
+   et personne n'est chauve (relecture du 14 octobre : les profils sans kufi étaient chauves). */
+const COIFFES={kufi:"Kufi brodé", cheveux:"Cheveux courts", foulard:"Foulard noué", chignon:"Chignon", macarons:"Macarons"};
+/* Enseignants fictifs (aucune personne réelle). Chaque profil garde sa tenue, son teint, sa coiffe et son rythme de micro-mouvements. */
+const PROFILES={
+  claire:{nom:"Claire · français",lang:"fr",gender:"f",style:"ivoire",skin:"clair",seed:21,coiffe:"chignon"},
+  malika:{nom:"Malika · français",lang:"fr",gender:"f",style:"sauge",skin:"moyen",seed:37,coiffe:"foulard"},
+  amadou:{nom:"Amadou · français",lang:"fr",gender:"m",style:"bordeaux",skin:"fonce",seed:52,coiffe:"kufi",barbe:true},
+  julien:{nom:"Julien · français",lang:"fr",gender:"m",style:"ciel",skin:"clair",seed:68,coiffe:"cheveux"},
+  fatou:{nom:"Fatou · français",lang:"fr",gender:"f",style:"indigo",skin:"fonce",seed:191,coiffe:"foulard"},
+  karim:{nom:"Karim · français",lang:"fr",gender:"m",style:"sauge",skin:"moyen",seed:207,coiffe:"cheveux",barbe:true},
+  emma:{nom:"Emma · English",lang:"en",gender:"f",style:"sauge",skin:"clair",seed:84,coiffe:"chignon"},
+  james:{nom:"James · English",lang:"en",gender:"m",style:"indigo",skin:"moyen",seed:101,coiffe:"cheveux"},
+  nia:{nom:"Nia · English",lang:"en",gender:"f",style:"bordeaux",skin:"fonce",seed:119,coiffe:"foulard"},
+  omar:{nom:"Omar · العربية",lang:"ar",gender:"m",style:"blanc",skin:"moyen",seed:136,coiffe:"kufi",barbe:true},
+  aicha:{nom:"Aïcha · العربية",lang:"ar",gender:"f",style:"ciel",skin:"fonce",seed:154,coiffe:"foulard"},
+  yasmine:{nom:"Yasmine · multilingue",lang:"all",gender:"f",style:"ivoire",skin:"moyen",seed:173,coiffe:"foulard"},
+  garcon:{nom:"Petit maître · garçon en boubou",lang:"all",gender:"m",age:"enfant",style:"indigo",skin:"fonce",seed:0,coiffe:"kufi"}
+};
+const DEFAULT_PROFILE={fr:"claire",en:"emma",ar:"omar"};
+/* le corps d'un profil : enfant (garçon ou fillette) ou adulte (oustaz barbu, enseignant, enseignante) */
+const kindOf=q=>q.age==="enfant"?(q.gender==="f"?"fille":"enfant"):q.gender==="f"?"professeure":q.barbe?"oustaz":"professeur";
 let T=null, loading=null, R=null, failed=false; const SCENES={};
 function load(){ if(T) return Promise.resolve(T); if(failed) return Promise.reject(new Error("3D indisponible"));
   return loading||(loading=import(THREE_URL).then(m=>{ T=m; return T; }).catch(e=>{ failed=true; loading=null; throw e; })); }
@@ -41,6 +63,11 @@ function kufiCanvas(st){ const c=document.createElement("canvas"); c.width=1024;
   g.fillStyle=st.kufiB; g.strokeStyle=st.kufiB; g.lineWidth=4;
   for(let x=0;x<1024;x+=64){ g.beginPath(); g.moveTo(x+32,60); g.lineTo(x+60,128); g.lineTo(x+32,196); g.lineTo(x+4,128); g.closePath(); g.stroke(); g.beginPath(); g.arc(x+32,128,7,0,7); g.fill(); }
   g.fillRect(0,0,1024,14); g.fillRect(0,242,1024,14); return c; }
+/* tissu du foulard : motif wax (cercles et losanges) dans les couleurs de la tenue */
+function waxCanvas(st){ const c=document.createElement("canvas"); c.width=512; c.height=512; const g=c.getContext("2d"); g.fillStyle=st.brod; g.fillRect(0,0,512,512);
+  for(let y=0;y<512;y+=64) for(let x=0;x<512;x+=64){ const o=(y/64)%2?32:0; g.fillStyle=st.robe; g.beginPath(); g.arc(x+o+32,y+32,22,0,7); g.fill(); g.fillStyle=st.kufi; g.beginPath(); g.arc(x+o+32,y+32,10,0,7); g.fill();
+    g.fillStyle=st.robe; g.beginPath(); g.moveTo(x+o,y); g.lineTo(x+o+8,y+8); g.lineTo(x+o,y+16); g.lineTo(x+o-8,y+8); g.closePath(); g.fill(); }
+  return c; }
 function pageCanvas(){ const c=document.createElement("canvas"); c.width=256; c.height=320; const g=c.getContext("2d"); g.fillStyle="#F6EDD6"; g.fillRect(0,0,256,320);
   g.strokeStyle="#B8862E"; g.lineWidth=6; g.strokeRect(14,14,228,292); g.fillStyle="#3A2716"; for(let y=46;y<290;y+=20){ const w=170-((y*7)%40); g.fillRect(128-w/2,y,w,5); } return c; }
 function coverCanvas(){ const c=document.createElement("canvas"); c.width=256; c.height=320; const g=c.getContext("2d"); g.fillStyle="#174A39"; g.fillRect(0,0,256,320);
@@ -49,9 +76,11 @@ function coverCanvas(){ const c=document.createElement("canvas"); c.width=256; c
 function shadowCanvas(){ const c=document.createElement("canvas"); c.width=c.height=128; const g=c.getContext("2d"), r=g.createRadialGradient(64,64,0,64,64,64); r.addColorStop(0,"rgba(30,18,8,.55)"); r.addColorStop(.6,"rgba(30,18,8,.22)"); r.addColorStop(1,"rgba(30,18,8,0)"); g.fillStyle=r; g.fillRect(0,0,128,128); return c; }
 const tex=c=>{ const x=new T.CanvasTexture(c); x.colorSpace=T.SRGBColorSpace; x.anisotropy=4; return x; };
 const M=(c,r,o)=>new T.MeshStandardMaterial(Object.assign({color:c, roughness:r==null?.6:r, metalness:0},o||{}));
-/* ---------- un personnage : « enfant » (garçon) ou « oustaz » (jeune adulte, barbe courte) ---------- */
-function buildCharacter(kind, style, skin, seed){
-  const A=kind==="oustaz", C={kind, seed:seed||0, style:null, skin:null}, root=new T.Group();
+/* ---------- un personnage : « enfant » (garçon), « fille » (fillette), « oustaz » (jeune adulte, barbe courte), « professeur », « professeure » ----------
+   look = {coiffe, barbe} ; sans précision : kufi pour l'enfant et l'oustaz, cheveux courts pour le professeur, foulard pour la professeure, macarons pour la fillette */
+function buildCharacter(kind, style, skin, seed, look){
+  const lk=look||{}, A=kind!=="enfant"&&kind!=="fille", coiffe=COIFFES[lk.coiffe]&&!(lk.coiffe==="kufi"&&(kind==="fille"||kind==="professeure"))?lk.coiffe:kind==="fille"?"macarons":kind==="professeure"?"foulard":kind==="professeur"?"cheveux":"kufi",
+    beard=A&&(lk.barbe!=null?!!lk.barbe:kind==="oustaz")&&kind!=="professeure", C={kind, coiffe, seed:seed||0, style:null, skin:null}, root=new T.Group();
   const robeTex=tex(embroideryCanvas(STYLES[style]||STYLES.indigo)), kufiTex=tex(kufiCanvas(STYLES[style]||STYLES.indigo)); kufiTex.wrapS=T.RepeatWrapping; kufiTex.repeat.set(2,1);
   const skinM=M((SKINS[skin]||SKINS.fonce).c,.52), dark=M("#16100C",.4), white=M("#FBFBF8",.25), iris=M("#3B2416",.3), lip=M("#3E2016",.6), mouthIn=M("#2A0F0E",.8), tongue=M("#B8605A",.7), hair=M("#14100D",.9);
   const robe=new T.MeshStandardMaterial({map:robeTex, roughness:.85, side:T.DoubleSide}), kufi=M("#FFFFFF",.75,{map:kufiTex}), kufiTop=M((STYLES[style]||STYLES.indigo).kufi,.75);
@@ -80,12 +109,30 @@ function buildCharacter(kind, style, skin, seed){
   const inner=new T.Mesh(new T.SphereGeometry(.12*hs,24,16),mouthIn); inner.scale.set(1.25,.1,.45); mouth.add(inner);
   const tng=new T.Mesh(new T.SphereGeometry(.07*hs,16,12),tongue); tng.scale.set(1.3,.5,.5); tng.position.set(0,-.03,.01); mouth.add(tng);
   const smile=new T.Mesh(new T.TorusGeometry(.12*hs,.017,8,24,Math.PI),lip); smile.rotation.z=Math.PI; smile.position.y=.03; mouth.add(smile);
-  if(A){ /* barbe courte et moustache, bien taillées (jeune oustaz) */
+  if(beard){ /* barbe courte et moustache, bien taillées */
     const beard=new T.Mesh(new T.SphereGeometry(.81*hs,40,24,Math.PI*.12,Math.PI*.76,Math.PI*.66,Math.PI*.26),hair); beard.scale.set(1.02,1.14,1.0); head.add(beard);
     const must=new T.Mesh(new T.CapsuleGeometry(.035,.2,4,8),hair); must.rotation.z=Math.PI/2; must.position.set(0,-.22*hs,.73*hs); head.add(must); C.must=must; }
   const kg=new T.Group(); kg.position.set(0,.5*hs+(A?.08:0),-.05); kg.rotation.x=-.12; head.add(kg);
   const kb=new T.Mesh(new T.CylinderGeometry(.66*hs,.72*hs,.46*hs,48,1,true),kufi); kb.position.y=.12*hs; kg.add(kb);
   const kt=new T.Mesh(new T.CylinderGeometry(.66*hs,.66*hs,.04,48),kufiTop); kt.position.y=.35*hs; kg.add(kt);
+  kg.visible=coiffe==="kufi"; C.headwear=kg;
+  /* cheveux : calotte de cheveux qui suit le crâne (ligne du front dégagée), chignon ou macarons */
+  if(coiffe==="cheveux"||coiffe==="chignon"||coiffe==="macarons"){ const hg=new T.Group(); head.add(hg); C.hair=hg;
+    const cap=new T.Mesh(new T.SphereGeometry(.835*hs,48,28,0,Math.PI*2,0,Math.PI*(coiffe==="cheveux"?.42:.47)),hair); cap.scale.set(1.02,A?1.13:1.06,.99); cap.rotation.x=-.42; cap.position.set(0,.03*hs,-.04*hs); hg.add(cap);
+    if(coiffe==="chignon"){ const bun=new T.Mesh(new T.SphereGeometry(.34*hs,28,20),hair); bun.scale.set(1,.85,.9); bun.position.set(0,.86*hs,-.36*hs); hg.add(bun);
+      [-1,1].forEach(k=>{ const side=new T.Mesh(new T.SphereGeometry(.3*hs,20,16),hair); side.scale.set(.55,1,.9); side.position.set(.66*hs*k,.12*hs,-.18*hs); hg.add(side); }); }
+    if(coiffe==="macarons"){ const band=M((STYLES[style]||STYLES.indigo).brod,.5); [-1,1].forEach(k=>{ const p=new T.Mesh(new T.SphereGeometry(.3*hs,28,20),hair); p.position.set(.58*hs*k,.6*hs,-.12*hs); hg.add(p);
+      const b=new T.Mesh(new T.TorusGeometry(.17*hs,.05*hs,10,24),band); b.position.set(.48*hs*k,.5*hs,-.1*hs); b.rotation.set(Math.PI/2,0,k*.7); hg.add(b); }); } }
+  /* enseignante et fillette : boucles d'oreilles dorées et cils */
+  if(kind==="professeure"||kind==="fille"){ const gold=M("#E2B857",.25,{metalness:.6}); [-1,1].forEach(k=>{ const er=new T.Mesh(new T.SphereGeometry(.06*hs,12,10),gold); er.position.set(.8*hs*k,-.17*hs,.06); head.add(er); });
+    C.lashes=eyes.map(e=>{ const l=new T.Mesh(new T.TorusGeometry(.17*e.s,.018,6,18,Math.PI*.8),dark); l.rotation.z=Math.PI*.1; l.position.set(0,.04*e.s,.1*e.s); e.g.add(l); return l; }); }
+  /* foulard noué (moussor) : il couvre la tête et se termine par un grand nœud en éventail, dans un tissu wax */
+  if(coiffe==="foulard"){ const wt=tex(waxCanvas(STYLES[style]||STYLES.indigo)); wt.wrapS=wt.wrapT=T.RepeatWrapping; wt.repeat.set(2,1.4); C.mats.waxTex=wt;
+    const wm=new T.MeshStandardMaterial({map:wt, roughness:.78, side:T.DoubleSide}), fg=new T.Group(); head.add(fg); C.hair=fg;
+    const wrap=new T.Mesh(new T.SphereGeometry(.9*hs,48,30,0,Math.PI*2,0,Math.PI*.56),wm); wrap.scale.set(1.03,A?1.2:1.1,1.04); wrap.rotation.x=-.5; wrap.position.set(0,.04*hs,-.06*hs); fg.add(wrap);
+    const rim=new T.Mesh(new T.TorusGeometry(.79*hs,.075*hs,12,48),wm); rim.rotation.x=Math.PI/2-.5; rim.scale.set(1.02,1,1); rim.position.set(0,.36*hs,-.02*hs); fg.add(rim);
+    [[-.34,.25],[0,0],[.34,-.25]].forEach(([dx,rz],i)=>{ const leaf=new T.Mesh(new T.SphereGeometry(.34*hs,24,18),wm); leaf.scale.set(.62,1,.32); leaf.position.set(dx*hs,1.02*hs-(i===1?0:.08*hs),.02*hs); leaf.rotation.set(-.25,0,rz); fg.add(leaf); });
+    const knot=new T.Mesh(new T.SphereGeometry(.16*hs,18,14),wm); knot.position.set(0,.86*hs,.16*hs); fg.add(knot); }
   /* bras : manches larges, mains, index (montrer) ; pivot à l'épaule */
   const arms=[]; [-1,1].forEach(k=>{ const sh=new T.Group(); sh.position.set(.7*Wd*k,1.9*H,.05); torso.add(sh);
     const sl=new T.Mesh(new T.CylinderGeometry(.2*Wd,.46*Wd,1.05*H,28,1,true),robe); sl.position.y=-.5*H; sh.add(sl);
@@ -97,7 +144,7 @@ function buildCharacter(kind, style, skin, seed){
   Object.assign(C,{root,body,torso,head,eyes,brows,mouth,inner,tongue:tng,smile,arms,H,Wd,hs});
   setLook(C, style, skin); return C; }
 let shadowTex=null; const SH=()=>shadowTex||(shadowTex=tex(shadowCanvas()));
-function setLook(C, style, skin){ if(style&&STYLES[style]&&C.style!==style){ C.style=style; const s=STYLES[style]; C.mats.robeTex.image=embroideryCanvas(s); C.mats.robeTex.needsUpdate=true; C.mats.kufiTex.image=kufiCanvas(s); C.mats.kufiTex.needsUpdate=true; C.mats.kufiTop.color.set(s.kufi); }
+function setLook(C, style, skin){ if(style&&STYLES[style]&&C.style!==style){ C.style=style; const s=STYLES[style]; C.mats.robeTex.image=embroideryCanvas(s); C.mats.robeTex.needsUpdate=true; C.mats.kufiTex.image=kufiCanvas(s); C.mats.kufiTex.needsUpdate=true; C.mats.kufiTop.color.set(s.kufi); if(C.mats.waxTex){ C.mats.waxTex.image=waxCanvas(s); C.mats.waxTex.needsUpdate=true; } }
   if(skin&&SKINS[skin]&&C.skin!==skin){ C.skin=skin; C.mats.skinM.color.set(SKINS[skin].c); } }
 /* ---------- la vie d'un personnage à l'instant t ----------
    p = {mouth 0..1, speak, since (s depuis le début de la phrase), point 0..1, side ±1, open 0..1, rock, look:{x,y} cible du regard, listen (écoute un autre)} */
@@ -149,30 +196,88 @@ function addStick(C, len){ const g=new T.Group(), H=C.H||1, wood=M("#7A4A22",.55
   const rod=new T.Mesh(new T.CylinderGeometry(.03,.036,len,10),wood); rod.position.y=-len/2; g.add(rod);
   const end=new T.Mesh(new T.SphereGeometry(.05,12,10),tip); end.position.y=-len; g.add(end);
   g.position.set(0,-1.04*H,0); g.rotation.x=.22; C.arms[1].sh.add(g); C.stick=g; return g; }
-function buildSolo(){ const scene=new T.Scene(); lights(scene); const kid=buildCharacter("enfant","indigo","fonce",0); addStick(kid,1.05); scene.add(kid.root); const desk=deskWithBook(); desk.position.set(0,0,1.35); scene.add(desk);
+function buildSolo(profile){ const scene=new T.Scene(); lights(scene); const q=PROFILES[profile]||PROFILES.garcon, kid=buildCharacter(kindOf(q),q.style,q.skin,q.seed,q); addStick(kid,q.age==="enfant"?1.05:1.24); scene.add(kid.root); const desk=deskWithBook(); desk.position.set(0,0,1.35); scene.add(desk);
   return {scene, cam:new T.PerspectiveCamera(26,1,.1,100), cast:{kid}}; }
-function buildDaara(){ const scene=new T.Scene(); lights(scene);
-  const prof=buildCharacter("oustaz","blanc","fonce",3); prof.root.position.set(0,0,-1.2); scene.add(prof.root); const desk=deskWithBook(1.05); desk.position.set(0,0,.35); scene.add(desk);
+function buildDaara(profile){ const scene=new T.Scene(); lights(scene); const q=PROFILES[profile]||PROFILES.omar;
+  const prof=buildCharacter(q.age==="enfant"?"oustaz":kindOf(q),q.style,q.skin,q.seed,q); prof.root.position.set(0,0,-1.2); scene.add(prof.root); const desk=deskWithBook(1.05); desk.position.set(0,0,.35); scene.add(desk);
   /* stick (pointeur) du maître, tenu dans la main qui montre la tablette */
   addStick(prof,1.4);
   const kids=[["ciel","fonce",-2.75,2.3,.42],["ivoire","moyen",-.95,3.45,.14],["sauge","fonce",1.95,3.0,-.32]].map(([st,sk,x,z,ry],i)=>{ const k=buildCharacter("enfant",st,sk,11+i); k.root.position.set(x,0,z); k.root.rotation.y=Math.PI+ry; k.root.scale.setScalar(.82); scene.add(k.root);
     const lb=lapBoard(); lb.position.set(0,.95,.85); lb.rotation.x=-.45; k.root.add(lb); return k; });
   return {scene, cam:new T.PerspectiveCamera(30,1,.1,100), cast:{prof, kids}}; }
+/* ---------- petit robot compagnon : il flotte, ses yeux et sa bouche sont des lumières sur un écran, son antenne clignote ---------- */
+function buildRobot(color, seed){ const C={kind:"robot", robot:true, seed:seed||0, H:1, Wd:1, hs:1}, root=new T.Group(), body=new T.Group(); root.add(body);
+  const shell=M("#F3F6FB",.26,{metalness:.12}), col=M(color||"#2F9BFF",.32,{metalness:.18}), dark=M("#0C1626",.18,{metalness:.25}),
+    glow=new T.MeshStandardMaterial({color:"#B8FBFF", emissive:new T.Color("#38E1FF"), emissiveIntensity:1.5, roughness:.3}), aglow=new T.MeshStandardMaterial({color:"#FFE9A6", emissive:new T.Color("#FFC233"), emissiveIntensity:1.2, roughness:.3}),
+    pink=new T.MeshStandardMaterial({color:"#FF9EC4", emissive:new T.Color("#FF5C9A"), emissiveIntensity:.5, roughness:.4, transparent:true, opacity:.75});
+  const torso=new T.Mesh(new T.SphereGeometry(.82,40,32),shell); torso.scale.set(1,1.06,.9); torso.position.y=1.2; body.add(torso);
+  const belly=new T.Mesh(new T.SphereGeometry(.835,40,24,Math.PI*.3,Math.PI*.4,Math.PI*.38,Math.PI*.3),col); belly.scale.copy(torso.scale); belly.position.copy(torso.position); body.add(belly);
+  const heart=new T.Mesh(new T.SphereGeometry(.09,16,12),aglow); heart.position.set(0,1.22,.76); heart.scale.set(1,1,.5); body.add(heart);
+  const jet=new T.Mesh(new T.SphereGeometry(.34,24,12,0,Math.PI*2,Math.PI*.5,Math.PI*.5),glow); jet.scale.set(1,.45,1); jet.position.y=.42; body.add(jet);
+  const head=new T.Group(); head.position.y=2.55; body.add(head);
+  const skull=new T.Mesh(new T.SphereGeometry(.78,44,36),shell); skull.scale.set(1.24,.94,1); head.add(skull);
+  const screen=new T.Mesh(new T.SphereGeometry(.79,44,30,Math.PI*.2,Math.PI*.6,Math.PI*.24,Math.PI*.5),dark); screen.scale.copy(skull.scale); head.add(screen);
+  const eyes=[-1,1].map(k=>{ const e=new T.Mesh(new T.SphereGeometry(.12,20,16),glow); e.userData={x:.27*k, y:.1}; e.position.set(.27*k,.1,.76); e.scale.set(1,1.35,.35); head.add(e); return e; });
+  [-1,1].forEach(k=>{ const ck=new T.Mesh(new T.SphereGeometry(.07,14,10),pink); ck.position.set(.46*k,-.1,.66); ck.scale.set(1,.6,.3); head.add(ck); });
+  const bars=[-2,-1,0,1,2].map(i=>{ const b=new T.Mesh(new T.BoxGeometry(.05,.16,.03),glow); b.position.set(i*.075,-.2,.765); head.add(b); return b; });
+  [-1,1].forEach(k=>{ const ear=new T.Mesh(new T.CylinderGeometry(.17,.17,.16,24),col); ear.rotation.z=Math.PI/2; ear.position.set(.97*k,0,0); head.add(ear); });
+  const stem=new T.Mesh(new T.CylinderGeometry(.025,.025,.36,10),dark); stem.position.y=.88; head.add(stem); const ant=new T.Mesh(new T.SphereGeometry(.1,16,12),aglow.clone()); ant.position.y=1.1; head.add(ant);
+  const arms=[-1,1].map(k=>{ const sh=new T.Group(); sh.position.set(.82*k,1.48,0); body.add(sh); const a=new T.Mesh(new T.CapsuleGeometry(.12,.42,6,12),col); a.position.y=-.33; sh.add(a);
+    const h=new T.Mesh(new T.SphereGeometry(.15,18,14),shell); h.position.y=-.66; sh.add(h); return {sh,k}; });
+  const sh=new T.Mesh(new T.PlaneGeometry(2.6,2.2),new T.MeshBasicMaterial({map:SH(), transparent:true, depthWrite:false})); sh.rotation.x=-Math.PI/2; sh.position.y=.01; root.add(sh);
+  Object.assign(C,{root,body,head,eyes,bars,ant,arms,shadow:sh}); return C; }
+function poseRobot(C, t, p){ p=p||{}; const sd=C.seed*13.7, m=cl(p.mouth||0,0,1), hov=Math.sin(t*2.1+sd)*.07;
+  C.body.position.y=.55+(C.lift||0)+hov; C.body.rotation.z=Math.sin(t*1.3+sd)*.03; C.shadow.scale.setScalar((1-hov*.8)/(1+(C.lift||0)*.45));
+  const lx=p.look?p.look.x:Math.sin(t*.5+sd)*.45, ly=p.look?p.look.y:Math.sin(t*.37+sd)*.15, since=p.since==null?9:p.since, nod=since<.6?Math.sin(since/.6*Math.PI)*.12:0;
+  C.head.rotation.set(-ly*.15+nod,lx*.38,Math.sin(t*.7+sd)*.05+(p.listen?.08:0));
+  const per=3.1+rnd(Math.floor((t+sd)/4)+C.seed)*1.6, ph=(t+sd)%per, bl=ph<.14?1-Math.abs(ph-.07)/.07:0;
+  C.eyes.forEach(e=>{ e.scale.y=1.35*(1-bl*.88)*(p.speak?1+.06*Math.sin(t*9):1); e.position.x=e.userData.x+lx*.05; e.position.y=e.userData.y+ly*.03; });
+  C.bars.forEach((b,i)=>{ b.scale.y=m>.03?.6+m*(2.4+1.6*Math.abs(Math.sin(t*15+i*1.9))):.45; });
+  C.ant.material.emissiveIntensity=.7+.9*Math.max(0,Math.sin(t*3.2+sd))+(p.speak?.8:0);
+  const wave=cl(p.point||0,0,1), open=cl(p.open||0,0,1);
+  C.arms.forEach(a=>{ let rz=a.k*.2, rx=0; if(a.k===(p.side||1)&&wave>0){ rz=a.k*(.2+2.0*sm(wave))+a.k*Math.sin(t*7)*.18*wave; rx=-.15; } else if(open>0) rz=a.k*(.2+.9*sm(open)); else if(p.speak) rz=a.k*(.26+.14*Math.sin(t*3.4+a.k));
+    a.sh.rotation.z=rz; a.sh.rotation.x=rx; }); }
+/* ---------- bureau de l'enseignant pour la classe : livres de couleur, pot à crayons, pomme (aucun livre sacré ici) ---------- */
+function teacherDesk(){ const g=new T.Group(), wood=M("#B98250",.48), woodD=M("#7E522D",.58);
+  const top=new T.Mesh(new T.BoxGeometry(3.1,.13,1.15),wood); top.position.y=1.02; g.add(top); const front=new T.Mesh(new T.BoxGeometry(3.0,.9,.07),woodD); front.position.set(0,.55,.55); g.add(front);
+  [-1,1].forEach(k=>{ const side=new T.Mesh(new T.BoxGeometry(.08,.95,1.05),woodD); side.position.set(1.46*k,.5,0); g.add(side); });
+  [["#E4572E",.16],["#2E86AB",.13],["#F2B134",.15]].forEach(([c,h],i)=>{ const b=new T.Mesh(new T.BoxGeometry(.62-i*.05,h,.44),M(c,.55)); b.position.set(-.95,1.09+[0,.15,.29][i]+h/2-.02,.05); b.rotation.y=.12*(i-1); g.add(b); });
+  const cup=new T.Mesh(new T.CylinderGeometry(.13,.11,.3,20),M("#4A6FA5",.4)); cup.position.set(1.05,1.24,.05); g.add(cup);
+  ["#E63946","#2A9D8F","#F4A261"].forEach((c,i)=>{ const p=new T.Mesh(new T.CylinderGeometry(.022,.022,.42,8),M(c,.5)); p.position.set(1.05+(i-1)*.05,1.42,.05+(i%2?.03:-.03)); p.rotation.z=(i-1)*.14; g.add(p); });
+  const ap=new T.Mesh(new T.SphereGeometry(.13,20,16),M("#D62828",.35)); ap.position.set(.62,1.2,.2); g.add(ap); const lf=new T.Mesh(new T.SphereGeometry(.05,10,8),M("#2D9C4A",.5)); lf.scale.set(1.6,.5,.8); lf.position.set(.66,1.34,.2); g.add(lf);
+  const sh=new T.Mesh(new T.PlaneGeometry(4,2),new T.MeshBasicMaterial({map:SH(), transparent:true, depthWrite:false})); sh.rotation.x=-Math.PI/2; sh.position.y=.012; g.add(sh); return g; }
+/* ---------- la classe : l'enseignant derrière son bureau, jusqu'à trois invités (enfants ou robot) devant, tournés vers la caméra ----------
+   cast = [{kind:"enfant"|"fille"|"robot", style, skin, seed, coiffe, couleur}] */
+function buildClasse(profile, cast){ const scene=new T.Scene(); lights(scene); const q=PROFILES[profile]||PROFILES.claire;
+  const prof=buildCharacter(kindOf(q),q.style,q.skin,q.seed,q); prof.root.position.set(0,0,-1.5); scene.add(prof.root); addStick(prof,1.3);
+  const desk=teacherDesk(); desk.position.set(0,0,-.15); scene.add(desk);
+  /* enfants devant, à gauche puis à droite ; le robot flotte en arrière à gauche, à hauteur d'épaule (le maître montre à droite) */
+  const kidsSlots=[[-2.35,1.25,.4],[2.35,1.25,-.4],[0,2.3,0]], robotSlot=[-2.75,-1.45,.32]; let ks=0;
+  const guests=(cast||[]).slice(0,3).map((g,i)=>{ g=g||{}; if(g.kind==="robot"){ const r=buildRobot(g.couleur,g.seed||i+40); r.lift=1.15; r.root.position.set(robotSlot[0],0,robotSlot[1]); r.root.rotation.y=robotSlot[2]; r.root.scale.setScalar(.8); scene.add(r.root); return r; }
+    const s=kidsSlots[Math.min(ks++,2)], k=buildCharacter(g.kind==="fille"?"fille":"enfant",STYLES[g.style]?g.style:"ciel",SKINS[g.skin]?g.skin:"fonce",g.seed||i+60,{coiffe:g.coiffe||(g.kind==="fille"?"macarons":"cheveux")});
+    k.root.position.set(s[0],0,s[1]); k.root.rotation.y=s[2]; k.root.scale.setScalar(.72); scene.add(k.root); return k; });
+  return {scene, cam:new T.PerspectiveCamera(30,1,.1,100), cast:{prof, guests}}; }
 /* ---------- rendu : une scène, une taille, l'instant t ----------
    solo  : p = pose de l'enfant ;  daara : p = {prof:{...}, kids:{...}} */
 function render(w, h, t, p, opts){ if(!T) return null; w=Math.max(16,Math.round(w)); h=Math.max(16,Math.round(h)); opts=opts||{}; t=t||0;
   if(!R){ const c=document.createElement("canvas"); R=new T.WebGLRenderer({canvas:c, antialias:true, alpha:true, preserveDrawingBuffer:true, powerPreference:"high-performance"}); R.setPixelRatio(1); R.outputColorSpace=T.SRGBColorSpace; R.toneMapping=T.ACESFilmicToneMapping; R.toneMappingExposure=1.08; R.setClearColor(0x000000,0); }
-  const kind=opts.scene==="daara"?"daara":"solo", S=SCENES[kind]||(SCENES[kind]=kind==="daara"?buildDaara():buildSolo());
+  /* sans profil : le garçon en boubou (solo, « Garder la voix ») ou l'oustaz (daara), comme avant les profils */
+  const kind=opts.scene==="daara"?"daara":opts.scene==="classe"?"classe":"solo", profile=PROFILES[opts.profile]?opts.profile:(kind==="daara"?"omar":kind==="classe"?"claire":"garcon"),
+    castKey=kind==="classe"?JSON.stringify((opts.cast||[]).map(g=>[g.kind,g.style,g.skin,g.seed,g.coiffe,g.couleur])):"", sceneKey=`${kind}:${profile}:${castKey}`,
+    S=SCENES[sceneKey]||(SCENES[sceneKey]=kind==="daara"?buildDaara(profile):kind==="classe"?buildClasse(profile,opts.cast):buildSolo(profile));
   const cv=R.domElement; if(cv.width!==w||cv.height!==h) R.setSize(w,h,false);
   const a=w/h, cam=S.cam; cam.aspect=a;
   /* caméra vivante : rapprochement et rotation très lents (le décor 2D et la tablette restent fixes) */
   const orbit=Math.sin(t*.05)*.07, dolly=1+Math.sin(t*.037+1)*.035;
   if(kind==="solo"){ setLook(S.cast.kid, opts.style, opts.skin); poseCharacter(S.cast.kid, t, p||{});
     cam.fov=a<.8?30:26; const d=(a<.8?13.2:11.6)*dolly; cam.position.set(Math.sin(orbit)*d,3.4,Math.cos(orbit)*d); cam.lookAt(0,1.75,0); }
+  else if(kind==="classe"){ p=p||{}; if(opts.style||opts.skin) setLook(S.cast.prof, opts.style, opts.skin); poseCharacter(S.cast.prof, t, Object.assign({side:1}, p.prof||{}));
+    S.cast.guests.forEach((g,i)=>{ const q=Object.assign({look:{x:0,y:.05}}, (p.cast||[])[i]||{}); if(g.robot) poseRobot(g,t+i*1.3,q); else poseCharacter(g,t+i*1.7,q); });
+    cam.fov=a<.8?40:a<1.3?34:30; const d=(a<.8?18:a<1.3?17:13.6)*dolly; cam.position.set(Math.sin(orbit)*d,4.8,Math.cos(orbit)*d+1.2); cam.lookAt(0,2.05,-.2); }
   else { p=p||{}; setLook(S.cast.prof, opts.style||"blanc", opts.skin);
     poseCharacter(S.cast.prof, t, Object.assign({side:1}, p.prof||{}));
     S.cast.kids.forEach((k,i)=>poseCharacter(k, t+i*1.7, Object.assign({look:{x:0,y:.15}, rock:true}, p.kids||{}, {mouth:(p.kids&&p.kids.mouth||0)*(.75+.25*rnd(i+Math.floor(t*5)))})));
     cam.fov=a<.8?40:31; const d=(a<.8?15:13.5)*dolly; cam.position.set(Math.sin(orbit)*d,5.3,Math.cos(orbit)*d+1.5); cam.lookAt(0,1.95,0); }
   cam.updateProjectionMatrix(); R.render(S.scene,cam); return cv; }
-window.SP_AVATAR={version:2, styles:STYLES, skins:SKINS, load, render, ready:()=>!!T};
+window.SP_AVATAR={version:4, styles:STYLES, skins:SKINS, coiffes:COIFFES, profiles:PROFILES, kindOf, defaultFor:lang=>DEFAULT_PROFILE[lang]||"yasmine", load, render, ready:()=>!!T};
 })();

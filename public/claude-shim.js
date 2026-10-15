@@ -107,7 +107,8 @@
   /* Sauvegarde en ligne facultative (Supabase, par le serveur local). Rien à appeler sur le site public (pas de serveur) ;
      après un échec, plus aucun appel pendant cette visite : les projets restent dans le navigateur (relais gratuit),
      et la visite suivante renvoie à Supabase la version la plus récente. */
-  let remoteOff = location.protocol === "file:" || /\.github\.io$/i.test(location.hostname);
+  /* page pilotée par un robot (tests, fabrication automatique) : jamais de copie en ligne, pour ne pas mêler des projets d'essai aux vrais projets (15 octobre) */
+  let remoteOff = location.protocol === "file:" || /\.github\.io$/i.test(location.hostname) || navigator.webdriver === true;
   async function remote(method, body){
     const r=await fetch("/api/db/documents",{method:method||"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
     const x=await r.json().catch(()=>({})); if(!r.ok||x.ready===false) throw fail(x.code||"supabase_error",x.message||"Supabase indisponible."); return x;

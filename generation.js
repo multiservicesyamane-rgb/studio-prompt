@@ -192,7 +192,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     try{
       const rm = j.remote || {};   /* déjà commandée : on attend, on ne recommande jamais */
       if(j.kind === "video") await (rm.op ? veoWait(j) : rm.task ? runwayWait(j) : rm.agnes ? agnesWait(j) : j.service === "runway" ? runRunway(j) : j.service === "agnes" ? runAgnes(j) : runVeo(j));
-      else if(j.kind === "song") await runAceSong(j);
+      else if(j.kind === "song") await (j.service === "elevenmusic" ? runElevenMusic(j) : runAceSong(j));
       else await (j.service === "elevenlabs" ? runEleven(j) : j.service === "chatterbox" ? runChatterbox(j) : runGeminiVoice(j));
     }catch(e){ const err = e && e.code ? e : {code:"network", message:`Connexion impossible avec le service (${String(e && e.message || e).slice(0, 120)}). Vérifie Internet, puis relance.`};
       /* Agnes est gratuit : une coupure ou une saturation AVANT la commande se réessaie toute seule (jamais deux commandes : seulement sans commande en cours) */
@@ -314,7 +314,10 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
         r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model, input:[{type:"user_input", content:[content]}], response_format:{type:"audio", mime_type:"audio/wav", sample_rate:24000}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 300000);   /* une revue entière peut tenir en une seule demande */
         /* format WAV refusé par ce modèle (erreur réelle du 14 octobre : « Audio MIME type AUDIO_WAV is not supported for models/gemini-3.1-flash-tts-preview ») : on redemande sans imposer le format */
         if(fmtRefused(r)) r = await call(`${GEMINI_BASE}/interactions`, post(gHead(), {model, input:[{type:"user_input", content:[content]}], response_format:{type:"audio"}, generation_config:{speech_config:[{voice:j.voice || "Kore"}]}}), 300000);
-        if(r.status === 404 || fmtRefused(r)){   /* ancien format, si l'API interactions n'est pas ouverte pour ce modèle (ou refuse encore la demande) */
+        /* direction de jeu refusée sous forme d'annotation (erreur réelle du 15 octobre : « Speech annotations are not supported for model 'gemini-2.5-pro-preview-tts' ») :
+           l'ancien format porte la direction dans la consigne (« Say in a … way: »), la méthode documentée par Google */
+        const annRefused = r.status === 400 && j.style && /annotation/i.test(JSON.stringify(r.json || ""));
+        if(r.status === 404 || fmtRefused(r) || annRefused){   /* ancien format, si l'API interactions n'est pas ouverte pour ce modèle (ou refuse encore la demande) */
           r = await call(`${GEMINI_BASE}/models/${model}:generateContent`, post(gHead(), {contents:[{parts:[{text:j.style ? `Say in a ${j.style} way: ${j.text}` : j.text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:j.voice || "Kore"}}}}}), 120000);
         }
         if(r.status === 404){ ttsBlocked.set(model, Date.now() + 6 * 3600e3); next = true; break; }   /* modèle absent de ce compte */
@@ -385,6 +388,35 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     if(!r.ok || /json/.test(r.type) || r.buf.length < 200) throw errOf("elevenlabs", r);
     const o = await voiceOut(j, r.buf, "audio/mpeg");
     finish(j, Object.assign(saveMedia(j.project, j.base || `P${pad(j.plan)}-voix`, o.buf, o.mime), {seconds:o.mime === "audio/wav" ? wavSeconds(o.buf) : Math.round(r.buf.length / 16000 * 10) / 10}));
+  }
+  /* ---------- moments des mots d'une voix enregistrée (Whisper large chez Groq, gratuit ; même clé que l'agent de secours) ----------
+     Sert à couper une « prise unique » exactement entre deux phrases (les silences seuls ne suffisent pas : mesuré le 15 octobre). */
+  async function alignWords(url, lang){ const key = String(env.GROQ_API_KEY || "").trim(); if(!key) return [400, {code:"no_key", message:"Pas de clé Groq : découpage par les silences."}];
+    const m = /^\/generated\/([\w-]+)\/([\w.-]+\.(wav|mp3))$/.exec(url); if(!m) return [400, {code:"bad_request", message:"Fichier inconnu."}];
+    const f = path.join(dir, safeId(m[1]), path.basename(m[2])); if(!fs.existsSync(f)) return [404, {code:"not_found", message:"Fichier absent."}];
+    const buf = fs.readFileSync(f); if(buf.length > 24e6) return [413, {code:"input_too_large", message:"Enregistrement trop long pour l'écoute."}];
+    const fd = new FormData(); fd.append("file", new Blob([buf], {type:m[3] === "mp3" ? "audio/mpeg" : "audio/wav"}), path.basename(f)); fd.append("model", env.GROQ_WHISPER_MODEL || "whisper-large-v3");
+    fd.append("response_format", "verbose_json"); fd.append("timestamp_granularities[]", "word"); fd.append("temperature", "0"); if(/^[a-z]{2}$/.test(lang)) fd.append("language", lang);
+    let r; try{ r = await fetch(`${String(env.GROQ_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, "")}/audio/transcriptions`, {method:"POST", headers:{Authorization:`Bearer ${key}`}, body:fd, signal:AbortSignal.timeout(90000)}); }
+    catch(e){ return [502, {code:"network", message:"Groq injoignable : découpage par les silences."}]; }
+    if(!r.ok) return [r.status === 429 ? 429 : 502, {code:r.status === 429 ? "rate_limited" : "server_error", message:`Groq : erreur ${r.status}.`}];
+    const j = await r.json().catch(() => ({}));
+    return [200, {text:String(j.text || ""), words:(Array.isArray(j.words) ? j.words : []).map(w => ({w:String(w.word || "").trim(), a:+Number(w.start || 0).toFixed(3), b:+Number(w.end || 0).toFixed(3)})).filter(w => w.w)}]; }
+  /* ---------- Eleven Music : chansons complètes avec les paroles exactes ---------- */
+  async function runElevenMusic(j){
+    if(!ELEVEN_KEY) throw {code:"no_key", message:"Pas de clé ElevenLabs dans le fichier .env."};
+    update(j,{step:"ElevenLabs compose la chanson…"});
+    const blocks=[]; let cur={name:"Verse",lines:[]};
+    String(j.lyrics||"").split(/\r?\n/).forEach(raw=>{ const s=raw.trim(), m=/^\[([^\]]+)\]$/.exec(s); if(m){ if(cur.lines.length) blocks.push(cur); cur={name:m[1],lines:[]}; } else if(s) cur.lines.push(s); }); if(cur.lines.length) blocks.push(cur);
+    if(!blocks.length) throw {code:"bad_request",message:"Les paroles de la chanson sont vides."};
+    if(blocks.length>30) throw {code:"bad_request",message:"Eleven Music accepte 30 sections au maximum : regroupe certains couplets."};
+    const total=Math.max(blocks.length*3,Math.min(600,+j.duration||60)), weights=blocks.map(x=>Math.max(12,x.lines.join(" ").length)), sum=weights.reduce((a,b)=>a+b,0)||1, styles=String(j.tags||"").split(",").map(x=>x.trim()).filter(Boolean).slice(0,30);
+    let left=Math.round(total*1000); const chunks=blocks.map((x,i)=>{ const remaining=blocks.length-i-1, ideal=i===blocks.length-1?left:Math.round(total*1000*weights[i]/sum), ms=Math.max(3000,Math.min(120000,ideal,left-remaining*3000)); left-=ms; return {text:`[${x.name}]\n${x.lines.join("\n")}`,duration_ms:ms,positive_styles:styles.length?styles:["clear vocals","educational song","professional studio production"],negative_styles:["spoken word","incorrect lyrics","distorted vocals"],context_adherence:"high"}; });
+    const r=await call(`${ELEVEN_BASE}/v1/music?output_format=mp3_48000_192`,post({"xi-api-key":ELEVEN_KEY,"Content-Type":"application/json","Accept":"audio/mpeg"},{composition_plan:{chunks},model_id:"music_v2_5",sign_with_c2pa:false}),10*60e3);
+    if(!r.ok||/json/.test(r.type)||r.buf.length<2000) throw errOf("elevenlabs",r);
+    /* temps des lignes : chaque couplet a sa durée dans le plan de composition ; ses lignes s'y répartissent (MP3 à 192 kb/s : durée tirée de la taille) */
+    let at=0; const lrc=[]; chunks.forEach((c,i)=>{ const ls=blocks[i].lines; ls.forEach((t,k)=>lrc.push({t:+((at+c.duration_ms*(.08+.84*k/Math.max(1,ls.length)))/1000).toFixed(2), text:t})); at+=c.duration_ms; });
+    finish(j,Object.assign(saveMedia(j.project,j.base||"chanson-elevenlabs",r.buf,"audio/mpeg"),{seconds:Math.round(r.buf.length*8/192000*10)/10,lrc,model:"Eleven Music v2.5"}));
   }
   /* ---------- Chansons chantées : ACE-Step 1.5 (modèle libre, licence MIT) sur Hugging Face (14 octobre) ----------
      Demande de l'utilisateur : « des chansons de qualité avec de sublimes voix » pour les leçons animées. Les paroles, le style et la langue
@@ -476,7 +508,8 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
     if(!kind) return [400, {code:"bad_request", message:"Type de fabrication inconnu."}];
     const project = safeId(b.project), plan = Math.max(0, Math.floor(Number(b.plan) || 0));
     if(kind === "song"){ const lyrics = String(b.lyrics || "").trim(); if(lyrics.length < 10 || lyrics.length > 4000) return [400, {code:"bad_request", message:"Paroles de la chanson manquantes ou trop longues."}];
-      const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service:"acestep", label:"Chanson chantée (ACE-Step)", project, plan, lyrics, tags:String(b.tags || "").slice(0, 500), lang:/^[a-z]{2}$/.test(String(b.lang || "")) ? b.lang : "unknown", duration:Math.max(20, Math.min(240, Math.round(Number(b.duration) || 60))), bpm:Math.max(0, Math.min(200, Math.round(Number(b.bpm) || 0))), quality:b.quality === "xl" ? "xl" : "turbo", base:safeId(b.base || "chanson"), status:"queued", created:Date.now(), updated:Date.now()};
+      const eleven=b.service==="elevenmusic"; if(eleven&&!ELEVEN_KEY) return [400,{code:"no_key",message:"Pas de clé ElevenLabs dans le fichier .env : ajoute ELEVENLABS_API_KEY puis relance Studio Prompt."}];
+      const j = {id:"j" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"), kind, service:eleven?"elevenmusic":"acestep", label:eleven?"Chanson Eleven Music":"Chanson chantée (ACE-Step)", project, plan, lyrics, tags:String(b.tags || "").slice(0, 500), lang:/^[a-z]{2}$/.test(String(b.lang || "")) ? b.lang : "unknown", duration:Math.max(20, Math.min(eleven?600:240, Math.round(Number(b.duration) || 60))), bpm:Math.max(0, Math.min(200, Math.round(Number(b.bpm) || 0))), quality:b.quality === "xl" ? "xl" : "turbo", base:safeId(b.base || "chanson"), status:"queued", created:Date.now(), updated:Date.now()};
       jobs.push(j); persist(); pump(); return [200, {job:pub(j)}]; }
     if(kind === "video"){
       const v = VIDEO.find(x => x.id === b.service);
@@ -533,6 +566,7 @@ module.exports = function createGeneration({dir, env, sendJson, readBody, FFMPEG
       if(req.method === "GET" && route === "hf") return sendJson(res, 200, {linked:!!hfTok()});
       if(req.method === "POST" && route === "hf-token"){ let b = {}; try{ b = JSON.parse(await readBody(req, 4000) || "{}"); }catch(e){} const [code, out] = await hfLink(b.token); return sendJson(res, code, out); }
       if(req.method === "GET" && route === "voices") return sendJson(res, 200, await voices(u.searchParams.get("provider")));
+      if(req.method === "POST" && route === "align"){ let b = {}; try{ b = JSON.parse(await readBody(req, 4000) || "{}"); }catch(e){} const [code, out] = await alignWords(String(b.url || ""), String(b.lang || "")); return sendJson(res, code, out); }
       if(req.method === "GET" && route === "jobs"){ const pr = u.searchParams.get("project"), ids = String(u.searchParams.get("ids") || "").split(",").filter(Boolean); return sendJson(res, 200, {jobs:jobs.filter(j => (!pr || j.project === safeId(pr)) && (!ids.length || ids.includes(j.id))).slice(-400).map(pub)}); }
       if(req.method === "POST" && route === "start"){
         let b; try{ b = JSON.parse(await readBody(req, 20e6)); }catch(e){ return sendJson(res, 400, {code:"bad_request", message:"Demande illisible ou image trop lourde."}); }

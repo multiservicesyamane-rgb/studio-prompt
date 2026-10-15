@@ -42,7 +42,7 @@ const song = (() => { const sr = 22050, n = sr * 12, b = Buffer.alloc(44 + n * 2
     pg.on("request", r => { if(r.url().includes("/api/sample") && r.method() === "POST") return r.respond({status: 200, contentType: "application/x-ndjson; charset=utf-8", body: JSON.stringify({delta: "{}"}) + "\n"}); r.continue(); });
     await pg.setViewport({width: 390, height: 844, deviceScaleFactor: 1});
     await pg.goto(BASE + "/#lecon", {waitUntil: "networkidle0"});
-    await pg.waitForFunction(() => document.querySelectorAll("#lc-models canvas").length === 3, {timeout: 60000});
+    await pg.waitForFunction(() => document.querySelectorAll("#lc-models canvas").length === 4, {timeout: 60000});
     /* 1. une leçon sans IA (3 lettres) : ses paroles de chanson sont là d'office, avant la vidéo */
     await pg.evaluate(() => { document.getElementById("lc-more").open = true; document.getElementById("lc-lignes").value = "A | a | Avion | ✈️\nB | bé | Ballon | 🎈\nC | cé | Chat | 🐱"; document.getElementById("lc-sujet").value = "Les lettres A, B, C"; });
     await pg.select("#lc-langue", "fr"); await pg.click("#lc-free");

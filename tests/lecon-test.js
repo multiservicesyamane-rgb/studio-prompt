@@ -31,11 +31,11 @@ const LESSON = {titre: "حُرُوفٌ وَكَلِمَاتٌ", sous_titre: "Tro
       r.respond({status: 200, contentType: "application/x-ndjson; charset=utf-8", body: JSON.stringify({delta: "{}"}) + "\n"}); });
     await pg.setViewport({width: 390, height: 844, deviceScaleFactor: 1});
     await pg.goto(BASE + "/#lecon", {waitUntil: "networkidle0"});
-    await pg.waitForFunction(() => document.querySelectorAll("#lc-models canvas").length === 3, {timeout: 60000}); await wait(1500);
+    await pg.waitForFunction(() => document.querySelectorAll("#lc-models canvas").length === 4, {timeout: 60000}); await wait(1500);
     /* 1. les 3 modèles, chacun avec un vrai moment de leçon dessiné, tous différents */
     const s1 = await pg.evaluate(() => { const cs = [...document.querySelectorAll("#lc-models canvas")], sig = c => { const x = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let s = 0; for(let i = 0; i < x.length; i += 997) s += x[i]; return s; };
       return {names: [...document.querySelectorAll("#lc-models b")].map(x => x.textContent), sig: cs.map(sig), tab: [...document.querySelectorAll(".grp-tabs button")].map(x => x.textContent).join(" | ")}; });
-    check("« Créer » : onglet « 🎓 Leçon animée » ; 3 modèles (Grand Théâtre, Daara de lumière, Grande Aventure) dessinés par le moteur, tous différents", /Leçon animée/.test(s1.tab) && s1.names.join() === "Grand Théâtre,Daara de lumière,Grande Aventure" && s1.sig.every(x => x > 1000) && new Set(s1.sig).size === 3, s1.names.join(", "));
+    check("« Créer » : onglet « 🎓 Leçon animée » ; 4 modèles (Grand Théâtre, Daara de lumière, Grande Aventure, Capsule pédagogique) dessinés par le moteur, tous différents", /Leçon animée/.test(s1.tab) && s1.names.join() === "Grand Théâtre,Daara de lumière,Grande Aventure,Capsule pédagogique" && s1.sig.every(x => x > 1000) && new Set(s1.sig).size === 4, s1.names.join(", "));
     /* 2. sans IA : l'alphabet arabe prêt (28 lettres, un mot et une image chacune), dans la Daara */
     await pg.evaluate(() => { document.getElementById("lc-more").open = true; }); await pg.click('[data-lc-preset="ar_abc"]');
     await pg.waitForFunction(() => document.querySelectorAll("#lc-prev img").length === 3, {timeout: 60000});

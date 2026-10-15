@@ -49,7 +49,7 @@ const check = (n, ok, x) => out.push(`${ok ? "OK   " : "ECHEC"} ${n}${x ? " — 
   const links = await pg.$$eval(".side-link", l => l.map(x => x.dataset.go).join());
   check("menu simplifié : Accueil, Créer, Idées, Mes projets, Ma chaîne + Réglages (connexions)", links === "accueil,creer,trouver,contenus,strategie,connexions", links);
   const gc = await pg.$$eval(".grp-tabs [data-go-tab]", t => t.map(x => x.textContent).join(" | "));
-  check("« Créer » : le Constructeur, « Garder la voix », l'assistant en 3 questions puis les 4 façons de créer, en onglets en haut de la page", gc === "✨ Constructeur | 🎙 Garder la voix | En 3 questions | Depuis une idée | Depuis un audio | Depuis une vidéo | Motion design", gc);
+  check("« Créer » : le Constructeur, « Garder la voix », la leçon animée, l'assistant en 3 questions puis les 4 façons de créer, en onglets en haut de la page", gc === "✨ Constructeur | 🎙 Garder la voix | 🎓 Leçon animée | En 3 questions | Depuis une idée | Depuis un audio | Depuis une vidéo | Motion design", gc);
   await pg.click('.grp-tabs [data-go-tab="audio"]'); await new Promise(r => setTimeout(r, 300)); i = await info();
   check("onglet « Depuis un audio » : la page s'ouvre et « Créer » reste surligné", !(await pg.$eval("#view-audio", e => e.hidden)) && i.actif === "Créer", i.actif);
   await pg.click('.side-link[data-go="contenus"]'); i = await info();
