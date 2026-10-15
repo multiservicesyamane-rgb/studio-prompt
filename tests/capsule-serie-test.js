@@ -53,7 +53,7 @@ const CAPSULE = {titre: "Le point fnal", intro: "Bonjour les curieux !", fin: "B
       if(!(u.includes("/api/sample") && r.method() === "POST")) return r.continue(); const body = r.postData() || "", nd = o => r.respond({status: 200, contentType: "application/x-ndjson; charset=utf-8", body: JSON.stringify({delta: JSON.stringify(o)}) + "\n"});
       if(/univers et sa pédagogie/.test(body)){ asked.univers = (asked.univers || 0) + 1; return nd(UNIVERS); }
       if(/relecteur exigeant/.test(body)){ asked.review = (asked.review || 0) + 1; return nd(Object.assign({}, CAPSULE, {titre: "Le point final", corrections: ["fnal → final"]})); }
-      if(/Écris UNE CAPSULE VIDÉO/.test(body)){ asked.capsule = {yt: /Le point en CP, vidéo très vue/.test(body), structure: /\\?"defi\\?"/.test(body) && /\\?"retenir\\?"/.test(body), cast: /\\?"lea\\?" = Léa/.test(body), pedago: /Un défi avec pause/.test(body), kids: /conçue pour les enfants/.test(body)}; return nd(CAPSULE); }
+      if(/Écris UNE CAPSULE VIDÉO/.test(body)){ asked.capsule = {yt: /Le point en CP, vidéo très vue/.test(body), structure: /\\?"defi\\?"/.test(body) && /\\?"retenir\\?"/.test(body), cast: /\\?"lea\\?" = Léa/.test(body), pedago: /Un défi avec pause/.test(body), chanson: /chanson-rappel/.test(body), kids: /conçue pour les enfants/.test(body)}; return nd(CAPSULE); }
       nd({}); });
     await pg.setViewport({width: 390, height: 844, deviceScaleFactor: 1});
     await pg.goto(BASE + "/#lecon", {waitUntil: "networkidle0"});
@@ -82,7 +82,7 @@ const CAPSULE = {titre: "Le point fnal", intro: "Bonjour les curieux !", fin: "B
     let probe = ""; try{ execFileSync(FF, ["-hide_banner", "-i", file], {stdio: ["ignore", "ignore", "pipe"]}); }catch(e){ probe = String(e.stderr || ""); }
     const dur = (/Duration: (\d+):(\d+):([\d.]+)/.exec(probe) || []).slice(1).map(Number), D = dur.length ? dur[0] * 3600 + dur[1] * 60 + dur[2] : 0;
     check("la consigne de l'agent contient l'étude YouTube du sujet, la structure (défi, à retenir), les personnages, la pédagogie de la série et la publication « conçue pour les enfants »", asked.capsule && Object.values(asked.capsule).every(Boolean), JSON.stringify(asked.capsule));
-    check("le relecteur passe après l'agent et sa correction est gardée (« fnal » → « final ») ; visuels nettoyés (marque hors phrase retirée, visuel inconnu ignoré) ; pas de chanson pour un épisode « Enquête »",
+    check("le relecteur passe après l'agent et sa correction est gardée (« fnal » → « final ») ; visuels nettoyés (marque hors phrase retirée, visuel inconnu ignoré) ; pas de chanson quand l'agent n'en écrit pas",
       asked.review === 1 && s3.titre === "Le point final" && s3.etapes.join() === "question:texte,demo:mots,defi:choix,reponse,retenir:regle,exercice" && s3.marques === 2 && s3.chanson === "aucune", `${s3.titre} · ${s3.etapes.join(" ")}`);
     check("une voix par personnage : l'enseignant, Léa, Tom et Robo ont chacun la leur (4 voix gratuites simulées)", s3.voices.length === 4 && /prof/.test(s3.who) && /robo/.test(s3.who), s3.voices.join(", "));
     check("vidéo Full HD 1080 × 1920 : H.264 + AAC, durée de la capsule, enregistrée sur l'ordinateur", s3.pro && s3.w === 1080 && s3.h === 1920 && /Video: h264/.test(probe) && /Audio: aac/.test(probe) && D > 12 && Math.abs(D - s3.sec) < 1.5 && /^\/generated\/serie-les-curieux\//.test(s3.saved || ""), `${s3.w} × ${s3.h} · ${D.toFixed(1)} s · ${Math.round((Date.now() - t0) / 1000)} s de fabrication · ${s3.saved}`);

@@ -26,13 +26,13 @@ const fontOf=(txt,w,px,kind)=>`${w} ${Math.round(px)}px ${isAr(txt)?(kind==="ink
 const LANGS={
   fr:{nom:"Français", drapeau:"🇫🇷", dir:"ltr", repete:"Répète après moi !", toi:"À toi !", quiz:"Qu’est-ce que c’est ?", revise:"On révise !", bravo:"Bravo !", lecon:"Leçon",
     voici:(n,m)=>m?`Voici ${n}. ${n}, comme ${m} !`:`Voici ${n} !`, rep:n=>`Répète après moi : ${n} !`, intro:t=>`Bonjour les enfants ! Aujourd’hui, on apprend : ${t}. C’est parti !`, fin:t=>`Bravo ! Tu as appris : ${t}. À très bientôt !`, recap:"On révise tout ensemble !",
-    pause:"Mets pause !", etapes:{question:"La question", decouverte:"On découvre", demo:"On apprend", defi:"À toi de jouer !", reponse:"La réponse", retenir:"À retenir", exercice:"Petit exercice"}},
+    pause:"Mets pause !", chante:"On chante !", etapes:{question:"La question", decouverte:"On découvre", demo:"On apprend", defi:"À toi de jouer !", reponse:"La réponse", retenir:"À retenir", exercice:"Petit exercice"}},
   en:{nom:"English", drapeau:"🇬🇧", dir:"ltr", repete:"Say it with me!", toi:"Your turn!", quiz:"What is it?", revise:"Let’s review!", bravo:"Well done!", lecon:"Lesson",
     voici:(n,m)=>m?`This is ${n}. ${n}, as in ${m}!`:`This is ${n}!`, rep:n=>`Say it with me: ${n}!`, intro:t=>`Hello kids! Today we are learning: ${t}. Let’s go!`, fin:t=>`Well done! You learned: ${t}. See you soon!`, recap:"Let’s review together!",
-    pause:"Pause and think!", etapes:{question:"The question", decouverte:"Let’s discover", demo:"Let’s learn", defi:"Your turn!", reponse:"The answer", retenir:"Remember", exercice:"Practice"}},
+    pause:"Pause and think!", chante:"Let’s sing!", etapes:{question:"The question", decouverte:"Let’s discover", demo:"Let’s learn", defi:"Your turn!", reponse:"The answer", retenir:"Remember", exercice:"Practice"}},
   ar:{nom:"العربية", drapeau:"🌙", dir:"rtl", repete:"كَرِّرْ بَعْدِي!", toi:"دَوْرُكَ!", quiz:"مَا هَذَا؟", revise:"لِنُرَاجِعْ!", bravo:"أَحْسَنْتَ!", lecon:"دَرْسٌ",
     voici:(n,m)=>m?`هَذَا ${n}. ${n}، مِثْلُ ${m}!`:`هَذَا ${n}!`, rep:n=>`كَرِّرْ بَعْدِي: ${n}!`, intro:t=>`مَرْحَبًا يَا أَطْفَالُ! اليَوْمَ نَتَعَلَّمُ: ${t}. هَيَّا بِنَا!`, fin:t=>`أَحْسَنْتُمْ! تَعَلَّمْتُمْ: ${t}. إِلَى اللِّقَاءِ!`, recap:"لِنُرَاجِعْ مَعًا!",
-    pause:"تَوَقَّفْ وَفَكِّرْ!", etapes:{question:"السُّؤَالُ", decouverte:"نَكْتَشِفُ", demo:"نَتَعَلَّمُ", defi:"دَوْرُكَ!", reponse:"الجَوَابُ", retenir:"تَذَكَّرْ", exercice:"تَمْرِينٌ"}}};
+    pause:"تَوَقَّفْ وَفَكِّرْ!", chante:"هَيَّا نُغَنِّي!", etapes:{question:"السُّؤَالُ", decouverte:"نَكْتَشِفُ", demo:"نَتَعَلَّمُ", defi:"دَوْرُكَ!", reponse:"الجَوَابُ", retenir:"تَذَكَّرْ", exercice:"تَمْرِينٌ"}}};
 const MODELS={
   theatre:{nom:"Grand Théâtre", lang:"fr", desc:"Rideaux de velours, projecteurs, lettres en relief qui tombent sur scène, confettis et public.", chorus:true},
   daara:{nom:"Daara de lumière", lang:"ar", desc:"Le jeune oustaz et ses talibés en 3D ; la leçon s’écrit au calame sur la tablette, voyelles en couleur.", chorus:true},
@@ -584,21 +584,30 @@ function stage(cv, L, P, o){ o=o||{};
   function cpClass(x,t,pt){ if(!L.personnage||!AV||!AV.ready()) return; const cur=(P.say.find(z=>t>=z.t&&t<z.t+z.d+.08)||{}).qui||null, ln=pt.k==="cap"?pt.lines.find(l=>l.qui==="prof"&&t>=l.t&&t<l.t+l.d):null, teach=pt.k==="cap"&&["decouverte","demo","reponse","retenir"].includes(pt.type);
     const point=teach&&ln?cl((t-ln.t-.15)/.35)*cl((ln.t+Math.min(ln.d,2.8)-t)/.4):0, sp=cpLast("prof",t), ci=CAST.findIndex(g=>g.id===cur);
     const pP={mouth:cpTalk("prof",t), speak:cur==="prof", since:sp?t-sp.t:9, point, up:V?1:.3, side:1, rock:false, open:pt.k==="fin"?1:0}; if(ci>=0&&!point) pP.look={x:{gauche:-.55,droite:.55,robot:-.75}[cpSide[ci]]||0,y:.1};
-    const cheer=pt.k==="fin"||(pt.k==="cap"&&pt.type==="reponse"&&t-pt.a<1.8);
+    const cheer=pt.k==="fin"||(pt.k==="cap"&&pt.type==="reponse"&&t-pt.a<1.8), song=pt.k==="song"?(o.env&&o.env.prof&&o.env.prof.length?env(o.env.prof,t):(songLine(pt,t)?.35+.3*Math.abs(Math.sin(t*9)):0)):0;
+    if(pt.k==="song"){ pP.mouth=song; pP.speak=song>.05; pP.rock=true; pP.open=.4; }
     const cast=CAST.map((g,i)=>{ const s2=cpLast(g.id,t), me=cur===g.id, sd=cpSide[i]; let look; if(me) look={x:0,y:0}; else if(!cur||cur==="prof") look={x:{gauche:.7,droite:-.7,robot:.75}[sd],y:.2}; else look={x:cpSide[ci]===sd?0:sd==="gauche"?.9:sd==="droite"?-.9:.6,y:.05};
+      if(pt.k==="song") return {mouth:song*(.8+.2*rnd(i+Math.floor(t*5))), speak:song>.05, look:{x:0,y:.1}, open:.6, rock:true, side:sd==="droite"?-1:1};
       return {mouth:cpTalk(g.id,t), speak:me, since:s2?t-s2.t:9, look, listen:!!cur&&!me, open:cheer?1:0, point:g.kind==="robot"&&me?.5:0, side:sd==="droite"?-1:1, rock:false}; });
     const q=AV.profiles&&AV.profiles[L.avatar], c=AV.render(CC.w*K,CC.h*K,t,{prof:pP,cast},{scene:"classe",profile:L.avatar,cast:CAST.map((g,i)=>({kind:g.kind,style:g.style,skin:g.skin,seed:i*7+3,coiffe:g.coiffe,couleur:g.couleur})),style:(o.avatar||{}).style||(q&&q.style),skin:(o.avatar||{}).skin||(q&&q.skin)});
     if(c) x.drawImage(c,CC.x,CC.y,CC.w,CC.h); }
   function cpChips(x,t,pt){ const lab=[CAPL.classe,CAPL.episode].filter(Boolean).join(" · "), ph=V?40:34, Y=V?H*.026:14;
     if(lab&&pt.k!=="intro"){ x.save(); x.font=`800 ${V?23:20}px ${F.kid}`; const w=Math.min(x.measureText(lab).width+30,W*.55), X=V?W*.04:20; rr(x,X,Y,w,ph,ph/2); x.fillStyle=CT.acc; x.shadowColor="rgba(0,0,0,.15)"; x.shadowBlur=8; x.fill(); x.shadowBlur=0; x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; fitText(x,lab,X+w/2,Y+ph/2+1,w-20,V?23:20,800,"kid",11); x.restore(); }
     if(pt.k==="cap"){ const txt=`${pt.s+1} / ${CAPL.etapes.length}`; x.save(); x.font=`800 ${V?24:21}px ${F.kid}`; const w=x.measureText(txt).width+30, X=W-w-(V?W*.04:20); rr(x,X,Y,w,ph,ph/2); x.fillStyle="rgba(255,255,255,.9)"; x.fill(); x.strokeStyle=CT.acc; x.lineWidth=2.5; x.stroke(); x.fillStyle=CT.ink; x.textAlign="center"; x.textBaseline="middle"; x.direction="ltr"; x.fillText(txt,X+w/2,Y+ph/2+1); x.restore(); } }
+  /* la chanson-rappel : « On chante ! », la ligne chantée en très grand, la suivante plus petite, des notes qui montent */
+  function cpSong(x,t,pt){ const A=cpArea(), B=CB, ln=songLine(pt,t), ls=pt.lines||[], i=ln?ls.indexOf(ln):-1, nx=i>=0?ls[i+1]:ls[0], px=V?27:23, h=px*1.8, X=B.x+B.w*.035, y=B.y+B.h*.045, lab=T.chante||"On chante !";
+    x.save(); x.font=fontOf(lab,800,px,"kid"); const w=x.measureText(lab).width+h*1.45; rr(x,X,y,w,h,h/2); const g2=x.createLinearGradient(X,y,X+w,y+h); g2.addColorStop(0,CT.acc2); g2.addColorStop(1,CT.acc); x.fillStyle=g2; x.fill(); drawEmoji(x,"🎵",X+h*.52,y+h/2,px*1.15); x.fillStyle="#fff"; x.textAlign="left"; x.textBaseline="middle"; x.direction="ltr"; x.fillText(lab,X+h*.98,y+h/2+1); x.restore();
+    x.save(); for(let k=0;k<9;k++){ const life=((t*.35+rnd(k))%1), nxp=A.x+A.w*rnd(k+3)+Math.sin(t*1.5+k)*12, ny=A.y+A.h-life*A.h*.95; x.globalAlpha=Math.sin(life*Math.PI)*.5; x.fillStyle=[CT.acc,CT.acc2,"#F2B33D","#3BB273"][k%4]; x.font=`700 ${Math.round(24+rnd(k+8)*18)}px ${F.emoji}`; x.textAlign="center"; x.textBaseline="middle"; x.fillText(k%2?"♪":"♫",nxp,ny); } x.restore();
+    if(ln){ const bp=(pt.bpm||100)/60, beat=Math.pow(Math.abs(Math.sin((t-pt.at)*Math.PI*bp)),3), a=sm((t-ln.a+.05)/.2), s2=(.9+.1*eb((t-ln.a)/.4))*(1+.03*beat); x.save(); x.globalAlpha=a; x.translate(A.x+A.w/2,A.y+A.h*.4); x.scale(s2,s2);
+      const b=fitBlock(x,ln.text,A.w*.94,A.h*.5,V?64:58,18,900,"kid"); x.font=fontOf(ln.text,900,b.px,"kid"); const tg=x.createLinearGradient(0,-A.h*.2,0,A.h*.2); tg.addColorStop(0,CT.acc); tg.addColorStop(1,CT.acc2); x.fillStyle=tg; drawBlock(x,b,0,0); x.restore(); }
+    if(nx&&nx!==ln){ x.save(); x.globalAlpha=.55; x.fillStyle=CT.ink; const b=fitBlock(x,nx.text,A.w*.9,A.h*.22,V?32:28,13,700,"kid"); x.font=fontOf(nx.text,700,b.px,"kid"); drawBlock(x,b,A.x+A.w/2,A.y+A.h*.84); x.restore(); } }
   function capsule(x,t,pt){ x.drawImage(layer("cap",cpBack),0,0,W,H);
     x.save(); x.globalCompositeOperation="lighter"; for(let k=0;k<26;k++){ const px=(rnd(k)*W+t*(6+rnd(k+3)*10))%W, py=rnd(k+9)*H*.8+Math.sin(t*.6+k)*16; x.globalAlpha=.1+.18*Math.max(0,Math.sin(t*1.3+k)); x.fillStyle="#FFFFFF"; x.beginPath(); x.arc(px,py,1.4+rnd(k+5)*2,0,7); x.fill(); } x.restore();
     cpClass(x,t,pt);
     if(pt.k==="intro"){ const a=sm((t-.15)/.45), s=lerp(.9,1,eo((t-.15)/.6)); x.save(); x.globalAlpha=a; x.translate(CB.x+CB.w/2,CB.y+CB.h/2); x.scale(s,s); x.translate(-(CB.x+CB.w/2),-(CB.y+CB.h/2)); cpBoard(x); cpTitle(x,t); x.restore(); }
     else if(pt.k==="cap"){ cpBoard(x); const e=CAPL.etapes[pt.s], v=CVIS[pt.s], pv=pt.s>0?CVIS[pt.s-1]:null, kept=!!v&&v===pv, rev=v&&v.type==="choix"&&e.type!=="defi"&&(kept||e.type==="reponse")?pt.a+.45:null;
       cpHeader(x,e,t,pt.a); cpVisual(x,v,t,kept?-1e9:pt.a,cpArea(),kept?null:pv,e,rev); if(pt.count) cpCount(x,t,pt); }
-    else if(pt.k==="song"){ cpBoard(x); songContent(x,t,pt,cpArea()); }
+    else if(pt.k==="song"){ cpBoard(x); cpSong(x,t,pt); }
     else if(pt.k==="fin"){ cpBoard(x); cpEnd(x,t,pt); }
     if(!POSTER) cpChips(x,t,pt); }
 

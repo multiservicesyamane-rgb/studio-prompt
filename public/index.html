@@ -12197,7 +12197,8 @@ async function lcSongApp(L, sel, say){
   const C=L.chanson, lines=SP_LECON.songLines(C.paroles); if(!lines.length) throw {message:"Écris d’abord les paroles de la chanson."};
   const S=LC_SONG_ST[C.style]||LC_SONG_ST.comptine, beat=60/S.bpm, bar=beat*4, VX=LC_SONG_VOICE[C.voix]||LC_SONG_VOICE.enfants, uniq=[...new Set(lines.map(l=>l.text))], clips={};
   const ac=new (window.AudioContext||window.webkitAudioContext)();
-  try{ for(const [n,txt] of uniq.entries()){ say(`Voix de la chanson : ${n+1} sur ${uniq.length}…`); const v=await spSay(txt, !sel||sel==="none"?"auto":sel, "lecon", `chant-${n+1}`, VX.style, VX.auto, L.langue); if(v) clips[txt]=await ac.decodeAudioData(await (await fetch(v.url)).arrayBuffer()); } }
+  try{ const ls={}; uniq.forEach((txt,n)=>{ ls[`chant${n+1}`]=txt; }); const vo=await spSayTake(ls, !sel||sel==="none"?"auto":sel, "lecon", t=>say(`Voix de la chanson : ${t}`), VX.style, VX.auto, L.langue);   /* une seule prise (quota du jour) */
+    for(const [n,txt] of uniq.entries()){ const v=vo[`chant${n+1}`]; if(v&&v.ab) clips[txt]=await ac.decodeAudioData(v.ab.slice(0)); } }
   finally{ try{ ac.close(); }catch(e){} }
   if(!Object.keys(clips).length) throw {message:"Aucune voix n’a pu être fabriquée : choisis une autre voix à l’étape 5."};
   say("Composition de la musique…"); let t=bar*2;
@@ -12458,7 +12459,8 @@ RÈGLES :
 VISUELS DU TABLEAU (« visuel » : un par étape ; sans visuel, le tableau garde celui de l’étape d’avant). Types permis :
 ${srVisDoc()}
 Textes des visuels COURTS (une carte = un mot ; une ligne de tableau ≤ 30 caractères ; un choix ≤ 40 caractères).
-"lignes" : 1 à 4 répliques par étape ({"qui":"…","texte":"…"}) ; 7 à 9 étapes en tout.${/chanson/i.test(x.lecon.format||"")?`\nCHANSON (« chanson.paroles ») : une comptine de 8 à 14 lignes qui chante la notion, avec les repères [chorus], [verse] et [outro] seuls sur leur ligne ; lignes de 3 à 8 mots, rimes.`:""}
+"lignes" : 1 à 4 répliques par étape ({"qui":"…","texte":"…"}) ; 7 à 9 étapes en tout.
+CHANSON (« chanson.paroles », chantée par les enfants à la fin de la vidéo) : ${/chanson/i.test(x.lecon.format||"")?"une comptine de 8 à 14 lignes qui chante toute la notion, avec les repères [chorus], [verse] et [outro] seuls sur leur ligne":"une courte chanson-rappel de 4 à 6 lignes qui chante la phrase à retenir, avec le repère [chorus] seul sur sa ligne"} ; lignes de 3 à 8 mots, rythmées, avec des rimes ; exactitude absolue.
 PUBLICATION (chaîne YouTube « conçue pour les enfants » ; ces textes s’adressent aux PARENTS et aux enseignants) :
 - "titre" : 70 caractères au plus${lv.court?`, commence par « ${lv.court} — »`:""}, puis la promesse concrète, avec les mots que les parents tapent sur YouTube et Google ;
 - "description" : 3 à 5 phrases (ce que l’enfant apprend, comment l’accompagner, l’exercice), sans chapitres ni minutage (l’application ajoute les vrais chapitres) ;
@@ -12526,7 +12528,6 @@ async function srMakeOne(it, fmts, say){ const x=srCtx(it), opt={modelTier:"comp
   if(!r||!r.capsule||!Array.isArray(r.capsule.etapes)||r.capsule.etapes.length<3) throw {message:"L’agent n’a pas rendu une capsule complète : relance cette vidéo."};
   say("Le relecteur vérifie l’orthographe, la notion et le tableau…"); try{ const q=await sample.json(srReviewPrompt(r,x), opt); if(q&&q.capsule&&Array.isArray(q.capsule.etapes)&&q.capsule.etapes.length>=3) r=Object.assign({}, r, q); }catch(e){}
   const L=SP_LECON.norm(lcCapFrom(r,x)); if(L.capsule.etapes.length<3) throw {message:"Capsule incomplète après la relecture : relance cette vidéo."};
-  if(!/chanson/i.test((x.lecon&&x.lecon.format)||"")) L.chanson.place="aucune";   /* la chanson seulement pour un épisode « chanson » (repère ou rappel), pas à chaque vidéo */
   if(L.chanson.place!=="aucune"){ try{ await srSong(L,x,say); }catch(e){ L.chanson.place="aucune"; } }
   const res=await lcBuild(L,{sel:x.voix, fmts, amb:"musique", say, stop:()=>SR.stop}), project=`serie-${slug(x.serie).slice(0,30)}`,
     base=`${slug(x.classe||"serie")}-${it.kind==="bande"?"bande-annonce":it.kind==="defi"?`defi-${x.ep}`:`ep${x.ep}`}-${slug(L.titre).slice(0,40)}`, pub=srPubText(r,L,res.vo,x,res.P);
