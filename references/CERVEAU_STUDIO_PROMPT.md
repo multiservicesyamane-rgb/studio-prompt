@@ -989,6 +989,36 @@ Test : `capsule-serie-test.js` (IA simulée) ; vérification réelle : 7 vidéos
 - Tests restés sur l'état d'avant la Leçon animée (onglet ajouté le 14 octobre) : `menu-test.js` (onglets de « Créer »), `professional-tabs-test.js` (22 vues ; la vue `lecon` a reçu sa palette locale, comme son profil `VIEW_PROFILES`), `lecon-test.js`, `lecon-chanson-test.js` et `lecon-fichiers-test.js` (4 modèles). Dans `lecon-fichiers-test.js`, les clics de la galerie « Embellir » sont directs : à 390 px, la barre fixe du haut pouvait recouvrir les onglets.
 - `succes-test.js` (ombres) et `recitation-sans-fichier-test.js` échouaient seulement sous la charge du processeur : ils passent seuls.
 
+### 4.3 quindecies Séries d'épisodes : une idée → la bible de la série → un film par épisode (21 octobre)
+
+Remarque de l'utilisateur : « je lui ai donné l'idée (une série de 20 épisodes de 3 à 5 minutes), mais il a fait juste une vidéo ; il faut intégrer cette fonctionnalité ». Chaque épisode doit commencer par un problème ou une situation, et finir par un enseignement en voix off.
+
+- **Où** : Créer → Depuis une idée, nouveau choix « 🎬 Un film / 📺 Une série d'épisodes » (`#sf-mode`). On y règle le nombre d'épisodes (3 à 30, 20 par défaut) et la « Règle de chaque épisode », pré-remplie avec la demande de l'utilisateur. La durée de chaque épisode est la « Durée » du formulaire ; elle passe à 3 minutes si elle était plus courte. **Comprendre avant d'agir** : une idée qui dit « série de N épisodes » passe toute seule en mode série (`sfDetect`).
+- **La bible** (`sfPrompt`, agent « complexe ») est écrite par paquets de 10 épisodes : la suite reçoit la bible déjà écrite. Elle contient :
+  - 3 titres au choix, la logline, la promesse, le ton, les lieux et les parties ;
+  - les **personnages**, avec une fiche visuelle anglaise fixe (`fiche_en`, `rappel_en`), leur voix et leur arc ;
+  - pour chaque épisode : le problème du début, le développement, le tournant, l'**enseignement en voix off mot pour mot** et le lien vers la suite.
+  - Règles : histoire complète par épisode, fil rouge, réalisme du pays, personnages, entreprises, institutions et partis **fictifs** (on montre des comportements sans accuser de vraies personnes), enseignements constructifs (droits, intégrité, solidarité, recours légaux, jamais la violence).
+- **Les épisodes** (`sfMakeAll`, `sfMakeEp`) : chaque épisode devient un vrai film par `generateProject`, le même moteur que pour un film seul (scènes, plans, prompts, voix). Il reçoit :
+  - la bible ;
+  - les 2 épisodes d'avant ;
+  - la règle de la série ;
+  - la fin imposée ;
+  - les **mêmes personnages imposés** (`params.persos`), donc les mêmes visages dans tous les épisodes.
+  - Si le film oublie la voix off de l'enseignement, elle est posée sur le dernier plan.
+  - Titre : « Série · Ép. 03 — Titre ».
+  - Fabrication un épisode à la fois, avec l'état de chacun (à créer, en cours, prêt, échec). On peut arrêter après l'épisode en cours et reprendre là où on s'est arrêté. Après trois échecs de suite (quota), la fabrication s'arrête.
+- **Mes projets** : la série (type `serie`, bible, épisodes faits) s'y range et se rouvre ; chaque épisode est un projet de film (« Ouvrir le film »). Le bouton « Ajouter les personnages à ma bibliothèque » les range dans Personnages.
+- Test : `serie-test.js` (9 vérifications, agent et générateur de films simulés) :
+  - idée « série de 12 épisodes » comprise ;
+  - bible écrite en deux paquets ;
+  - choix du titre ;
+  - 12 films avec les mêmes fiches ;
+  - consigne complète (épisode 3 sur 12, problème du début, histoire d'avant, fin imposée, règle) ;
+  - voix off de fin toujours présente ;
+  - série enregistrée ;
+  - 390 px ; console propre.
+
 ### 4.4 Autres ajouts du 5 octobre
 - **Images du Storyboard** (`generateBoardImages` → `/api/images/generate`, Nano Banana). Elles sont stockées dans `public/generated/` (ignoré par git) et dans `r.generated_images[n]`. Ce service est **payant** dans l'API ; avec la clé gratuite, l'appel échoue sans frais.
 - **Analyse des paroles** sur la page audio (`analyzeLyrics`). Le texte original n'est jamais réécrit.
@@ -1196,6 +1226,7 @@ Ce que le code corrige :
 | `recitation-serveur-test.js`, `recitation-ui-test.js` | « Garder la voix » : serveur (envoi, analyse, Coran, morceaux, ambiance) et page complète sur 390 px jusqu'à la vidéo et l'écran de direct (§4.3 terdecies) |
 | `recitation-sans-fichier-test.js` | « Garder la voix » sans fichier : sans voix, voix qui lit mes textes (verset refusé), micro (§4.3 terdecies) |
 | `lecon-test.js` | Leçons animées (§4.3 quaterdecies) : 4 modèles (dont la capsule), exemple sans IA, leçon de l'agent, garde du Coran, voix arabe gratuite, vraie vidéo Full HD 9:16 vérifiée par FFmpeg |
+| `serie-test.js` | Séries d'épisodes : idée comprise, bible par paquets, un film par épisode avec les mêmes personnages et la voix off de fin (§4.3 quindecies) |
 | `capsule-serie-test.js` | Capsule et séries (§4.3 quindecies) : 13 enseignants avec coiffe (jamais de kufi pour une femme), garçon en boubou par défaut de « Garder la voix », classe 3D ; programme importé, univers lu par l'agent, enseignant par classe, plan du jour (bande-annonce, défi) ; consigne avec l'étude YouTube et la pédagogie, relecteur gardé, visuels nettoyés, voix par personnage, vraie vidéo 1080 × 1920 enregistrée, texte de publication ; capsule sans IA dans l'éditeur ; 390 px ; console |
 | `lecon-chanson-test.js` | Chanson de la leçon : paroles, compte Hugging Face relié, voix chantée ACE-Step (simulée) avec temps des lignes, chanson de l'application, clip musical Full HD |
 | `lecon-fichiers-test.js` | Leçon animée à partir de fichiers (image, audio, vidéo, texte) : analyse, 3 angles avec méthode, angle suivi par la leçon |

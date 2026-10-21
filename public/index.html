@@ -939,6 +939,16 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
 .rc-sync output{font-family:var(--mono);font-weight:700;color:var(--view-accent)}
 .rc-blankbox{display:grid;gap:12px;padding:12px;border:1px dashed var(--line);border-radius:14px}
 .rc-blankbox>.btn{justify-self:start}
+.sf-mode{margin-bottom:12px}
+.sf-bible{display:grid;gap:12px}.sf-bible h2{margin:0;font-size:24px}.sf-logline{margin:0;font-size:15px;line-height:1.5}
+.sf-titres{display:flex;flex-wrap:wrap;gap:8px}.sf-titres button{min-height:40px;padding:6px 12px;border:2px solid var(--line);border-radius:99px;background:var(--surface);color:var(--ink);font:inherit;font-weight:650;cursor:pointer}
+.sf-titres button[aria-pressed="true"]{border-color:var(--view-accent);background:color-mix(in srgb,var(--view-accent) 12%,var(--surface))}
+.sf-eps{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sf-ep{padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:grid;gap:6px;min-width:0}
+.sf-ep-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.sf-ep-h b{font-family:var(--mono)}.sf-ep-h span.sf-t{flex:1 1 160px;font-weight:700;min-width:0}
+.sf-ep .chip.ok{background:color-mix(in srgb,#16a34a 18%,transparent)}.sf-ep .chip.run{background:color-mix(in srgb,#f59e0b 22%,transparent)}.sf-ep .chip.err{background:color-mix(in srgb,#dc2626 18%,transparent)}
+.sf-ep dl{margin:0;display:grid;grid-template-columns:minmax(90px,auto) 1fr;gap:4px 10px;font-size:14px;line-height:1.45}.sf-ep dt{font-weight:700;color:var(--muted)}.sf-ep dd{margin:0;min-width:0}
+@media (max-width:560px){.sf-ep dl{grid-template-columns:1fr}}
 .rc-sliders>.field{flex:1 1 140px}.rc-sliders input[type=range]{width:100%;min-height:36px;accent-color:var(--view-accent)}
 #rc-sig-audio{width:100%}
 .rc-check{list-style:none;margin:0;padding:12px 14px;display:grid;gap:8px;border-radius:14px;background:var(--sunken);font-size:14px}
@@ -1182,6 +1192,11 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
           </div>
 
           <form class="panel" id="desk" autocomplete="off">
+            <div class="rc-seg sf-mode" role="radiogroup" aria-label="Que veux-tu créer ?" id="sf-mode"><button type="button" role="radio" data-sf-mode="film" aria-checked="true">🎬 Un film</button><button type="button" role="radio" data-sf-mode="serie" aria-checked="false">📺 Une série d’épisodes</button></div>
+            <div class="opts" id="sf-opts" hidden>
+              <div class="field"><label for="sf-n">Nombre d’épisodes</label><div class="sel"><select id="sf-n"><option value="3">3</option><option value="5">5</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="15">15</option><option value="20" selected>20</option><option value="24">24</option><option value="30">30</option></select></div></div>
+              <div class="field" style="grid-column:1 / -1"><label for="sf-regle">Règle de chaque épisode</label><textarea id="sf-regle" rows="2">Chaque épisode commence par un problème ou une situation difficile, et se termine par un enseignement dit en voix off.</textarea></div>
+            </div>
             <div class="field">
               <label for="idee">Ton idée</label>
               <textarea id="idee" placeholder="Exemple : un jeune pêcheur de Kayar perd son filet dans une tempête et doit choisir entre abandonner ou reconstruire avec l'aide de son village."></textarea>
@@ -1213,6 +1228,7 @@ section[data-view] .row:hover{background:color-mix(in srgb,var(--view-accent) 5%
             <div class="status" id="status" hidden><span id="status-text"></span><div class="bar"><i id="status-bar"></i></div></div>
           </form>
 
+          <div id="sf-res" aria-live="polite"></div>
           <div class="result" id="result" aria-live="polite"></div>
         </div>
       </section>
@@ -5506,6 +5522,9 @@ $("desk").addEventListener("submit", async e=>{
   if(!sample) return;
   const idee = $("idee").value.trim();
   if(idee.length<8){ showStatus("","Écris ton idée en une ou deux phrases, ou choisis-en une dans Idées.",true); $("idee").focus(); return; }
+  /* comprendre avant d'agir : « une série de 20 épisodes » ne donne pas un seul film */
+  const detN=sfDetect(idee); if(SF.mode!=="serie"&&detN){ sfModeSet("serie"); const sel=$("sf-n"); if(![...sel.options].some(o=>+o.value===detN)) sel.insertAdjacentHTML("beforeend",`<option value="${detN}">${detN}</option>`); sel.value=String(detN); toast(`J’ai compris : une série de ${detN} épisodes. J’écris d’abord la bible de la série.`); }
+  if(SF.mode==="serie"){ sfStart(idee); return; }
   const nz = nicheById($("f-niche").value);
   const params = Object.assign({}, form, {persos: pickedChars("f-persos"), niche: nz?nz.docId:"", nicheNom: nz?nz.nom:""});
   ctl = new AbortController(); $("go").disabled=true; $("stop").hidden=false;
@@ -5519,6 +5538,113 @@ $("desk").addEventListener("submit", async e=>{
 });
 $("stop").addEventListener("click",()=>{ if(ctl) ctl.abort(); });
 
+/* =================== SÉRIES D'ÉPISODES (21 octobre) ===================
+   Remarque de l'utilisateur : « je lui ai donné l'idée (une série de 20 épisodes), mais il a fait juste une vidéo ; il faut intégrer cette fonctionnalité ».
+   Créer → Depuis une idée → « 📺 Une série d'épisodes » (choisi, ou compris dans l'idée) :
+   1. la BIBLE de la série par l'agent : 3 titres, logline, personnages aux fiches visuelles fixes, lieux, parties, et chaque épisode
+      (situation de départ, développement, tournant, enseignement en voix off, lien vers la suite), par paquets de 10 épisodes ;
+   2. chaque épisode devient un vrai film (generateProject : scènes, plans, prompts, voix) avec les MÊMES personnages imposés,
+      l'histoire d'avant, la règle de la série et la voix off de l'enseignement à la fin ; un par un, arrêt et reprise possibles ;
+   3. la série va dans Mes projets (type « serie ») avec les liens vers ses épisodes. */
+const SF={mode:"film", st:null, key:"", run:false, stop:false, ctl:null}; window.__spFilmSerie=SF;   /* état lisible par les tests */
+const sfGen = (...a) => (window.__sfGen||generateProject)(...a);   /* __sfGen : générateur simulé des tests */
+function sfDetect(t){ t=String(t||""); if(!/s[ée]ries?\b/i.test(t)) return 0; const m=/(\d{1,2})\s*(?:[ée]pisodes?|ep\b|épis)/i.exec(t); const n=m?+m[1]:0; return n>=2&&n<=40?n:0; }
+function sfModeSet(m){ SF.mode=m==="serie"?"serie":"film"; document.querySelectorAll("#sf-mode [data-sf-mode]").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.sfMode===SF.mode))); $("sf-opts").hidden=SF.mode!=="serie";
+  $("go").textContent=SF.mode==="serie"?"Écrire la série (bible et épisodes)":"Générer le projet";
+  if(SF.mode==="serie"&&(+$("f-duree").value||0)<120){ $("f-duree").value="180"; form.duree="180"; } savePrefs({sfMode:SF.mode}); }
+const sfDur = v => { const s=+v||180; return s>=60?`${Math.round(s/60*10)/10} min`.replace(".",","):`${s} s`; };
+function sfPrompt(idee, f, N, regle, from, to, B){ const first=!B;
+  return `Tu es showrunner (créateur et scénariste en chef) de séries courtes à succès pour YouTube, TikTok et Facebook, spécialiste des séries qui éduquent en émouvant. ${first?"Écris la BIBLE DE LA SÉRIE":"Continue la série"} à partir de l’idée de l’utilisateur.
+IDÉE DE L’UTILISATEUR : """${String(idee).slice(0,4000)}"""
+Nombre d’épisodes : exactement ${N}. Durée de chaque épisode : ${sfDur(f.duree)}. Public : ${label("public",f.public)}. Langue des dialogues et de la voix off : ${LANG_NAME[f.langue]||f.langue}. Pays : ${paysLine(f.pays)}. Genre : ${label("genre",f.genre)}. Émotion dominante : ${label("ton",f.ton)}. Style d’image : ${label("style",f.style)}.
+RÈGLE DE CHAQUE ÉPISODE (imposée par l’utilisateur) : ${regle}
+${first?`Écris la bible complète et les épisodes ${from} à ${to}.`:`BIBLE DÉJÀ ÉCRITE, à respecter : série « ${B.titre} » (${B.logline}). Personnages : ${B.personnages.map(c=>`${c.id} = ${c.nom} (${c.role})`).join(" ; ")}. Lieux : ${B.lieux.map(l=>`${l.id} = ${l.nom}`).join(" ; ")}. Parties : ${B.parties.map(p=>`${p.titre} (${p.episodes})`).join(" ; ")}.
+Épisodes déjà écrits : ${B.episodes.map(e=>`${e.n}. ${e.titre} — ${e.situation}`).join(" | ").slice(0,6000)}
+Écris maintenant SEULEMENT les épisodes ${from} à ${to}, dans la continuité.`}
+RÈGLES D’UNE SÉRIE QUI ÉDUQUE ET FIDÉLISE :
+1. Chaque épisode est une histoire complète : il COMMENCE par un problème ou une situation forte dès les 10 premières secondes, avance par 3 ou 4 scènes, arrive à un choix ou à un tournant, et FINIT par l’enseignement dit en voix off (2 phrases simples, mémorables, positives et utiles).
+2. Un fil rouge relie les épisodes : le héros évolue, et chaque fin donne envie de voir la suite.
+3. Personnages fixes : chacun a une fiche visuelle précise en anglais (« fiche_en » : âge, peau, visage, coiffure, tenue signature, silhouette), recopiée à l’identique dans tous les épisodes, et un rappel court (« rappel_en »).
+4. Réalisme du pays : lieux, métiers, prix, langue et vie quotidienne vrais, sans caricature.
+5. Personnages, entreprises, institutions et partis FICTIFS : aucune personne réelle, aucune vraie entreprise, aucun vrai parti. On montre des comportements (corruption, exploitation, injustice) sans accuser quelqu’un de réel.
+6. Enseignements constructifs : droits, intégrité, solidarité, prudence, recours légaux ; jamais la violence ni la haine.
+7. Émotions variées d’un épisode à l’autre ; les 3 premiers épisodes sont les plus forts (ils font s’abonner).
+8. Titres courts et accrocheurs, dans la langue du public.
+RÉPONDS UNIQUEMENT avec ce JSON :
+${first?`{"titres":[{"titre":"","sens":"pourquoi ce titre"}],"titre":"le meilleur des 3","logline":"","promesse":"","ton":"","lieux":[{"id":"l1","nom":"","description_en":""}],"personnages":[{"id":"c1","nom":"","role":"","age":"","fiche_fr":"","fiche_en":"","rappel_en":"","voix":"","arc":""}],"parties":[{"titre":"","episodes":"1-5","enjeu":""}],"episodes":[EP]}`:`{"episodes":[EP]}`}
+où EP = {"n":${from},"titre":"","situation":"le problème du début","developpement":"","tournant":"","enseignement":"le texte exact de la voix off de fin","suite":"le lien vers l’épisode suivant","personnages":["c1"],"lieu":"l1","emotion":"equilibre|triste|inspirant|drole|suspense"}`; }
+const sfS = (v,n) => String(v==null?"":v).replace(/\s+/g," ").trim().slice(0,n||400);
+function sfEps(arr, N){ return (Array.isArray(arr)?arr:[]).map(e=>({n:Math.round(+(e&&e.n))||0, titre:sfS(e&&e.titre,120), situation:sfS(e&&e.situation,700), developpement:sfS(e&&e.developpement,900), tournant:sfS(e&&e.tournant,500), enseignement:sfS(e&&e.enseignement,400), suite:sfS(e&&e.suite,300), personnages:(Array.isArray(e&&e.personnages)?e.personnages:[]).map(x=>sfS(x,20)).slice(0,8), lieu:sfS(e&&e.lieu,20), emotion:sfS(e&&e.emotion,20)})).filter(e=>e.n>=1&&e.n<=N&&e.titre); }
+function sfNorm(r, N){ r=r||{}; const per=(Array.isArray(r.personnages)?r.personnages:[]).slice(0,12).map((c,i)=>({id:sfS(c.id,20)||`c${i+1}`, nom:sfS(c.nom,60)||`Personnage ${i+1}`, role:sfS(c.role,160), age:sfS(c.age,30), fiche_fr:sfS(c.fiche_fr,600), fiche_en:sfS(c.fiche_en||c.fiche_fr,800), rappel_en:sfS(c.rappel_en||c.fiche_en,300), voix:sfS(c.voix,120), arc:sfS(c.arc,300)}));
+  const titres=(Array.isArray(r.titres)?r.titres:[]).slice(0,4).map(t=>({titre:sfS(t&&t.titre,80), sens:sfS(t&&t.sens,240)})).filter(t=>t.titre);
+  return {titre:sfS(r.titre,80)||(titres[0]&&titres[0].titre)||"Ma série", titres, logline:sfS(r.logline,500), promesse:sfS(r.promesse,300), ton:sfS(r.ton,200),
+    lieux:(Array.isArray(r.lieux)?r.lieux:[]).slice(0,12).map((l,i)=>({id:sfS(l.id,20)||`l${i+1}`, nom:sfS(l.nom,80), description_en:sfS(l.description_en,500)})), personnages:per,
+    parties:(Array.isArray(r.parties)?r.parties:[]).slice(0,8).map(p=>({titre:sfS(p.titre,80), episodes:sfS(p.episodes,20), enjeu:sfS(p.enjeu,300)})), episodes:sfEps(r.episodes,N)}; }
+function sfAdd(B, eps){ const have=new Set(B.episodes.map(e=>e.n)); eps.forEach(e=>{ if(!have.has(e.n)){ B.episodes.push(e); have.add(e.n); } }); B.episodes.sort((a,b)=>a.n-b.n); }
+function sfSave(){ const S=SF.st; if(!S) return; SF.key=SF.key||`sf:${Date.now()}`; creationSave("serie", SF.key, S.bible.titre, S); }
+async function sfStart(idee){ if(SF.run) return; const N=Math.max(2,Math.min(40,+$("sf-n").value||20)), regle=$("sf-regle").value.trim()||"Chaque épisode commence par un problème et se termine par un enseignement en voix off.";
+  const nz=nicheById($("f-niche").value), f=Object.assign({}, form, {niche:nz?nz.docId:"", nicheNom:nz?nz.nom:""});
+  SF.ctl=new AbortController(); SF.run=true; $("go").disabled=true; $("stop").hidden=false; const t0=Date.now();
+  try{ let B=null;
+    for(let from=1; from<=N; from+=10){ const to=Math.min(N,from+9);
+      for(let k=0;k<2;k++){ showStatus("",`L’agent écrit la série : ${B?`épisodes ${from} à ${to}`:`bible et épisodes ${from} à ${to}`}… (${Math.round((Date.now()-t0)/1000)} s)`,false,Math.min(95,5+90*(from-1)/N));
+        const r=await sample.json(sfPrompt(idee,f,N,regle,from,to,B),{modelTier:"complex", engine:"best", cache:false, signal:SF.ctl.signal});
+        if(!B){ B=sfNorm(r,N); if(B.personnages.length&&B.episodes.length) break; B=null; } else { const before=B.episodes.length; sfAdd(B,sfEps(r&&r.episodes,N)); if(B.episodes.length>before) break; } } if(!B) throw {code:"invalid_json", message:"L’agent n’a pas rendu de bible lisible : réessaie."} }
+    const miss=[]; for(let n=1;n<=N;n++) if(!B.episodes.some(e=>e.n===n)) miss.push(n);
+    SF.st={idee, regle, N, params:Object.assign({}, f), bible:B, done:{}, at:Date.now()}; SF.key=""; sfSave(); $("status").hidden=true; sfRender();
+    toast(miss.length?`Bible écrite : ${B.episodes.length} épisodes sur ${N} (manquants : ${miss.join(", ")}). Touche « Créer les épisodes ».`:`Bible de la série écrite : ${N} épisodes. Vérifie-la, puis crée les épisodes.`);
+    $("sf-res").scrollIntoView({behavior:"smooth",block:"start"}); }
+  catch(err){ if(err&&err.code==="cancelled") $("status").hidden=true; else showStatus("", errText(err), true); }
+  finally{ SF.run=false; $("go").disabled=false; $("stop").hidden=true; SF.ctl=null; } }
+/* le film d'un épisode : la bible, l'histoire d'avant, la règle et la fin imposée, avec les personnages fixes */
+function sfBrief(S, e){ const B=S.bible, prev=B.episodes.filter(x=>x.n<e.n).slice(-2), cast=B.personnages.filter(c=>!e.personnages.length||e.personnages.includes(c.id)), lieu=B.lieux.find(l=>l.id===e.lieu);
+  return [`Série « ${B.titre} » — épisode ${e.n} sur ${S.N} : « ${e.titre} ».`, B.logline?`Univers de la série : ${B.logline}`:"", B.ton?`Ton : ${B.ton}`:"",
+    `Personnages de l’épisode : ${cast.map(c=>`${c.nom} (${c.role})`).join(" ; ")}.`, lieu?`Lieu principal : ${lieu.nom}${lieu.description_en?` (${lieu.description_en})`:""}.`:"",
+    prev.length?`Ce qui s’est passé avant : ${prev.map(x=>`épisode ${x.n} « ${x.titre} » : ${x.tournant||x.situation}`).join(" ; ")}.`:"Premier épisode : présente le héros et son monde.",
+    `DÉBUT (10 premières secondes) — le problème : ${e.situation}`, e.developpement?`DÉVELOPPEMENT : ${e.developpement}`:"", e.tournant?`TOURNANT : ${e.tournant}`:"",
+    `FIN OBLIGATOIRE : les derniers plans portent la voix off de l’enseignement, mot pour mot : « ${e.enseignement} »`, e.suite?`Dernière image, lien vers l’épisode suivant : ${e.suite}`:"", `Règle de la série : ${S.regle}`].filter(Boolean).join("\n"); }
+const sfNormW = t => String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9\u0600-\u06ff ]/g," ").replace(/\s+/g," ").trim();
+async function sfMakeEp(n){ const S=SF.st, B=S.bible, e=B.episodes.find(x=>x.n===n); if(!e) return;
+  S.done[n]={state:"run"}; sfRender();
+  const persos=B.personnages.map(c=>({id:c.id, nom:c.nom, fiche_en:c.fiche_en, rappel_en:c.rappel_en||c.fiche_en, fiche_fr:c.fiche_fr, style:S.params.style||"realiste", traits:c.role, voix:c.voix, docId:""}));
+  const params=Object.assign({}, S.params, {persos, serie:{titre:B.titre, n, total:S.N, key:SF.key}}), brief=sfBrief(S,e);
+  try{ const res=await sfGen(brief, params, "", SF.ctl?SF.ctl.signal:undefined);
+    /* la voix off de l'enseignement termine toujours l'épisode */
+    const plans=res.plans||[], last=plans[plans.length-1], head=sfNormW(e.enseignement).slice(0,24);
+    if(last&&e.enseignement&&head&&!plans.slice(-2).some(p=>sfNormW(p.voix_off).includes(head))){ last.voix_off=e.enseignement; last.repliques=[]; last.locuteur=""; res.enseignement_impose=true; }
+    res.titre=`${B.titre} · Ép. ${String(n).padStart(2,"0")} — ${e.titre}`;
+    const proj={id:null,isExample:false,idee:brief,params,result:res,createdAt:Date.now(),updatedAt:Date.now()}; await saveProject(proj,{quiet:true});
+    S.done[n]={state:"ok", id:proj.id, at:Date.now(), plans:plans.length}; }
+  catch(err){ if(err&&err.code==="cancelled"){ delete S.done[n]; throw err; } S.done[n]={state:"err", message:errText(err)}; }
+  finally{ sfSave(); sfRender(); } }
+async function sfMakeAll(only){ const S=SF.st; if(!S||SF.run) return; if(!sample){ toast("L’agent est nécessaire pour écrire les épisodes."); return; }
+  SF.run=true; SF.stop=false; SF.ctl=new AbortController(); $("go").disabled=true; let fails=0;
+  try{ const list=only?[only]:S.bible.episodes.map(e=>e.n).filter(n=>!(S.done[n]&&S.done[n].state==="ok"));
+    for(const [k,n] of list.entries()){ if(SF.stop) break; const m=$("sf-msg"); if(m) m.textContent=`Épisode ${n} (${k+1} sur ${list.length})… Garde cette page ouverte.`;
+      await sfMakeEp(n); if(S.done[n]&&S.done[n].state==="err"){ if(++fails>=3){ toast("Trois épisodes de suite ont échoué (quota de l’agent ?) : réessaie plus tard, la série reprendra où elle s’est arrêtée."); break; } } else fails=0; } }
+  catch(err){ if(!(err&&err.code==="cancelled")) toast(errText(err)); }
+  finally{ SF.run=false; SF.ctl=null; $("go").disabled=false; $("status").hidden=true; sfRender(); } }
+function sfRender(){ const S=SF.st, box=$("sf-res"); if(!box) return; if(!S){ box.innerHTML=""; return; } const B=S.bible, ok=B.episodes.filter(e=>S.done[e.n]&&S.done[e.n].state==="ok").length;
+  const dl=(k,v)=>v?`<dt>${k}</dt><dd>${esc(v)}</dd>`:"";
+  box.innerHTML=`<div class="panel sf-bible"><span class="kicker">Série · ${S.N} épisodes de ${esc(sfDur(S.params.duree))}</span><h2>${esc(B.titre)}</h2>${B.logline?`<p class="sf-logline">${esc(B.logline)}</p>`:""}
+    ${B.titres.length>1?`<div><span class="flabel">Choisis le titre</span><div class="sf-titres">${B.titres.map((t,i)=>`<button type="button" data-sf-titre="${i}" aria-pressed="${t.titre===B.titre}" title="${esc(t.sens)}">${esc(t.titre)}</button>`).join("")}</div></div>`:""}
+    ${B.promesse?`<p class="note-box">${esc(B.promesse)}</p>`:""}
+    <details><summary><b>Personnages (${B.personnages.length})</b> — fiches gardées identiques dans tous les épisodes</summary><dl class="sf-dl">${B.personnages.map(c=>dl(c.nom,[c.role,c.age,c.fiche_fr].filter(Boolean).join(" · "))).join("")}</dl><div class="actions"><button type="button" class="btn small" id="sf-chars">Ajouter les personnages à ma bibliothèque</button></div></details>
+    ${B.parties.length?`<details><summary><b>Les parties de la série</b></summary><dl class="sf-dl">${B.parties.map(p=>dl(`${p.titre} (${p.episodes})`,p.enjeu)).join("")}</dl></details>`:""}
+    <div class="actions"><button type="button" class="btn primary" id="sf-all"${SF.run?" disabled":""}>${ok?`▶ Créer les ${B.episodes.length-ok} épisodes restants`:`▶ Créer les ${B.episodes.length} épisodes`}</button><button type="button" class="btn" id="sf-stop"${SF.run?"":" hidden"}>Arrêter après cet épisode</button><span class="hint" id="sf-msg">${ok}/${B.episodes.length} épisodes créés${SF.run?"":" · chaque épisode prend 1 à 3 minutes ; tu peux arrêter et reprendre"}</span></div>
+    <ol class="sf-eps">${B.episodes.map(e=>{ const d=S.done[e.n]||{}, st=d.state==="ok"?`<span class="chip ok">✅ prêt</span>`:d.state==="run"?`<span class="chip run">⏳ en cours</span>`:d.state==="err"?`<span class="chip err">❌ échec</span>`:`<span class="chip">à créer</span>`;
+      return `<li class="sf-ep" data-sf-n="${e.n}"><div class="sf-ep-h"><b>Ép. ${String(e.n).padStart(2,"0")}</b><span class="sf-t">${esc(e.titre)}</span>${st}</div>
+        <details><summary>Voir l’épisode</summary><dl>${dl("Début (problème)",e.situation)}${dl("Développement",e.developpement)}${dl("Tournant",e.tournant)}${dl("Voix off de fin",e.enseignement)}${dl("Vers la suite",e.suite)}</dl></details>
+        ${d.state==="err"?`<p class="hint">${esc(d.message||"")}</p>`:""}<div class="actions">${d.state==="ok"?`<button type="button" class="btn small" data-open="${esc(d.id)}">Ouvrir le film</button>`:""}<button type="button" class="btn small" data-sf-make="${e.n}"${SF.run?" disabled":""}>${d.state==="ok"?"Refaire cet épisode":"Créer cet épisode"}</button></div></li>`; }).join("")}</ol></div>`; }
+document.addEventListener("click", async e=>{ const t=e.target.closest&&e.target.closest("button"); if(!t) return;
+  if(t.dataset.sfMode){ sfModeSet(t.dataset.sfMode); return; }
+  if(!SF.st) return;
+  if(t.dataset.sfTitre!=null){ const T=SF.st.bible.titres[+t.dataset.sfTitre]; if(T){ SF.st.bible.titre=T.titre; sfSave(); sfRender(); } return; }
+  if(t.id==="sf-all"){ sfMakeAll(); return; } if(t.id==="sf-stop"){ SF.stop=true; t.disabled=true; t.textContent="Arrêt après cet épisode…"; return; }
+  if(t.dataset.sfMake){ sfMakeAll(+t.dataset.sfMake); return; }
+  if(t.id==="sf-chars"){ let k=0; for(const c of SF.st.bible.personnages) if(await saveChar({id:c.id, nom:c.nom, fiche_en:c.fiche_en, rappel_en:c.rappel_en, fiche_fr:c.fiche_fr, style:SF.st.params.style||"realiste", traits:c.role, voix:c.voix})) k++; if(k) toast(`${k} personnage${k>1?"s":""} ajouté${k>1?"s":""} à ta bibliothèque.`); return; } });
+$("stop").addEventListener("click",()=>{ if(SF.ctl) SF.ctl.abort(); });
+if(loadPrefs().sfMode==="serie") sfModeSet("serie");
 /* Version améliorée d'un projet : l'agent reçoit le projet actuel et la critique, puis réécrit le projet complet */
 /* =================== ONGLET PAROLES : voix off et répliques modifiables, plan par plan =================== */
 const nWordsOf = t => String(t||"").trim().split(/\s+/).filter(Boolean).length;
@@ -12657,7 +12783,7 @@ cbInit();
    Quiz, infos, pubs, cours et animations s'enregistrent aussi dans « Mes projets » (kind « creation »), à côté des films,
    et se rouvrent dans leur onglet. Chaque onglet garde son propre état (sp-jeux, sp-presse, sp-pub, MD_RESULT) : la copie
    enregistrée est ce même état. Une clé stable par création (sp-prefs.crea) évite les doublons ; écriture regroupée (1,2 s). */
-const CREA_TYPES={lecon:["📚","Leçon animée"],video:["✨","Constructeur"],quiz:["🧠","Quiz"],infos:["📰","Infos du jour"],pub:["📣","Publicité"],cours:["🎓","Cours"],anim:["🎨","Animation"]};
+const CREA_TYPES={serie:["📺","Série"],lecon:["📚","Leçon animée"],video:["✨","Constructeur"],quiz:["🧠","Quiz"],infos:["📰","Infos du jour"],pub:["📣","Publicité"],cours:["🎓","Cours"],anim:["🎨","Animation"]};
 const CREA_T={};
 function creationSave(type, key, titre, state){
   if(!db||!uid||!CREA_TYPES[type]) return;
@@ -12673,6 +12799,7 @@ function creationOpen(d){
   if(x.type==="infos"&&s.r){ try{ localStorage.setItem("sp-presse", JSON.stringify(s)); }catch(e){} if(prInit.done) prApply(s); link(`infos:${s.id||""}:${s.r.titre||""}`); setView("presse:infos"); if(PR.r) prRender(); return; }
   if(x.type==="pub"&&s.d){ try{ localStorage.setItem("sp-pub", JSON.stringify(s)); }catch(e){} (PB.videos||[]).forEach(v=>URL.revokeObjectURL(v.url)); PB.videos=[]; PB.d=s.d; PB.photos=s.photos||[]; PB.logo=s.logo||""; link(`pub:${s.d.at||""}`); pbShow.done=false; setView("presse:pub"); return; }
   if((x.type==="cours"||x.type==="anim")&&s.r){ setView(s.course?"presse:cours":"presse:libre"); MD_RESULT={f:s.f||{}, r:s.r, research:s.research||null, course:!!s.course, _key:`md:${d.id}`}; link(MD_RESULT._key); MD_VIDEO=null; if(s.course) crRender(s.r); else mdRender(s.r); return; }
+  if(x.type==="serie"&&s.bible){ setView("studio"); SF.st=s; SF.key=`sf:${d.id}`; link(SF.key); sfModeSet("serie"); sfRender(); $("sf-res").scrollIntoView({behavior:"smooth",block:"start"}); return; }
   if(x.type==="lecon"&&s.L){ setView("lecon"); LC.L=SP_LECON.norm(s.L); LC.model=LC.L.modele; LC.pub=s.pub||null; LC.key=`lc:${d.id}`; link(LC.key); lcRender(); return; }
   if(x.type==="video"&&s.plan){ setView("constructeur"); CB.plan=Object.assign({},s.plan,{_key:`cb:${d.id}`}); link(CB.plan._key); const miss=(s.fichiers||[]).filter(f=>f.kind!=="doc"&&!CB.assets.some(a=>a.name===f.name)); CB.plan.scenes.forEach(z=>{ z.media=(z.media||[]).filter(m=>CB.assets[m.ai]); }); cbRender(); if(miss.length) toast(`Rejoins tes fichiers (${miss.map(f=>f.name).slice(0,3).join(", ")}${miss.length>3?"…":""}) pour les revoir dans la vidéo.`); return; }
   toast("Cette création ne peut pas être rouverte.");
